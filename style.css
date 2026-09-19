@@ -285,13 +285,22 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 
 /* ---- Chapters ---- */
 .rpt-chapter { margin-bottom: 26px; }
-.rpt-chapter-head { display: flex; align-items: center; gap: 10px; background: var(--rpt-burgundy); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; }
-.rpt-chapter-icon { width: 30px; height: 30px; border-radius: 7px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rpt-chapter-title { font-family: 'Cairo', 'Almarai', sans-serif; font-size: 15.5px; font-weight: 800; color: #fff; margin: 0; }
+.rpt-chapter-head { display: flex; align-items: center; gap: 12px; background: #f3e8dd; border: 1px solid var(--rpt-line); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+.rpt-chapter-num { width: 34px; height: 34px; border-radius: 50%; background: var(--rpt-burgundy); color: #fff; font-weight: 900; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rpt-chapter-icon { width: 26px; height: 26px; border-radius: 7px; background: var(--rpt-burgundy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rpt-chapter-title { font-family: 'Cairo', 'Almarai', sans-serif; font-size: 15.5px; font-weight: 800; color: var(--rpt-burgundy); margin: 0; }
 .rpt-subheading { font-size: 12.5px; font-weight: 800; color: var(--rpt-burgundy); margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--rpt-line); }
 .rpt-subheading:first-child { margin-top: 0; }
 .rpt-chapter-body .doc-kv { font-size: 12px; }
 .rpt-chapter-body table.prs-table th { background: #f4ece4 !important; color: var(--rpt-burgundy) !important; }
+.rpt-chapter-body table.prs-table td { border-top-color: var(--rpt-line) !important; }
+/* توحيد ألوان الشارات وأشرطة التقدم داخل التقرير على درجات العنابي والبيج،
+   بدل الألوان المتعددة (أخضر/أصفر/أحمر) المستخدمة بلوحة التحكم — يبقي التقرير
+   المطبوع أنيقًا ومتناسقًا بصريًا، مع بقاء نص الحالة نفسه (النص لا يتغيّر). */
+.rpt-chapter-body .badge { background: #f4ece4 !important; color: var(--rpt-burgundy) !important; border: 1px solid var(--rpt-line); }
+.rpt-chapter-body .progress-bar { background: #f0e4d8 !important; }
+.rpt-chapter-body .progress-bar-fill { background: var(--rpt-burgundy) !important; }
+.rpt-chapter-body .stat-icon-circle { background: #f4ece4 !important; }
 .rpt-chapter-body .hint { font-size: 11.5px; }
 
 /* ---- Approval / closing block ---- */

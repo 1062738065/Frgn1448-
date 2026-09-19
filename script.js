@@ -2412,15 +2412,16 @@ function reportSummaryHtml(report) {
   goalsFlat.forEach((g) => { if (g.level) goalLevelCounts[g.level] = (goalLevelCounts[g.level] || 0) + 1; });
   const avgGoalPct = goalsFlat.length ? Math.round(goalsFlat.reduce((s, g) => s + (Number(g.percentage) || 0), 0) / goalsFlat.length) : 0;
 
+  const RPT_SHADES = ["#4d1827", "#8a3350", "#c26b85", "#d8c4a8", "#a8a29a"];
   const indicatorPie = indicators.length ? svgPieChart([
-    { label: "متحقق", value: statusCounts.achieved, color: GREEN },
-    { label: "قريب من المستهدف", value: statusCounts.close, color: GOLD },
-    { label: "يحتاج تدخلاً", value: statusCounts.needsAction, color: "#c9863a" },
-    { label: "متعثر", value: statusCounts.struggling, color: DANGER },
-    { label: "بلا بيانات", value: statusCounts.noData, color: SUBTLE },
+    { label: "متحقق", value: statusCounts.achieved, color: RPT_SHADES[0] },
+    { label: "قريب من المستهدف", value: statusCounts.close, color: RPT_SHADES[1] },
+    { label: "يحتاج تدخلاً", value: statusCounts.needsAction, color: RPT_SHADES[2] },
+    { label: "متعثر", value: statusCounts.struggling, color: RPT_SHADES[3] },
+    { label: "بلا بيانات", value: statusCounts.noData, color: RPT_SHADES[4] },
   ], { size: 120 }) : emptyHint("لا توجد مؤشرات بعد.");
 
-  const goalPie = goalsFlat.length ? svgPieChart(GOAL_LEVELS.map((lvl) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: goalLevelMeta(lvl).color })), { size: 120 }) : emptyHint("لا توجد أهداف بعد.");
+  const goalPie = goalsFlat.length ? svgPieChart(GOAL_LEVELS.map((lvl, i) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: RPT_SHADES[i % RPT_SHADES.length] })), { size: 120 }) : emptyHint("لا توجد أهداف بعد.");
 
   return `
     <div class="rpt-chapter-head">
@@ -2442,7 +2443,7 @@ function reportSummaryHtml(report) {
 /* يجمع أكثر من قسم تحت عنوان فصل واحد رسمي — إذا كان الفصل يحوي أكثر من قسم،
    يضيف عنوانًا فرعيًا لكل قسم داخله بدون تكرار شارة الحالة (لا نفقد أي معلومة،
    فقط ننظمها ضمن هيكل التقرير الرسمي المطلوب). */
-function reportChapterHtml(iconFn, title, sectionIds, report) {
+function reportChapterHtml(num, iconFn, title, sectionIds, report) {
   const showSubheadings = sectionIds.length > 1;
   const parts = sectionIds.map((sid) => {
     const section = SECTIONS.find((s) => s.id === sid);
@@ -2453,11 +2454,16 @@ function reportChapterHtml(iconFn, title, sectionIds, report) {
   return `
     <section class="rpt-chapter prs-avoid-break">
       <div class="rpt-chapter-head">
-        <div class="rpt-chapter-icon">${iconFn(18, "#fff")}</div>
+        <div class="rpt-chapter-num">${arabicDigits(num)}</div>
+        <div class="rpt-chapter-icon">${iconFn(16, "#fff")}</div>
         <h2 class="rpt-chapter-title">${esc(title)}</h2>
       </div>
       <div class="rpt-chapter-body">${parts}</div>
     </section>`;
+}
+function arabicDigits(n) {
+  const map = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+  return String(n).split("").map((d) => map[+d] ?? d).join("");
 }
 
 function reportCoverPageHtml(unit, report, dept) {
@@ -2485,12 +2491,13 @@ function reportCoverPageHtml(unit, report, dept) {
   </section>`;
 }
 
-function reportApprovalHtml(report) {
+function reportApprovalHtml(num, report) {
   const d = report.sections?.basic?.data || {};
   return `
     <section class="rpt-chapter prs-avoid-break">
       <div class="rpt-chapter-head">
-        <div class="rpt-chapter-icon">${iconCheckCircle(18, "#fff")}</div>
+        <div class="rpt-chapter-num">${arabicDigits(num)}</div>
+        <div class="rpt-chapter-icon">${iconCheckCircle(16, "#fff")}</div>
         <h2 class="rpt-chapter-title">الإغلاق والاعتماد</h2>
       </div>
       <div class="rpt-chapter-body">
@@ -2515,16 +2522,16 @@ function fullReportOrPreviewBody(unit, report) {
     ${reportCoverPageHtml(unit, report, dept)}
     <section class="a4-page">
       ${reportSummaryHtml(report)}
-      ${reportChapterHtml(iconDocument, "بيانات التقرير", ["basic"], report)}
-      ${reportChapterHtml(iconTarget, "الأهداف والمؤشرات", ["goals", "kpi"], report)}
-      ${reportChapterHtml(iconLayers, "مرحلة التنفيذ", ["programs", "tools"], report)}
-      ${reportChapterHtml(iconCheckCircle, "مرحلة التقييم", ["analysis", "strengths"], report)}
-      ${reportChapterHtml(iconSparkles, "الأثر والتميز", ["initiatives", "impact"], report)}
-      ${reportChapterHtml(iconBell, "التحديات والملاحظات", ["challenges"], report)}
-      ${reportChapterHtml(iconPencil, "التوصيات والتحسين", ["improvement", "recommendations"], report)}
-      ${reportApprovalHtml(report)}
-      ${reportChapterHtml(iconCalendarSmall, "خطة الفترة القادمة", ["nextplan"], report)}
-      ${reportChapterHtml(iconSave, "الأدلة والمرفقات", ["evidence", "review"], report)}
+      ${reportChapterHtml(1, iconDocument, "بيانات التقرير", ["basic"], report)}
+      ${reportChapterHtml(2, iconTarget, "الأهداف والمؤشرات", ["goals", "kpi"], report)}
+      ${reportChapterHtml(3, iconLayers, "مرحلة التنفيذ", ["programs", "tools"], report)}
+      ${reportChapterHtml(4, iconCheckCircle, "مرحلة التقييم", ["analysis", "strengths"], report)}
+      ${reportChapterHtml(5, iconSparkles, "الأثر والتميز", ["initiatives", "impact"], report)}
+      ${reportChapterHtml(6, iconBell, "التحديات والملاحظات", ["challenges"], report)}
+      ${reportChapterHtml(7, iconPencil, "التوصيات والتحسين", ["improvement", "recommendations"], report)}
+      ${reportApprovalHtml(8, report)}
+      ${reportChapterHtml(9, iconCalendarSmall, "خطة الفترة القادمة", ["nextplan"], report)}
+      ${reportChapterHtml(10, iconSave, "الأدلة والمرفقات", ["evidence", "review"], report)}
     </section>`;
 }
 
