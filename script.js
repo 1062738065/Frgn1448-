@@ -2255,10 +2255,8 @@ function reportTable(headers, rows) {
 }
 function emptyHint(label) { return `<div class="hint">${esc(label)}</div>`; }
 
-function sectionReportHtml(section, saved, report) {
+function sectionBodyOnly(section, saved, report) {
   const d = (saved && saved.data) || {};
-  const meta = statusMeta(saved ? saved.status : "not_started");
-  const head = `<div class="doc-section-title">${esc(section.label)} ${badgeHtml(meta.label, meta.color, meta.bg)}</div>`;
   let body = "";
 
   if (section.id === "basic") {
@@ -2371,7 +2369,12 @@ function sectionReportHtml(section, saved, report) {
     body = textBlock("المحتوى", d.content) || emptyHint("لم يُدخل محتوى بعد.");
   }
   if (d.notes) body += textBlock("ملاحظات", d.notes);
-  return `<div class="doc-section prs-avoid-break">${head}${body}</div>`;
+  return body;
+}
+function sectionReportHtml(section, saved, report) {
+  const meta = statusMeta(saved ? saved.status : "not_started");
+  const head = `<div class="doc-section-title">${esc(section.label)} ${badgeHtml(meta.label, meta.color, meta.bg)}</div>`;
+  return `<div class="doc-section prs-avoid-break">${head}${sectionBodyOnly(section, saved, report)}</div>`;
 }
 function comparisonJudgmentMeta(judgment) {
   if (judgment === "تحسن") return { color: GREEN, bg: GREEN_BG };
@@ -2415,30 +2418,115 @@ function reportSummaryHtml(report) {
     { label: "يحتاج تدخلاً", value: statusCounts.needsAction, color: "#c9863a" },
     { label: "متعثر", value: statusCounts.struggling, color: DANGER },
     { label: "بلا بيانات", value: statusCounts.noData, color: SUBTLE },
-  ], { size: 130 }) : emptyHint("لا توجد مؤشرات بعد.");
+  ], { size: 120 }) : emptyHint("لا توجد مؤشرات بعد.");
 
-  const goalPie = goalsFlat.length ? svgPieChart(GOAL_LEVELS.map((lvl) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: goalLevelMeta(lvl).color })), { size: 130 }) : emptyHint("لا توجد أهداف بعد.");
+  const goalPie = goalsFlat.length ? svgPieChart(GOAL_LEVELS.map((lvl) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: goalLevelMeta(lvl).color })), { size: 120 }) : emptyHint("لا توجد أهداف بعد.");
 
   return `
-  <div class="doc-section prs-avoid-break">
-    <div class="doc-section-title">ملخص التقرير</div>
+    <div class="rpt-chapter-head">
+      <div class="rpt-chapter-icon">${iconSparkles(18, "#fff")}</div>
+      <h2 class="rpt-chapter-title">ملخص التقرير</h2>
+    </div>
     <div class="stat-grid" style="margin-bottom:16px;">
-      ${statIconCardHtml("نسبة إنجاز التقرير", progress.percent + "٪", iconGauge(progress.percent === 100 ? GREEN : ROSE, 18), progress.percent === 100 ? GREEN_BG : BLUE_BG)}
-      ${statIconCardHtml("عدد المؤشرات", indicators.length, iconDocument(18, GOLD), GOLD_BG)}
-      ${statIconCardHtml("عدد الأهداف التشغيلية", goalsFlat.length, iconLayers(18, GREEN), GREEN_BG)}
-      ${statIconCardHtml("متوسط نسبة تحقق الأهداف", avgGoalPct + "٪", iconCheckCircle(18, avgGoalPct >= 75 ? GREEN : GOLD), avgGoalPct >= 75 ? GREEN_BG : GOLD_BG)}
+      ${statIconCardHtml("نسبة إنجاز التقرير", progress.percent + "٪", iconGauge("var(--rpt-burgundy)", 18), "#f4ece4")}
+      ${statIconCardHtml("عدد المؤشرات", indicators.length, iconDocument(18, "var(--rpt-burgundy)"), "#f4ece4")}
+      ${statIconCardHtml("عدد الأهداف التشغيلية", goalsFlat.length, iconLayers(18, "var(--rpt-burgundy)"), "#f4ece4")}
+      ${statIconCardHtml("متوسط نسبة تحقق الأهداف", avgGoalPct + "٪", iconCheckCircle(18, "var(--rpt-burgundy)"), "#f4ece4")}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">
-      <div><div style="font-size:12px;font-weight:800;margin-bottom:8px;">توزيع حالات المؤشرات</div>${indicatorPie}</div>
-      <div><div style="font-size:12px;font-weight:800;margin-bottom:8px;">توزيع مستويات تحقق الأهداف</div>${goalPie}</div>
-    </div>
-  </div>`;
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+      <div><div class="rpt-subheading" style="margin-top:0;">توزيع حالات المؤشرات</div>${indicatorPie}</div>
+      <div><div class="rpt-subheading" style="margin-top:0;">توزيع مستويات تحقق الأهداف</div>${goalPie}</div>
+    </div>`;
 }
 
+/* يجمع أكثر من قسم تحت عنوان فصل واحد رسمي — إذا كان الفصل يحوي أكثر من قسم،
+   يضيف عنوانًا فرعيًا لكل قسم داخله بدون تكرار شارة الحالة (لا نفقد أي معلومة،
+   فقط ننظمها ضمن هيكل التقرير الرسمي المطلوب). */
+function reportChapterHtml(iconFn, title, sectionIds, report) {
+  const showSubheadings = sectionIds.length > 1;
+  const parts = sectionIds.map((sid) => {
+    const section = SECTIONS.find((s) => s.id === sid);
+    const saved = report.sections?.[sid];
+    const body = sectionBodyOnly(section, saved, report);
+    return `${showSubheadings ? `<div class="rpt-subheading">${esc(section.label)}</div>` : ""}${body}`;
+  }).join("");
+  return `
+    <section class="rpt-chapter prs-avoid-break">
+      <div class="rpt-chapter-head">
+        <div class="rpt-chapter-icon">${iconFn(18, "#fff")}</div>
+        <h2 class="rpt-chapter-title">${esc(title)}</h2>
+      </div>
+      <div class="rpt-chapter-body">${parts}</div>
+    </section>`;
+}
+
+function reportCoverPageHtml(unit, report, dept) {
+  const d = report.sections?.basic?.data || {};
+  return `
+  <section class="a4-page rpt-cover">
+    <div class="rpt-cover-inner">
+      <img src="${ASSOCIATION_LOGO}" class="rpt-cover-logo" alt="شعار الجمعية" />
+      <div class="rpt-cover-assoc">جمعية فرقان لتحفيظ القرآن الكريم بالطائف</div>
+      <div class="rpt-cover-unit">${dept ? esc(dept.name) + " — " : ""}${esc(unit.name)}</div>
+      <div class="rpt-cover-divider"></div>
+      <h1 class="rpt-cover-title">التقرير الدوري للأداء</h1>
+      <div class="rpt-cover-sub">${esc(report.label || "")}</div>
+      <div class="rpt-cover-meta">
+        ${d.periodType ? `<div><span>الفترة:</span> ${esc(d.periodType)}</div>` : ""}
+        ${d.hijriYear ? `<div><span>العام الهجري:</span> ${esc(d.hijriYear)}</div>` : ""}
+        ${d.startDate ? `<div><span>من:</span> ${esc(d.startDate)} &nbsp; <span>إلى:</span> ${esc(d.endDate || "—")}</div>` : ""}
+        ${!d.periodType && !d.hijriYear && !d.startDate ? `<div style="color:var(--rpt-gray)">لم تُحدَّد بيانات الفترة بعد</div>` : ""}
+      </div>
+      <div class="rpt-cover-prepared">
+        <div>إعداد: ${esc(d.preparerName || "—")} ${d.preparerTitle ? "— " + esc(d.preparerTitle) : ""}</div>
+        <div>الرئيسة المباشرة: ${esc(d.managerName || "—")}</div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reportApprovalHtml(report) {
+  const d = report.sections?.basic?.data || {};
+  return `
+    <section class="rpt-chapter prs-avoid-break">
+      <div class="rpt-chapter-head">
+        <div class="rpt-chapter-icon">${iconCheckCircle(18, "#fff")}</div>
+        <h2 class="rpt-chapter-title">الإغلاق والاعتماد</h2>
+      </div>
+      <div class="rpt-chapter-body">
+        ${textBlock("الخلاصة النهائية", (report.sections?.review?.data || {}).content)}
+        <div class="rpt-approval-grid">
+          <div class="rpt-approval-box"><div class="rpt-approval-role">المسؤولة عن التقرير</div><div class="rpt-approval-line">${esc(d.preparerName || "—")}</div></div>
+          <div class="rpt-approval-box"><div class="rpt-approval-role">المراجعة</div><div class="rpt-approval-line">${esc(d.managerName || "—")}</div></div>
+          <div class="rpt-approval-box"><div class="rpt-approval-role">الاعتماد</div><div class="rpt-approval-line">&nbsp;</div></div>
+        </div>
+      </div>
+    </section>`;
+}
+
+/* هيكل التقرير الرسمي: غلاف ← ملخص ← بيانات التقرير ← الأهداف والمؤشرات ←
+   مرحلة التنفيذ ← مرحلة التقييم ← الأثر والتميز ← التحديات والملاحظات ←
+   التوصيات والتحسين ← الإغلاق والاعتماد ← الأدلة والمرفقات.
+   كل قسم من الأقسام الـ15 الأصلية يظهر مرة واحدة بالضبط ضمن هذا الترتيب،
+   بدون حذف أو تكرار أي معلومة. */
 function fullReportOrPreviewBody(unit, report) {
-  return reportSummaryHtml(report) + SECTIONS.map((section) => sectionReportHtml(section, report.sections?.[section.id], report)).join("");
+  const dept = S.departments.find((x) => x.id === unit.departmentId);
+  return `
+    ${reportCoverPageHtml(unit, report, dept)}
+    <section class="a4-page">
+      ${reportSummaryHtml(report)}
+      ${reportChapterHtml(iconDocument, "بيانات التقرير", ["basic"], report)}
+      ${reportChapterHtml(iconTarget, "الأهداف والمؤشرات", ["goals", "kpi"], report)}
+      ${reportChapterHtml(iconLayers, "مرحلة التنفيذ", ["programs", "tools"], report)}
+      ${reportChapterHtml(iconCheckCircle, "مرحلة التقييم", ["analysis", "strengths"], report)}
+      ${reportChapterHtml(iconSparkles, "الأثر والتميز", ["initiatives", "impact"], report)}
+      ${reportChapterHtml(iconBell, "التحديات والملاحظات", ["challenges"], report)}
+      ${reportChapterHtml(iconPencil, "التوصيات والتحسين", ["improvement", "recommendations"], report)}
+      ${reportApprovalHtml(report)}
+      ${reportChapterHtml(iconCalendarSmall, "خطة الفترة القادمة", ["nextplan"], report)}
+      ${reportChapterHtml(iconSave, "الأدلة والمرفقات", ["evidence", "review"], report)}
+    </section>`;
 }
-
 
 function renderFullReport() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
@@ -2449,7 +2537,7 @@ function renderFullReport() {
   <div class="page-wrap"><div class="page-inner report">
     ${topBarHtml({ title: "عرض التقرير كاملاً", subtitle: `${unit.name} — ${esc(report.label)} — ${progress.completed} من ${progress.total} أقسام مكتملة`, backAction: "nav-to-unit-report",
       right: pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) })}
-    <div class="card card-lg">${fullReportOrPreviewBody(unit, report)}</div>
+    <div class="rpt-wrap">${fullReportOrPreviewBody(unit, report)}</div>
     <div class="hint" style="margin-top:12px;">للتعديل على أي قسم، ارجعي إلى "مسودة التقرير" واختاري القسم من قائمة المراحل.</div>
   </div></div>`;
 }
@@ -2458,19 +2546,10 @@ function renderReportPreview() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
   const report = getCurrentReportEntry();
   if (!report) return `<div class="page-wrap">تعذر إيجاد هذا التقرير.</div>`;
-  const shared = report.shared || {};
   return `
   <div class="page-wrap"><div class="page-inner report">
     <div class="no-print">${topBarHtml({ title: "معاينة التقرير", backAction: "nav-to-unit-report", right: pillBtn("تحميل التقرير", { icon: iconDownload(15, "#fff"), action: "print-page" }) })}</div>
-    <div class="doc-page">
-      <div style="text-align:center;margin-bottom:22px;">
-        <img src="${ASSOCIATION_LOGO}" alt="شعار الجمعية" style="width:74px;margin:0 auto 10px;display:block;" />
-        <div class="prs-doc-title" style="font-size:20px;font-weight:800;">التقرير الدوري للأداء</div>
-        <div class="prs-doc" style="font-size:13px;color:${SUBTLE};margin-top:4px;">${esc(unit.name)} ${shared.periodType ? "— " + esc(shared.periodType) : ""} ${shared.hijriYear ? esc(shared.hijriYear) : ""}</div>
-      </div>
-      ${fullReportOrPreviewBody(unit, report)}
-      <div style="text-align:center;font-size:10.5px;color:${SUBTLE};margin-top:10px;">أُعِد بواسطة: ${esc(shared.preparerName || "—")} — ${esc(shared.preparerTitle || "")}</div>
-    </div>
+    <div class="rpt-wrap">${fullReportOrPreviewBody(unit, report)}</div>
   </div></div>`;
 }
 
