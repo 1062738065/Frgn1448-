@@ -39,7 +39,7 @@ const SECTIONS = [
   { id: "evidence", label: "الشواهد والمرفقات" },
   { id: "review", label: "المراجعة والاعتماد" },
 ];
-const GENERIC_SECTION_IDS = ["evidence", "review"];
+const GENERIC_SECTION_IDS = [];
 
 const PHASES = [
   { id: "phase1", label: "التأسيس", sectionIds: ["basic", "goals", "kpi"] },
@@ -144,6 +144,19 @@ const RECOMMENDATION_SOURCES = ["نتيجة مؤشر", "أداة قياس", "ص�
 const RECOMMENDATION_LEVELS = ["تنفذها الوحدة", "تنفذها إدارة القسم", "تحتاج تعاون عدة أقسام", "تحتاج قرار إدارة التعليم", "تحتاج قرار الإدارة العليا"];
 const RECOMMENDATION_PRIORITIES = ["عاجلة", "عالية", "متوسطة", "منخفضة"];
 
+const EVIDENCE_TYPES_LIST = ["صورة", "كشف حضور", "نتيجة استبانة", "تقرير مالي", "محضر اجتماع", "رابط لوحة مؤشرات", "نموذج من المخرجات", "خطاب", "قصة نجاح", "فيديو موثق وفق السياسة", "ملف آخر"];
+const CONFIDENTIALITY_LEVELS = ["متاح في التقرير العام", "متاح للإدارة فقط", "سري ولا يظهر إلا للمخولين"];
+const REVIEW_CHECKLIST_ITEMS = [
+  { key: "numbersVerified", label: "راجعت صحة الأرقام" },
+  { key: "noDuplicateBeneficiaries", label: "تأكدت من عدم تكرار المستفيدات" },
+  { key: "evidenceAttached", label: "أرفقت الأدلة اللازمة" },
+  { key: "recommendationsLinked", label: "ربطت التوصيات بالنتائج" },
+  { key: "noUnauthorizedPersonalData", label: "لم أدرج بيانات شخصية غير مصرح بها" },
+  { key: "wordingReviewed", label: "راجعت الصياغة" },
+  { key: "unitManagerApproved", label: "اعتمدت مديرة الوحدة البيانات" },
+];
+const MANAGER_NOTE_OPTIONS = ["معتمد دون ملاحظات", "معتمد بعد التعديل", "يعاد للاستكمال"];
+
 /* =============================== Supabase integration (optional) =============
    Paste your Supabase project URL and anon key below (see the accompanying
    supabase-setup.sql file for setup steps). When these are empty, the app
@@ -224,6 +237,7 @@ const MOCK_USERS = [
   { username: "admin", password: "admin123", role: "admin", name: "مديرة النظام" },
   { username: "unit1", password: "1234", role: "user", name: "مسؤولة الوحدة", unitId: "seed-1" },
   { username: "dept1", password: "1234", role: "department", name: "قسم شؤون المكاتب", departmentId: "dept-2" },
+  { username: "exec1", password: "1234", role: "executive", name: "الإدارة العليا" },
 ];
 
 /* =============================== Storage layer ============================= */
@@ -370,6 +384,7 @@ function createNewReportEntry(unitId) {
 function reportStatusMeta(status) {
   if (status === "completed") return { label: "مكتمل", color: GREEN, bg: GREEN_BG };
   if (status === "under_review") return { label: "قيد المراجعة", color: GOLD, bg: GOLD_BG };
+  if (status === "returned") return { label: "إعادة للتعديل", color: DANGER, bg: DANGER_BG };
   return { label: "مسودة", color: BLUE, bg: BLUE_BG };
 }
 
@@ -411,6 +426,7 @@ const S = {
   currentDepartmentId: null,
   isAdmin: false,
   isDepartmentUser: false,
+  isExecutive: false,
   sidebarOpen: true,
   mobileSidebarOpen: false,
   // report editor state
@@ -441,6 +457,12 @@ function render() {
     html = shellWrap(renderUnitsOverview());
   } else if (S.view === "department-overview") {
     html = shellWrap(renderDepartmentOverview());
+  } else if (S.view === "executive-dashboard") {
+    html = shellWrap(renderExecutiveDashboard());
+  } else if (S.view === "executive-summary") {
+    html = shellWrap(renderExecutiveSummary());
+  } else if (S.view === "executive-final-report") {
+    html = shellWrap(renderExecutiveFinalReport());
   } else if (S.view === "all-reports") {
     html = shellWrap(renderAllReports());
   } else if (S.view === "units-manage") {
@@ -488,12 +510,15 @@ const SIDEBAR_PAGES = [
   { id: "indicators-manage", label: "إدارة مؤشرات الأداء", group: "إدارة التقارير", icon: "gauge" },
   { id: "goals-manage", label: "إدارة الأهداف والمستهدفات", group: "إدارة التقارير", icon: "target" },
   { id: "department-overview", label: "قسمي", group: "الرئيسية", icon: "building" },
+  { id: "executive-dashboard", label: "لوحة المعلومات", group: "الإدارة العليا", icon: "home" },
+  { id: "executive-summary", label: "الملخص التنفيذي", group: "الإدارة العليا", icon: "document" },
+  { id: "executive-final-report", label: "التقرير الإداري النهائي", group: "الإدارة العليا", icon: "layers" },
   { id: "unit-reports", label: "تقاريري", group: "التقارير", scope: "unit", icon: "document" },
   { id: "unit-report", label: "متابعة التقرير المفتوح", group: "التقارير", scope: "unitreport", icon: "pencil" },
   { id: "full-report", label: "عرض التقرير كاملاً", group: "التقارير", scope: "unitreport", icon: "layers" },
   { id: "report-preview", label: "معاينة التقرير", group: "التقارير", scope: "unitreport", icon: "printer" },
 ];
-const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "التقارير"];
+const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "الإدارة العليا", "التقارير"];
 function sidebarNavIcon(key, size, color) {
   const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter };
   const fn = map[key] || iconDocument;
@@ -508,9 +533,11 @@ function renderMainSidebar(mobile) {
   const UNIT_SCOPED_VIEWS = ["unit-reports", "unit-report", "full-report", "report-preview"];
   let visible;
   if (S.isAdmin) {
-    visible = SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && (p.group !== "التقارير" || UNIT_SCOPED_VIEWS.includes(S.view)));
+    visible = SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && p.group !== "الإدارة العليا" && (p.group !== "التقارير" || UNIT_SCOPED_VIEWS.includes(S.view)));
   } else if (S.isDepartmentUser) {
     visible = SIDEBAR_PAGES.filter((p) => p.id === "department-overview" || (p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view)));
+  } else if (S.isExecutive) {
+    visible = SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا");
   } else {
     visible = SIDEBAR_PAGES.filter((p) => p.id === "admin-reports" || p.group === "التقارير");
   }
@@ -766,6 +793,7 @@ function doLogin(user) {
   S.currentUser = user;
   S.isAdmin = user.role === "admin";
   S.isDepartmentUser = user.role === "department";
+  S.isExecutive = user.role === "executive";
   S.units = dataStore.getUnits();
   S.departments = dataStore.getDepartments();
   S.indicatorDefinitions = dataStore.getIndicatorDefinitions();
@@ -782,6 +810,12 @@ function doLogin(user) {
     S.units.filter((u) => u.departmentId === S.currentDepartmentId).forEach((u) => { reports[u.id] = dataStore.getReports(u.id); });
     S.reports = reports;
     S.view = "department-overview";
+  } else if (S.isExecutive) {
+    // اطلاع إشرافي شامل فقط — بدون أي دخول لنموذج كتابة التقارير أو تعديلها.
+    const reports = {};
+    S.units.forEach((u) => { reports[u.id] = dataStore.getReports(u.id); });
+    S.reports = reports;
+    S.view = "executive-dashboard";
   } else {
     const unitId = user.unitId;
     S.reports[unitId] = dataStore.getReports(unitId);
@@ -791,7 +825,7 @@ function doLogin(user) {
   }
   render();
   if (sheetsConfigured()) {
-    if (S.isAdmin) {
+    if (S.isAdmin || S.isExecutive) {
       Promise.all(S.units.map((u) => refreshReportsFromSheet(u.id))).then(() => { if (S.currentUser) render(); });
     } else if (S.isDepartmentUser) {
       Promise.all(S.units.filter((u) => u.departmentId === S.currentDepartmentId).map((u) => refreshReportsFromSheet(u.id))).then(() => { if (S.currentUser) render(); });
@@ -802,7 +836,7 @@ function doLogin(user) {
 }
 
 function doLogout() {
-  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.isAdmin = false; S.isDepartmentUser = false; S.view = "login"; S.ui = {};
+  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.view = "login"; S.ui = {};
   render();
 }
 
@@ -920,10 +954,12 @@ function renderDashboard() {
   const completedReportsCount = allReportsFlat.filter((x) => x.report.status === "completed").length;
   const underReviewReportsCount = allReportsFlat.filter((x) => x.report.status === "under_review").length;
   const draftReportsCount = allReportsFlat.filter((x) => x.report.status === "draft").length;
+  const returnedReportsCount = allReportsFlat.filter((x) => x.report.status === "returned").length;
   const totalReportsPieHtml = svgPieChart([
     { label: "مكتمل", value: completedReportsCount, color: GREEN },
     { label: "قيد المراجعة", value: underReviewReportsCount, color: GOLD },
     { label: "مسودة", value: draftReportsCount, color: BLUE },
+    { label: "إعادة للتعديل", value: returnedReportsCount, color: DANGER },
   ], { size: 132 });
 
   // Indicator status distribution (pie)
@@ -1102,6 +1138,287 @@ function renderDepartmentOverview() {
   </div></div>`;
 }
 
+/* =============================== Executive (الإدارة العليا) — اطّلاع إشرافي شامل فقط،
+   بدون أي دخول لنموذج كتابة أو تعديل تقارير الوحدات. ============================= */
+function collectAllReportsFlat() {
+  const flat = [];
+  S.units.filter((u) => u.status === "active").forEach((u) => {
+    const dept = S.departments.find((d) => d.id === u.departmentId);
+    ensureUnitReportsLoaded(u.id).forEach((r) => flat.push({ unit: u, dept, report: r }));
+  });
+  return flat;
+}
+// "متأخر" هنا يعني: تقرير لم يُعتمد بعد (مسودة أو قيد المراجعة) ومضى على إنشائه
+// أكثر من 14 يومًا — تقدير عملي بما إن النظام لا يحتفظ بموعد استحقاق صريح لكل تقرير.
+function isReportOverdue(report) {
+  if (report.status === "completed") return false;
+  const ageMs = Date.now() - (report.createdAt || Date.now());
+  return ageMs > 14 * 24 * 60 * 60 * 1000;
+}
+function hijriMonthLabel(ts) {
+  try { return new Date(ts).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long" }); }
+  catch (e) { return "—"; }
+}
+
+function renderExecutiveDashboard() {
+  const flat = collectAllReportsFlat();
+  const total = flat.length;
+  const completed = flat.filter((x) => x.report.status === "completed").length;
+  const inProgress = flat.filter((x) => x.report.status === "draft" || x.report.status === "under_review" || x.report.status === "returned").length;
+  const overdue = flat.filter((x) => isReportOverdue(x.report)).length;
+  const completionPct = total ? Math.round((completed / total) * 100) : 0;
+
+  const activeDepartments = S.departments.filter((d) => d.status === "active");
+  const deptPerf = activeDepartments.map((dept) => {
+    const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+    const pcts = deptUnits.map((u) => computeProgress(latestReportForUnit(u.id)).percent);
+    const avg = pcts.length ? Math.round(pcts.reduce((s, v) => s + v, 0) / pcts.length) : 0;
+    return { label: dept.name, value: avg, color: "var(--rpt-burgundy)" };
+  });
+  const unitPerf = S.units.filter((u) => u.status === "active").map((u) => ({ label: u.name, value: computeProgress(latestReportForUnit(u.id)).percent, color: ROSE }));
+
+  const statusPie = svgPieChart([
+    { label: "مكتمل", value: completed, color: GREEN },
+    { label: "قيد الإعداد", value: inProgress, color: GOLD },
+  ], { size: 140 });
+
+  // مقارنة عدد التقارير المُنشأة حسب الشهر الهجري، عند توفر أكثر من فترة واحدة.
+  const monthCounts = {};
+  flat.forEach((x) => { const m = hijriMonthLabel(x.report.createdAt); monthCounts[m] = (monthCounts[m] || 0) + 1; });
+  const monthKeys = Object.keys(monthCounts);
+  const periodChart = monthKeys.length > 1
+    ? svgBarChart(monthKeys.map((m) => ({ label: m, value: Math.round((monthCounts[m] / total) * 100), color: "var(--rpt-burgundy)" })), { height: 170 })
+    : `<div class="hint">تحتاجين تقارير من أكثر من فترة واحدة لعرض مقارنة زمنية.</div>`;
+
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "لوحة المعلومات", subtitle: "نظرة إشرافية شاملة على كل الأقسام والوحدات",
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    <div class="stat-grid" style="margin-bottom:18px;">
+      ${statIconCardHtml("إجمالي التقارير", total, iconDocument(18, ROSE), DANGER_BG)}
+      ${statIconCardHtml("تقارير مكتملة", completed, iconCheckCircle(18, GREEN), GREEN_BG)}
+      ${statIconCardHtml("قيد الإعداد", inProgress, iconGauge(GOLD, 18), GOLD_BG)}
+      ${statIconCardHtml("تقارير متأخرة", overdue, iconBell(18, DANGER), DANGER_BG)}
+    </div>
+    <div class="card" style="margin-bottom:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="prs-title" style="font-size:14px;font-weight:800;">نسبة إنجاز التقارير إجمالاً</div>
+        <span style="font-size:16px;font-weight:900;color:${ROSE}">${completionPct}٪</span>
+      </div>
+      ${progressBarHtml(completionPct, ROSE)}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">
+      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
+        ${deptPerf.length ? svgBarChart(deptPerf, { height: 180 }) : emptyHint("لا توجد أقسام نشطة بعد.")}</div>
+      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات التقارير</div>${total ? statusPie : emptyHint("لا توجد تقارير بعد.")}</div>
+    </div>
+    <div class="card" style="margin-bottom:18px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">ملخص أداء الوحدات</div>
+      ${unitPerf.length ? svgBarChart(unitPerf, { height: 200 }) : emptyHint("لا توجد وحدات نشطة بعد.")}
+    </div>
+    <div class="card">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">مقارنة عدد التقارير حسب الفترة</div>
+      ${periodChart}
+    </div>
+  </div></div>`;
+}
+
+function renderExecutiveSummary() {
+  const flat = collectAllReportsFlat();
+  const achievements = flat.map((x) => x.report.sections?.programs?.data?.programs || []).flat().filter((p) => p.highlightResult).slice(0, 6);
+  const positiveResults = flat.filter((x) => x.report.sections?.analysis?.data?.positiveResult).slice(0, 6);
+  const allIndicators = [];
+  flat.forEach((x) => (x.report.sections?.kpi?.data?.indicators || []).filter((r) => r.name).forEach((row) => allIndicators.push({ ...row, unitName: x.unit.name })));
+  const indicatorStatusCounts = { achieved: 0, close: 0, needsAction: 0, struggling: 0, noData: 0 };
+  allIndicators.forEach((row) => {
+    const def = S.indicatorDefinitions.find((d) => d.name === row.name);
+    const st = computeIndicatorStatus(resolveIndicatorRow(row, def));
+    indicatorStatusCounts[st.key]++;
+  });
+  const allGoals = [];
+  flat.forEach((x) => (x.report.sections?.goals?.data?.goals || []).forEach((g) => (g.operationalGoals || []).forEach((og) => allGoals.push(og))));
+  const goalLevelCounts = {};
+  allGoals.forEach((g) => { if (g.level) goalLevelCounts[g.level] = (goalLevelCounts[g.level] || 0) + 1; });
+  const allChallenges = [];
+  flat.forEach((x) => (x.report.sections?.challenges?.data?.challenges || []).forEach((c) => allChallenges.push({ ...c, unitName: x.unit.name })));
+  const allRecommendations = [];
+  flat.forEach((x) => (x.report.sections?.recommendations?.data?.recommendations || []).forEach((r) => allRecommendations.push({ ...r, unitName: x.unit.name })));
+  const notesSummaries = flat.filter((x) => x.report.sections?.analysis?.data?.summary).map((x) => ({ unitName: x.unit.name, summary: x.report.sections.analysis.data.summary }));
+
+  const dates = flat.map((x) => x.report.sections?.basic?.data).filter(Boolean);
+  const startDates = dates.map((d) => d.startDate).filter(Boolean).sort();
+  const endDates = dates.map((d) => d.endDate).filter(Boolean).sort();
+  const periodRange = startDates.length && endDates.length ? `${esc(startDates[0])} — ${esc(endDates[endDates.length - 1])}` : "لم تُحدَّد فترات بعد";
+
+  const activeDepartments = S.departments.filter((d) => d.status === "active");
+  const deptRows = activeDepartments.map((dept) => {
+    const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+    const pcts = deptUnits.map((u) => computeProgress(latestReportForUnit(u.id)).percent);
+    const avg = pcts.length ? Math.round(pcts.reduce((s, v) => s + v, 0) / pcts.length) : 0;
+    return [esc(dept.name), deptUnits.length, avg + "٪"];
+  });
+
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "الملخص التنفيذي", subtitle: `الفترة: ${periodRange}`,
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:10px;">أهم النتائج والإنجازات</div>
+      ${achievements.length === 0 ? emptyHint("لا توجد نتائج بارزة مُدخلة بعد.") :
+        achievements.map((p) => `<div class="hint good" style="margin-bottom:6px;">${iconCheckCircle(13, GREEN)} ${esc(p.name || "عمل")}: ${esc(p.highlightResult)}</div>`).join("")}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:16px;">
+      <div class="card"><div class="prs-title" style="font-size:13px;font-weight:800;margin-bottom:10px;">أبرز المؤشرات</div>
+        ${allIndicators.length ? svgPieChart([
+          { label: "متحقق", value: indicatorStatusCounts.achieved, color: GREEN },
+          { label: "قريب", value: indicatorStatusCounts.close, color: GOLD },
+          { label: "يحتاج تدخلاً", value: indicatorStatusCounts.needsAction, color: "#c9863a" },
+          { label: "متعثر", value: indicatorStatusCounts.struggling, color: DANGER },
+        ], { size: 130 }) : emptyHint("لا توجد مؤشرات بعد.")}</div>
+      <div class="card"><div class="prs-title" style="font-size:13px;font-weight:800;margin-bottom:10px;">مستوى تحقق الأهداف</div>
+        ${allGoals.length ? svgPieChart(GOAL_LEVELS.map((lvl) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: goalLevelMeta(lvl).color })), { size: 130 }) : emptyHint("لا توجد أهداف بعد.")}</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:10px;">أبرز التحديات</div>
+      ${allChallenges.length === 0 ? emptyHint("لا توجد تحديات مُدخلة بعد.") :
+        reportTable(["اسم الصعوبة", "الوحدة", "المستوى"], allChallenges.slice(0, 8).map((c) => { const sm = challengeSeverityMeta(c.severity); return [esc(c.name || "—"), esc(c.unitName), c.severity ? badgeHtml(c.severity, sm.color, sm.bg) : "—"]; }))}
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:10px;">التوصيات</div>
+      ${allRecommendations.length === 0 ? emptyHint("لا توجد توصيات مُدخلة بعد.") :
+        reportTable(["نص التوصية", "الوحدة", "الأولوية"], allRecommendations.slice(0, 8).map((r) => { const pm = improvementPriorityMeta(r.priority); return [esc(r.text || "—"), esc(r.unitName), r.priority ? badgeHtml(r.priority, pm.color, pm.bg) : "—"]; }))}
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:10px;">أهم الملاحظات</div>
+      ${notesSummaries.length === 0 ? emptyHint("لا توجد ملاحظات تحليلية مُدخلة بعد.") :
+        notesSummaries.slice(0, 5).map((n) => textBlock(n.unitName, n.summary)).join("")}
+    </div>
+
+    <div class="card">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:10px;">ملخص الأقسام والوحدات</div>
+      ${deptRows.length ? reportTable(["القسم", "عدد الوحدات", "متوسط الإنجاز"], deptRows) : emptyHint("لا توجد أقسام نشطة بعد.")}
+    </div>
+  </div></div>`;
+}
+
+/* ---- التقرير الإداري النهائي: يجمع كل الأقسام والوحدات في مستند رسمي واحد ---- */
+const iconGauge2 = (s, c) => iconGauge(c, s); // iconGauge أصلاً (لون، حجم) — هذا يعكسها لتطابق (حجم، لون) المستخدمة هنا
+const iconBuilding2 = (s, c) => iconBuilding(c, s);
+function execChapterHtml(num, iconFn, title, bodyHtml) {
+  return `
+    <section class="rpt-chapter prs-avoid-break">
+      <div class="rpt-chapter-head">
+        <div class="rpt-chapter-num">${arabicDigits(num)}</div>
+        <div class="rpt-chapter-icon">${iconFn(16, "#fff")}</div>
+        <h2 class="rpt-chapter-title">${esc(title)}</h2>
+      </div>
+      <div class="rpt-chapter-body">${bodyHtml}</div>
+    </section>`;
+}
+function renderExecutiveFinalReport() {
+  const flat = collectAllReportsFlat();
+  const total = flat.length;
+  const completed = flat.filter((x) => x.report.status === "completed").length;
+  const completionPct = total ? Math.round((completed / total) * 100) : 0;
+  const activeDepartments = S.departments.filter((d) => d.status === "active");
+  const activeUnits = S.units.filter((u) => u.status === "active");
+
+  const dates = flat.map((x) => x.report.sections?.basic?.data).filter(Boolean);
+  const startDates = dates.map((d) => d.startDate).filter(Boolean).sort();
+  const endDates = dates.map((d) => d.endDate).filter(Boolean).sort();
+
+  const allGoals = [];
+  flat.forEach((x) => (x.report.sections?.goals?.data?.goals || []).forEach((g) => (g.operationalGoals || []).forEach((og) => allGoals.push({ ...og, unitName: x.unit.name, strategicGoal: g.strategicGoal }))));
+  const allIndicators = [];
+  flat.forEach((x) => (x.report.sections?.kpi?.data?.indicators || []).filter((r) => r.name).forEach((row) => allIndicators.push({ ...row, unitName: x.unit.name })));
+  const allChallenges = [];
+  flat.forEach((x) => (x.report.sections?.challenges?.data?.challenges || []).forEach((c) => allChallenges.push({ ...c, unitName: x.unit.name })));
+  const allRecommendations = [];
+  flat.forEach((x) => (x.report.sections?.recommendations?.data?.recommendations || []).forEach((r) => allRecommendations.push({ ...r, unitName: x.unit.name })));
+  const allImpact = [];
+  flat.forEach((x) => (x.report.sections?.impact?.data?.impactStories || []).forEach((s) => allImpact.push({ ...s, unitName: x.unit.name })));
+
+  const cover = `
+  <section class="a4-page rpt-cover">
+    <div class="rpt-cover-inner">
+      <img src="${ASSOCIATION_LOGO}" class="rpt-cover-logo" alt="شعار الجمعية" />
+      <div class="rpt-cover-assoc">جمعية فرقان لتحفيظ القرآن الكريم بالطائف</div>
+      <div class="rpt-cover-unit">الإدارة العليا</div>
+      <div class="rpt-cover-divider"></div>
+      <h1 class="rpt-cover-title">التقرير الإداري النهائي</h1>
+      <div class="rpt-cover-sub">تقرير مجمّع لجميع الأقسام والوحدات</div>
+      <div class="rpt-cover-meta">
+        <div><span>عدد الأقسام:</span> ${activeDepartments.length}</div>
+        <div><span>عدد الوحدات:</span> ${activeUnits.length}</div>
+        <div><span>عدد التقارير:</span> ${total}</div>
+        ${startDates.length ? `<div><span>الفترة:</span> ${esc(startDates[0])} — ${esc(endDates[endDates.length - 1] || "—")}</div>` : ""}
+      </div>
+      <div class="rpt-cover-prepared"><div>إعداد: الإدارة العليا</div></div>
+    </div>
+  </section>`;
+
+  const summaryChapter = `
+    <div class="rpt-chapter-head"><div class="rpt-chapter-num">١</div><div class="rpt-chapter-icon">${iconSparkles(16, "#fff")}</div><h2 class="rpt-chapter-title">ملخص الإدارة</h2></div>
+    <div class="stat-grid" style="margin-bottom:14px;">
+      ${statIconCardHtml("إجمالي التقارير", total, iconDocument(18, "var(--rpt-burgundy)"), "#f4ece4")}
+      ${statIconCardHtml("نسبة الإنجاز", completionPct + "٪", iconGauge("var(--rpt-burgundy)", 18), "#f4ece4")}
+      ${statIconCardHtml("عدد الأقسام", activeDepartments.length, iconBuilding("var(--rpt-burgundy)", 18), "#f4ece4")}
+      ${statIconCardHtml("عدد الوحدات", activeUnits.length, iconLayers(18, "var(--rpt-burgundy)"), "#f4ece4")}
+    </div>`;
+
+  const deptRows = activeDepartments.map((dept) => {
+    const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+    const pcts = deptUnits.map((u) => computeProgress(latestReportForUnit(u.id)).percent);
+    const avg = pcts.length ? Math.round(pcts.reduce((s, v) => s + v, 0) / pcts.length) : 0;
+    return [esc(dept.name), deptUnits.length, avg + "٪"];
+  });
+  const unitRows = activeUnits.map((u) => {
+    const dept = S.departments.find((d) => d.id === u.departmentId);
+    const p = computeProgress(latestReportForUnit(u.id));
+    return [esc(u.name), esc(dept ? dept.name : "—"), p.percent + "٪"];
+  });
+  const goalsChapterBody = allGoals.length ? reportTable(["الوحدة", "الهدف التشغيلي", "المستوى", "النسبة"], allGoals.slice(0, 20).map((g) => {
+    const gm = goalLevelMeta(g.level);
+    return [esc(g.unitName), esc(g.name), g.level ? badgeHtml(g.level, gm.color, gm.bg) : "—", g.percentage !== "" ? g.percentage + "٪" : "—"];
+  })) : emptyHint("لا توجد أهداف مُدخلة بعد.");
+  const indicatorsChapterBody = allIndicators.length ? reportTable(["الوحدة", "المؤشر", "المتحقق"], allIndicators.slice(0, 20).map((r) => [esc(r.unitName), esc(r.name), esc(r.actual || "—")])) : emptyHint("لا توجد مؤشرات مُدخلة بعد.");
+  const challengesChapterBody = allChallenges.length ? reportTable(["الوحدة", "الصعوبة", "المستوى"], allChallenges.slice(0, 20).map((c) => { const sm = challengeSeverityMeta(c.severity); return [esc(c.unitName), esc(c.name || "—"), c.severity ? badgeHtml(c.severity, sm.color, sm.bg) : "—"]; })) : emptyHint("لا توجد تحديات مُدخلة بعد.");
+  const recsChapterBody = allRecommendations.length ? reportTable(["الوحدة", "التوصية", "الأولوية"], allRecommendations.slice(0, 20).map((r) => { const pm = improvementPriorityMeta(r.priority); return [esc(r.unitName), esc(r.text || "—"), r.priority ? badgeHtml(r.priority, pm.color, pm.bg) : "—"]; })) : emptyHint("لا توجد توصيات مُدخلة بعد.");
+  const impactChapterBody = allImpact.length ? reportTable(["الوحدة", "عنوان قصة الأثر", "نوع الأثر"], allImpact.slice(0, 20).map((s) => [esc(s.unitName), esc(s.title || "—"), esc(s.impactType || "—")])) : emptyHint("لا توجد قصص أثر مُدخلة بعد.");
+
+  const closing = `
+    <div class="rpt-approval-grid">
+      <div class="rpt-approval-box"><div class="rpt-approval-role">إعداد</div><div class="rpt-approval-line">الإدارة العليا</div></div>
+      <div class="rpt-approval-box"><div class="rpt-approval-role">المراجعة</div><div class="rpt-approval-line">&nbsp;</div></div>
+      <div class="rpt-approval-box"><div class="rpt-approval-role">الاعتماد</div><div class="rpt-approval-line">&nbsp;</div></div>
+    </div>`;
+
+  const body = `
+    ${cover}
+    <section class="a4-page">
+      ${summaryChapter}
+      ${execChapterHtml(2, iconBuilding2, "الأقسام", reportTable(["القسم", "عدد الوحدات", "متوسط الإنجاز"], deptRows))}
+      ${execChapterHtml(3, iconLayers, "الوحدات", reportTable(["الوحدة", "القسم", "نسبة الإنجاز"], unitRows))}
+      ${execChapterHtml(4, iconTarget, "الأهداف والنتائج", goalsChapterBody)}
+      ${execChapterHtml(5, iconGauge2, "المؤشرات ونسب الإنجاز", indicatorsChapterBody)}
+      ${execChapterHtml(6, iconBell, "التحديات", challengesChapterBody)}
+      ${execChapterHtml(7, iconPencil, "التوصيات", recsChapterBody)}
+      ${execChapterHtml(8, iconSparkles, "الأثر والنتائج", impactChapterBody)}
+      ${execChapterHtml(9, iconCheckCircle, "الخاتمة والاعتماد", closing)}
+    </section>`;
+
+  return `
+  <div class="page-wrap"><div class="page-inner report">
+    <div class="no-print">${topBarHtml({ title: "التقرير الإداري النهائي", subtitle: `${total} تقرير عبر ${activeUnits.length} وحدة`, right: pillBtn("تحميل / طباعة", { icon: iconDownload(15, "#fff"), action: "print-page" }) })}</div>
+    <div class="rpt-wrap">${body}</div>
+  </div></div>`;
+}
+
 /* =============================== All reports (flat, across every unit) ======== */
 function renderAllReports() {
   const filter = S.ui.allReportsFilter || "all";
@@ -1116,6 +1433,7 @@ function renderAllReports() {
     { id: "all", label: "الكل" },
     { id: "completed", label: "مكتمل" },
     { id: "under_review", label: "قيد المراجعة" },
+    { id: "returned", label: "إعادة للتعديل" },
   ];
   const filtered = filter === "all" ? rows : rows.filter((x) => x.report.status === filter);
 
@@ -1169,6 +1487,7 @@ function renderUnitReportsHub() {
     { id: "all", label: "الكل" },
     { id: "completed", label: "مكتمل" },
     { id: "draft", label: "مسودة" },
+    { id: "returned", label: "إعادة للتعديل" },
   ];
   const filtered = filter === "all" ? list : list.filter((r) => r.status === filter);
   const sorted = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
@@ -1710,10 +2029,13 @@ function sectionEditorHtml(unit, report) {
       ${pillBtn("السابق", { variant: "ghost", action: "section-prev", disabled: sectionIndex <= 0 })}
       <div style="flex:1;">${pillBtn(S.sectionSaveStatus || "حفظ كمسودة", { variant: "soft", icon: iconSave(15, GREEN), action: "section-save-draft" })}</div>
       ${sectionIndex >= SECTIONS.length - 1
-        ? (report.status === "draft"
+        ? (report.status === "draft" || report.status === "returned"
             ? pillBtn("إرسال للمراجعة", { icon: iconCheckCircle(15, "#fff"), action: "submit-report-for-review" })
             : report.status === "under_review"
-            ? pillBtn("اعتماد كمكتمل", { icon: iconCheckCircle(15, "#fff"), action: "mark-report-completed" })
+            ? `<div style="display:flex;gap:8px;">
+                 ${pillBtn("اعتماد كمكتمل", { icon: iconCheckCircle(15, "#fff"), action: "mark-report-completed" })}
+                 ${(S.isAdmin || S.isDepartmentUser) ? pillBtn("إعادة للتعديل", { variant: "danger", icon: iconX(14, DANGER), action: "return-report-for-revision" }) : ""}
+               </div>`
             : pillBtn("مكتمل ✓", { variant: "soft", icon: iconCheckCircle(15, GREEN), disabled: true }))
         : `<button class="next-btn" data-action="section-next">التالي ${iconChevronLeft(15, "#fff")}</button>`}
     </div>
@@ -1740,6 +2062,8 @@ function renderSectionFields(section, d, unit, report) {
     case "impact": return impactSectionHtml(d);
     case "recommendations": return recommendationsSectionHtml(d);
     case "nextplan": return nextplanSectionHtml(d);
+    case "evidence": return evidenceSectionHtml(d);
+    case "review": return reviewSectionHtml(d, report);
     default: return genericSectionHtml(section, d);
   }
 }
@@ -2203,6 +2527,50 @@ function nextplanSectionHtml(d) {
     ${notesFieldHtml(d)}`;
 }
 
+/* ---- الشواهد والمرفقات ---- */
+function evidenceSectionHtml(d) {
+  const items = d.evidenceItems || [];
+  const rows = items.map((item, i) => `
+    <div class="repeat-item">
+      <div class="repeat-item-head"><span class="repeat-item-title">الشاهد ${i + 1}</span>${removeBtn("evidenceItems", item.id)}</div>
+      ${fieldWrap("نوع الشاهد", true, sel("evidenceItems", item.id, "evidenceType", item.evidenceType, EVIDENCE_TYPES_LIST, "اختاري نوع الشاهد"))}
+      <div class="subhead">بيانات الشاهد</div>
+      ${fieldWrap("اسم الشاهد", true, inp("evidenceItems", item.id, "name", item.name, "اسم الشاهد"))}
+      ${fieldWrap("القسم المرتبط به", sel("evidenceItems", item.id, "relatedDepartment", item.relatedDepartment, S.departments.filter((x) => x.status === "active").map((x) => x.name), "اختاري القسم (اختياري)"))}
+      ${fieldWrap("رابط الملف", inp("evidenceItems", item.id, "fileLink", item.fileLink, "رابط الملف بالمستودع"))}
+      ${fieldWrap("وصف مختصر", txt("evidenceItems", item.id, "description", item.description))}
+      ${fieldWrap("درجة السرية", true, radio("evidenceItems", item.id, "confidentiality", item.confidentiality, CONFIDENTIALITY_LEVELS))}
+    </div>`).join("");
+  return `
+    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:14px;">لا تُدرج الصور أو الملفات داخل التقرير نفسه — تُحفظ بالمستودع الخاص بها ويُكتفى برابطها هنا.</div>
+    ${pillBtn("إضافة شاهد", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "evidenceItems" } })}
+    <div style="margin:14px 0;">${rows}</div>
+    ${notesFieldHtml(d)}`;
+}
+
+/* ---- الإقرار والمراجعة ---- */
+function reviewSectionHtml(d, report) {
+  const checklist = d.checklist || {};
+  const checklistHtml = REVIEW_CHECKLIST_ITEMS.map((item) => `
+    <button type="button" class="radio-pill ${checklist[item.key] ? "active" : ""}" style="width:100%;justify-content:flex-start;margin-bottom:6px;" data-action="toggle-review-checklist" data-key="${esc(item.key)}">
+      ${checklist[item.key] ? iconCheck(14, "#fff") : iconCircle(14, SUBTLE)} ${esc(item.label)}
+    </button>`).join("");
+  const meta = reportStatusMeta(report.status);
+
+  return `
+    <div class="subhead">قائمة التحقق (تضعها معدة التقرير)</div>
+    <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:18px;">${checklistHtml}</div>
+
+    <div class="subhead">حالة الإرسال الحالية</div>
+    ${fieldWrap("الحالة", badgeHtml(meta.label, meta.color, meta.bg) + `<div class="hint">تُغيَّر الحالة من الأزرار أسفل الصفحة (حفظ كمسودة / إرسال للمراجعة / إعادة للتعديل / اعتماد نهائي).</div>`)}
+
+    <div class="subhead">ملاحظات المديرة المباشرة</div>
+    ${fieldWrap("قرار المراجعة", radio(null, null, "managerDecision", d.managerDecision, MANAGER_NOTE_OPTIONS))}
+    ${fieldWrap("ملاحظات نصية", txt(null, null, "managerNotesText", d.managerNotesText, "اكتبي أي ملاحظات إضافية"))}
+
+    ${notesFieldHtml(d)}`;
+}
+
 /* =============================== Empty-item factories ========================= */
 const EMPTY_ITEM_FACTORY = {
   programs: () => ({ id: uid("prog"), workType: "", name: "", goal: "", targetGroup: "", targetCount: "", actualBeneficiaries: "", startDate: "", endDate: "", location: "", deliveryMode: "", executingEntity: "", participatingEntities: "", responsiblePerson: "", executionStatus: "", completionPercent: "", attendeesCount: "", attendanceRate: "", continuationRate: "", approvedCost: "", actualCost: "", highlightResult: "" }),
@@ -2217,6 +2585,7 @@ const EMPTY_ITEM_FACTORY = {
   impactStories: () => ({ id: uid("imp2"), impactType: "", title: "", beforeSituation: "", intervention: "", change: "", evidence: "", beneficiariesCount: "", impactDuration: "", ongoing: "", testimonial: "", evidenceLink: "", publicConsent: "" }),
   recommendations: () => ({ id: uid("rec"), source: "", level: "", text: "", evidenceBasis: "", expectedResult: "", priority: "", responsibleParty: "", supportingParties: "", proposedDuration: "", expectedCost: "", indicator: "" }),
   mainTasks: () => ({ id: uid("task"), name: "", goal: "", responsiblePerson: "", expectedDate: "" }),
+  evidenceItems: () => ({ id: uid("evd"), evidenceType: "", name: "", relatedDepartment: "", fileLink: "", description: "", confidentiality: "" }),
 };
 
 // Maps a field (scoped by its repeatable array, or "top" for top-level fields)
@@ -2364,6 +2733,20 @@ function sectionBodyOnly(section, saved, report) {
     body = rows.length ? reportTable(["العمل الرئيسي", "الهدف", "المسؤولة", "الموعد المتوقع"], rows.map((it) => [
       esc(it.name || "—"), esc(it.goal || "—"), esc(it.responsiblePerson || "—"), esc(it.expectedDate || "—"),
     ])) : emptyHint("لم تُضف أعمال رئيسة بعد.");
+
+  } else if (section.id === "evidence") {
+    const rows = d.evidenceItems || [];
+    body = rows.length ? reportTable(["اسم الشاهد", "النوع", "القسم المرتبط", "رابط الملف", "درجة السرية"], rows.map((it) => [
+      esc(it.name || "—"), esc(it.evidenceType || "—"), esc(it.relatedDepartment || "—"), esc(it.fileLink || "—"), esc(it.confidentiality || "—"),
+    ])) : emptyHint("لا توجد شواهد مُدخلة بعد.");
+
+  } else if (section.id === "review") {
+    const checklist = d.checklist || {};
+    const doneCount = REVIEW_CHECKLIST_ITEMS.filter((it) => checklist[it.key]).length;
+    body = kvBlock([kv("قائمة التحقق", `${doneCount} من ${REVIEW_CHECKLIST_ITEMS.length}`)]);
+    body += reportTable(["بند التحقق", "الحالة"], REVIEW_CHECKLIST_ITEMS.map((it) => [esc(it.label), checklist[it.key] ? `<span style="color:${GREEN};font-weight:800;">✓ تم</span>` : `<span style="color:${SUBTLE};">لم يتم</span>`]));
+    if (d.managerDecision) body += kvBlock([kv("قرار المراجعة", d.managerDecision)]);
+    if (d.managerNotesText) body += textBlock("ملاحظات المديرة المباشرة", d.managerNotesText);
 
   } else {
     body = textBlock("المحتوى", d.content) || emptyHint("لم يُدخل محتوى بعد.");
@@ -2736,6 +3119,19 @@ function attachClickListener() {
       case "mark-report-completed": {
         const entry = getCurrentReportEntry();
         if (entry) saveReportEntry(S.currentUnitId, { ...entry, status: "completed", updatedAt: Date.now() });
+        render();
+        break;
+      }
+      case "return-report-for-revision": {
+        const entry = getCurrentReportEntry();
+        if (entry) saveReportEntry(S.currentUnitId, { ...entry, status: "returned", updatedAt: Date.now() });
+        render();
+        break;
+      }
+      case "toggle-review-checklist": {
+        const key = ds.key;
+        const current = S.sectionDraft.checklist || {};
+        S.sectionDraft.checklist = { ...current, [key]: !current[key] };
         render();
         break;
       }
