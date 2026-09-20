@@ -214,8 +214,8 @@ function indDefToRow(d) { return { id: d.id, name: d.name, category: d.category 
 function rowToIndDef(r) { return { id: r.id, name: r.name, category: r.category || "", direction: r.direction || "", nature: r.nature || "", frequency: r.frequency || "", unit: r.unit || "", target: r.target || "", dataSource: r.data_source || "", calculationMethod: r.calculation_method || "" }; }
 function goalToRow(g, kind) { return { id: g.id, name: g.name, kind }; }
 function rowToGoal(r) { return { id: r.id, name: r.name }; }
-function reportToRow(unitId, r) { return { id: r.id, unit_id: unitId, label: r.label || "", status: r.status || "draft", created_at: r.createdAt || Date.now(), updated_at: r.updatedAt || Date.now(), shared: r.shared || {}, indicator_history: r.indicatorHistory || {}, sections: r.sections || {} }; }
-function rowToReport(r) { return { id: r.id, label: r.label || "", status: r.status || "draft", createdAt: Number(r.created_at) || 0, updatedAt: Number(r.updated_at) || 0, shared: r.shared || {}, indicatorHistory: r.indicator_history || {}, sections: r.sections || {} }; }
+function reportToRow(unitId, r) { return { id: r.id, unit_id: unitId, label: r.label || "", status: r.status || "draft", created_at: r.createdAt || Date.now(), updated_at: r.updatedAt || Date.now(), shared: r.shared || {}, indicator_history: r.indicatorHistory || {}, sections: r.sections || {}, last_section_id: r.lastSectionId || "" }; }
+function rowToReport(r) { return { id: r.id, label: r.label || "", status: r.status || "draft", createdAt: Number(r.created_at) || 0, updatedAt: Number(r.updated_at) || 0, shared: r.shared || {}, indicatorHistory: r.indicator_history || {}, sections: r.sections || {}, lastSectionId: r.last_section_id || "" }; }
 
 async function supabaseLogin(name, password) {
   const uRes = await supabaseRequest(`units?name=eq.${encodeURIComponent(name)}&password=eq.${encodeURIComponent(password)}&select=*&limit=1`);
@@ -342,6 +342,12 @@ const dataStore = {
   deleteReports(unitId) {
     lsDelete(reportsKey(unitId)); lsDelete(reportKey(unitId));
     if (sheetsConfigured()) supabaseRequest(`reports?unit_id=eq.${encodeURIComponent(unitId)}`, { method: "DELETE", prefer: "return=minimal" }).catch(() => {});
+  },
+  deleteOneReport(unitId, reportId) {
+    const list = ensureUnitReportsLoaded(unitId).filter((r) => r.id !== reportId);
+    lsSet(reportsKey(unitId), JSON.stringify(list));
+    if (sheetsConfigured()) supabaseRequest(`reports?id=eq.${encodeURIComponent(reportId)}`, { method: "DELETE", prefer: "return=minimal" }).catch(() => {});
+    return list;
   },
 };
 
@@ -539,7 +545,9 @@ function renderMainSidebar(mobile) {
   } else if (S.isExecutive) {
     visible = SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا");
   } else {
-    visible = SIDEBAR_PAGES.filter((p) => p.id === "admin-reports" || p.group === "التقارير");
+    // موظفة الوحدة العادية: تشوف بس عناصر تقاريرها هي — بدون "الأقسام والوحدات"
+    // (ذاك رابط إشرافي يعرض كل الأقسام والوحدات بالجمعية، خاص بمديرة النظام).
+    visible = SIDEBAR_PAGES.filter((p) => p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view));
   }
   const groupsHtml = SIDEBAR_GROUPS.map((g) => {
     const items = visible.filter((p) => p.group === g);
@@ -587,9 +595,9 @@ function renderMainSidebar(mobile) {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
-    <div class="sidebar-tagline">تقارير دقيقة.. لأثر أكبر</div>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-sep"></div>
+    <div class="sidebar-tagline">تقارير دقيقة.. لأثر أكبر</div>
     <button class="logout-btn" data-action="logout">${iconLogout(16, ROSE)} تسجيل الخروج</button>
   `;
 
@@ -1602,6 +1610,7 @@ function reportCardHtml(unit, entry) {
   const meta = reportStatusMeta(entry.status);
   const progress = computeProgress(entry);
   const dateStr = new Date(entry.createdAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" });
+  const confirming = S.ui.confirmDeleteReportId === entry.id;
   return `
   <div class="card prs-card">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
@@ -1609,9 +1618,16 @@ function reportCardHtml(unit, entry) {
       ${badgeHtml(meta.label, meta.color, meta.bg)}
     </div>
     <div style="margin-bottom:10px;">${progressBarHtml(progress.percent, meta.color)}<div style="font-size:10.5px;color:${SUBTLE};margin-top:4px;">${progress.completed} من ${progress.total} أقسام مكتملة</div></div>
-    <div style="display:flex;gap:6px;">
-      ${pillBtn("فتح", { variant: "ghost", icon: iconChevronLeft(14, ROSE), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
-    </div>
+    ${confirming ? `
+      <div class="hint bad" style="margin-bottom:8px;">حذف هذا التقرير نهائي ولا يمكن التراجع عنه.</div>
+      <div style="display:flex;gap:6px;">
+        ${pillBtn("تأكيد الحذف", { variant: "danger", icon: iconTrash(14, "#fff"), action: "delete-report", data: { unitId: unit.id, reportId: entry.id } })}
+        ${pillBtn("إلغاء", { variant: "ghost", action: "cancel-delete-report" })}
+      </div>` : `
+      <div style="display:flex;gap:6px;">
+        ${pillBtn("فتح", { variant: "ghost", icon: iconChevronLeft(14, ROSE), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
+        <button class="icon-btn" style="border:1px solid ${BORDER}" data-action="confirm-delete-report" data-id="${entry.id}" title="حذف التقرير">${iconTrash(14, DANGER)}</button>
+      </div>`}
   </div>`;
 }
 
@@ -1694,6 +1710,13 @@ function departmentRowHtml(d) {
   const editing = S.ui.editingDeptId === d.id;
   const editingPassword = S.ui.editingDeptPasswordId === d.id;
   const confirming = S.ui.confirmDeleteDeptId === d.id;
+  const confirmingRemove = S.ui.confirmRemoveDeptId === d.id;
+  if (confirmingRemove) {
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;font-weight:700;">حذف "${esc(d.name)}" نهائيًا؟ الوحدات التابعة له تصبح بدون قسم.</span>
+      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-department", data: { id: d.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-department" })}</div>
+    </div>`;
+  }
   if (confirming) {
     return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <span style="font-size:12px;font-weight:700;">تعطيل/تفعيل "${esc(d.name)}"؟</span>
@@ -1724,6 +1747,7 @@ function departmentRowHtml(d) {
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-dept-password" data-id="${esc(d.id)}" title="كلمة مرور القسم">${iconKey(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-dept-edit" data-id="${esc(d.id)}" data-name="${esc(d.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-department" data-id="${esc(d.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-department" data-id="${esc(d.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
     </div>
   </div>`;
 }
@@ -2001,11 +2025,12 @@ function phaseSidebarHtml(report) {
     const status = sectionStatus(report, section.id);
     const meta = statusMeta(status);
     const isActive = S.activeSectionId === section.id;
+    const isDone = status === "completed";
     if (collapsed) {
-      return `<button class="phase-row-btn" style="width:40px;height:40px;border-radius:11px;background:${isActive ? ROSE : status === "completed" ? GREEN_BG : "#fff"};justify-content:center;margin:0 auto;" data-action="select-section" data-section="${section.id}" title="${esc(section.label)}">${iconDocument(15, isActive ? "#fff" : status === "completed" ? GREEN : SUBTLE)}</button>`;
+      return `<button class="phase-row-btn" style="width:40px;height:40px;border-radius:11px;background:${isActive ? ROSE : isDone ? GREEN_BG : "#fff"};justify-content:center;margin:0 auto;" data-action="select-section" data-section="${section.id}" title="${esc(section.label)}">${isDone && !isActive ? iconCheck(15, GREEN) : iconDocument(15, isActive ? "#fff" : SUBTLE)}</button>`;
     }
     return `<button class="phase-section-btn ${isActive ? "active" : ""}" style="padding:9px 8px;" data-action="select-section" data-section="${section.id}">
-      ${iconDocument(13, isActive ? "#fff" : SUBTLE)}
+      ${isDone ? iconCheckCircle(13, isActive ? "#fff" : GREEN) : iconDocument(13, isActive ? "#fff" : SUBTLE)}
       <span class="dot" style="background:${isActive ? "#fff" : meta.color}"></span>
       <span class="sec-label" style="flex:1;font-size:12px;font-weight:${isActive ? 700 : 500};color:${isActive ? "#fff" : INK};text-align:right;">${i + 1}. ${esc(section.label)}</span>
     </button>`;
@@ -2032,7 +2057,10 @@ function renderUnitReport() {
 
   // No more phase-overview landing screen: entering a report always opens a
   // section directly — default to the first one if none is active yet.
-  if (!S.activeSectionId) loadSectionIntoDraft(SECTIONS[0].id);
+  if (!S.activeSectionId) {
+    const resumeId = entry.lastSectionId && SECTIONS.some((s) => s.id === entry.lastSectionId) ? entry.lastSectionId : SECTIONS[0].id;
+    loadSectionIntoDraft(resumeId);
+  }
   const mainContent = sectionEditorHtml(unit, entry);
 
   return `
@@ -2071,6 +2099,13 @@ function loadSectionIntoDraft(sectionId) {
   S.sectionCompleted = saved.status === "completed";
   S.sectionSaveStatus = ""; S.sectionSaveError = "";
   S.ui.openMultiDropdown = null;
+  // تذكّر آخر قسم فُتح محليًا، لتفتح عليه تلقائيًا المرة القادمة — يُرفَع لقاعدة
+  // البيانات مع أقرب عملية حفظ فعلية للتقرير (بدون طلب شبكة إضافي هنا).
+  if (entry.lastSectionId !== sectionId && S.currentUnitId) {
+    const list = ensureUnitReportsLoaded(S.currentUnitId).map((r) => (r.id === entry.id ? { ...r, lastSectionId: sectionId } : r));
+    dataStore.saveReports(S.currentUnitId, list);
+    S.reports[S.currentUnitId] = list;
+  }
 }
 function openSection(sectionId) {
   loadSectionIntoDraft(sectionId);
@@ -2122,7 +2157,7 @@ function persistSection(sectionId, data, status) {
     });
     updatedIndicatorHistory = nextHistory;
   }
-  const updatedEntry = { ...current, sections: updatedSections, shared: updatedShared, indicatorHistory: updatedIndicatorHistory, updatedAt: Date.now() };
+  const updatedEntry = { ...current, sections: updatedSections, shared: updatedShared, indicatorHistory: updatedIndicatorHistory, updatedAt: Date.now(), lastSectionId: sectionId };
   // saveReportEntry already pushes the whole updated report (sections included)
   // to Supabase in one call — no separate per-section push needed like the
   // Google Sheets version required.
@@ -2987,7 +3022,7 @@ function arabicDigits(n) {
   return String(n).split("").map((d) => map[+d] ?? d).join("");
 }
 
-function reportCoverPageHtml(unit, report, dept) {
+function reportCoverPageHtml(unit, report, dept, pageNum, totalPages) {
   const d = report.sections?.basic?.data || {};
   return `
   <section class="a4-page rpt-cover">
@@ -3009,6 +3044,7 @@ function reportCoverPageHtml(unit, report, dept) {
         <div>الرئيسة المباشرة: ${esc(d.managerName || "—")}</div>
       </div>
     </div>
+    ${pageNum ? `<div class="rpt-page-number">صفحة ${arabicDigits(pageNum)} من ${arabicDigits(totalPages)}</div>` : ""}
   </section>`;
 }
 
@@ -3039,21 +3075,27 @@ function reportApprovalHtml(num, report) {
    بدون حذف أو تكرار أي معلومة. */
 function fullReportOrPreviewBody(unit, report) {
   const dept = S.departments.find((x) => x.id === unit.departmentId);
+  const pages = [
+    `${reportSummaryHtml(report)}`,
+    `${reportChapterHtml(1, iconDocument, "بيانات التقرير", ["basic"], report)}
+     ${reportChapterHtml(2, iconTarget, "الأهداف والمؤشرات", ["goals", "kpi"], report)}`,
+    `${reportChapterHtml(3, iconLayers, "مرحلة التنفيذ", ["programs", "tools"], report)}`,
+    `${reportChapterHtml(4, iconCheckCircle, "مرحلة التقييم", ["analysis", "strengths"], report)}`,
+    `${reportChapterHtml(5, iconSparkles, "الأثر والتميز", ["initiatives", "impact"], report)}`,
+    `${reportChapterHtml(6, iconBell, "التحديات والملاحظات", ["challenges"], report)}
+     ${reportChapterHtml(7, iconPencil, "التوصيات والتحسين", ["improvement", "recommendations"], report)}`,
+    `${reportApprovalHtml(8, report)}`,
+    `${reportChapterHtml(9, iconCalendarSmall, "خطة الفترة القادمة", ["nextplan"], report)}
+     ${reportChapterHtml(10, iconSave, "الأدلة والمرفقات", ["evidence", "review"], report)}`,
+  ];
+  const total = pages.length + 1; // +1 للغلاف
   return `
-    ${reportCoverPageHtml(unit, report, dept)}
-    <section class="a4-page">
-      ${reportSummaryHtml(report)}
-      ${reportChapterHtml(1, iconDocument, "بيانات التقرير", ["basic"], report)}
-      ${reportChapterHtml(2, iconTarget, "الأهداف والمؤشرات", ["goals", "kpi"], report)}
-      ${reportChapterHtml(3, iconLayers, "مرحلة التنفيذ", ["programs", "tools"], report)}
-      ${reportChapterHtml(4, iconCheckCircle, "مرحلة التقييم", ["analysis", "strengths"], report)}
-      ${reportChapterHtml(5, iconSparkles, "الأثر والتميز", ["initiatives", "impact"], report)}
-      ${reportChapterHtml(6, iconBell, "التحديات والملاحظات", ["challenges"], report)}
-      ${reportChapterHtml(7, iconPencil, "التوصيات والتحسين", ["improvement", "recommendations"], report)}
-      ${reportApprovalHtml(8, report)}
-      ${reportChapterHtml(9, iconCalendarSmall, "خطة الفترة القادمة", ["nextplan"], report)}
-      ${reportChapterHtml(10, iconSave, "الأدلة والمرفقات", ["evidence", "review"], report)}
-    </section>`;
+    ${reportCoverPageHtml(unit, report, dept, 1, total)}
+    ${pages.map((content, i) => `
+      <section class="a4-page">
+        ${content}
+        <div class="rpt-page-number">صفحة ${arabicDigits(i + 2)} من ${arabicDigits(total)}</div>
+      </section>`).join("")}`;
 }
 
 function renderFullReport() {
@@ -3226,6 +3268,15 @@ function attachClickListener() {
       }
       case "set-all-reports-filter": S.ui.allReportsFilter = ds.filter; render(); break;
       case "logout": doLogout(); break;
+      case "confirm-delete-report": S.ui.confirmDeleteReportId = ds.id; render(); break;
+      case "cancel-delete-report": S.ui.confirmDeleteReportId = null; render(); break;
+      case "delete-report": {
+        const unitId = ds.unitId, reportId = ds.reportId;
+        S.reports[unitId] = dataStore.deleteOneReport(unitId, reportId);
+        S.ui.confirmDeleteReportId = null;
+        render();
+        break;
+      }
       case "print-page": window.print(); break;
 
       /* ---------- units overview ---------- */
@@ -3306,6 +3357,17 @@ function attachClickListener() {
       case "toggle-department": {
         S.departments = S.departments.map((d) => d.id === ds.id ? { ...d, status: d.status === "active" ? "disabled" : "active" } : d);
         dataStore.saveDepartments(S.departments); render();
+        break;
+      }
+      case "confirm-remove-department": S.ui.confirmRemoveDeptId = ds.id; render(); break;
+      case "cancel-remove-department": S.ui.confirmRemoveDeptId = null; render(); break;
+      case "delete-department": {
+        S.departments = S.departments.filter((d) => d.id !== ds.id);
+        S.units = S.units.map((u) => u.departmentId === ds.id ? { ...u, departmentId: "" } : u);
+        dataStore.saveDepartments(S.departments);
+        dataStore.saveUnits(S.units);
+        S.ui.confirmRemoveDeptId = null;
+        render();
         break;
       }
       case "start-dept-edit": S.ui.editingDeptId = ds.id; S.ui.editDeptValue = ds.name; render(); break;
