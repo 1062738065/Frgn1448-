@@ -519,24 +519,22 @@ function shellWrap(innerHtml) {
   `;
 }
 
-const HOME_GROUP_ORDER = ["dashboard", "all-reports"];
+const HOME_GROUP_ORDER = ["dashboard", "admin-reports"];
 const SIDEBAR_PAGES = [
   { id: "dashboard", label: "لوحة المعلومات", group: "الرئيسية", icon: "home" },
-  { id: "all-reports", label: "جميع التقارير", group: "الرئيسية", icon: "document" },
-  { id: "admin-reports", label: "الأقسام والوحدات", group: "إدارة التقارير", icon: "building" },
-  { id: "units-manage", label: "إدارة الأقسام والوحدات", group: "إدارة التقارير", icon: "building" },
+  { id: "admin-reports", label: "الأقسام والوحدات", group: "الرئيسية", icon: "building" },
+  { id: "all-reports", label: "جميع التقارير", group: "إدارة التقارير", icon: "document" },
   { id: "indicators-manage", label: "إدارة مؤشرات الأداء", group: "إدارة التقارير", icon: "gauge" },
   { id: "goals-manage", label: "إدارة الأهداف والمستهدفات", group: "إدارة التقارير", icon: "target" },
+  { id: "units-manage", label: "المستخدمون", group: "المستخدمون", icon: "building" },
   { id: "department-overview", label: "قسمي", group: "الرئيسية", icon: "building" },
   { id: "executive-dashboard", label: "لوحة المعلومات", group: "الإدارة العليا", icon: "home" },
   { id: "executive-summary", label: "الملخص التنفيذي", group: "الإدارة العليا", icon: "document" },
   { id: "executive-final-report", label: "التقرير الإداري النهائي", group: "الإدارة العليا", icon: "layers" },
   { id: "unit-reports", label: "تقاريري", group: "التقارير", scope: "unit", icon: "document" },
   { id: "unit-report", label: "متابعة التقرير المفتوح", group: "التقارير", scope: "unitreport", icon: "pencil" },
-  { id: "full-report", label: "عرض التقرير كاملاً", group: "التقارير", scope: "unitreport", icon: "layers" },
-  { id: "report-preview", label: "معاينة التقرير", group: "التقارير", scope: "unitreport", icon: "printer" },
 ];
-const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "الإدارة العليا", "التقارير"];
+const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "المستخدمون", "الإدارة العليا", "التقارير"];
 function sidebarNavIcon(key, size, color) {
   const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter };
   const fn = map[key] || iconDocument;
@@ -551,7 +549,8 @@ function renderMainSidebar(mobile) {
   const UNIT_SCOPED_VIEWS = ["unit-reports", "unit-report", "full-report", "report-preview"];
   let visible;
   if (S.isAdmin) {
-    visible = SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && p.group !== "الإدارة العليا" && (p.group !== "التقارير" || UNIT_SCOPED_VIEWS.includes(S.view)));
+    // مديرة النظام تشوف كل شي بالموقع — بما فيها صفحات الإدارة العليا للاطلاع.
+    visible = SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && (p.group !== "التقارير" || UNIT_SCOPED_VIEWS.includes(S.view)));
   } else if (S.isDepartmentUser) {
     visible = SIDEBAR_PAGES.filter((p) => p.id === "department-overview" || p.id === "all-reports" || (p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view)));
   } else if (S.isExecutive) {
@@ -1721,11 +1720,64 @@ function renderUnitReportsHub() {
 }
 
 /* =============================== Departments / units management ============== */
+function simpleAccountRowHtml(u, roleLabel) {
+  const editingPassword = S.ui.editingUnitPasswordId === u.id;
+  const confirming = S.ui.confirmDeleteUnitId === u.id;
+  if (confirming) {
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;font-weight:700;">حذف "${esc(u.name)}" نهائيًا؟</span>
+      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-unit", data: { id: u.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-confirm-unit" })}</div>
+    </div>`;
+  }
+  if (editingPassword) {
+    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
+      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(u.name)} —</span>
+      <input class="input" id="edit-unit-password" style="flex:1;" placeholder="كلمة المرور الجديدة" value="${esc(S.ui.editUnitPasswordValue || "")}" />
+      <button data-action="save-unit-password" data-id="${esc(u.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
+      <button data-action="cancel-unit-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
+    </div>`;
+  }
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconBuilding(ROSE, 16)}</div>
+      <div style="font-size:13.5px;font-weight:700;">${esc(u.name)} <span style="font-size:10px;font-weight:700;color:${ROSE};background:${DANGER_BG};padding:2px 7px;border-radius:999px;">${esc(roleLabel)}</span></div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-password" data-id="${esc(u.id)}" title="تغيير كلمة المرور">${iconKey(14, INK)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-unit" data-id="${esc(u.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
+    </div>
+  </div>`;
+}
+
 function renderDepartmentsManage() {
   const ui = S.ui;
   return `
   <div class="page-wrap"><div class="page-inner narrow">
-    ${topBarHtml({ title: "إدارة الأقسام والوحدات", backAction: "nav-back-admin" })}
+    ${topBarHtml({ title: "المستخدمون", backAction: "nav-back-admin" })}
+
+    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الإدارة العليا</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input class="input" id="new-executive-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newExecutiveName || "")}" />
+        <input class="input" id="new-executive-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newExecutivePassword || "")}" />
+        ${pillBtn("إضافة حساب إدارة عليا", { icon: iconPlus(15, "#fff"), action: "add-executive" })}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+      ${S.units.filter((u) => u.role === "executive").map((u) => simpleAccountRowHtml(u, "إدارة عليا")).join("") || `<div class="hint">لا توجد حسابات إدارة عليا بعد.</div>`}
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">مديرة النظام</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input class="input" id="new-sysadmin-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newSysadminName || "")}" />
+        <input class="input" id="new-sysadmin-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newSysadminPassword || "")}" />
+        ${pillBtn("إضافة حساب مديرة نظام", { icon: iconPlus(15, "#fff"), action: "add-sysadmin" })}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+      ${S.units.filter((u) => u.role === "admin").map((u) => simpleAccountRowHtml(u, "مديرة نظام")).join("") || `<div class="hint">لا توجد حسابات مديرة نظام إضافية بعد.</div>`}
+    </div>
 
     <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الأقسام</div>
     ${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة مرور القسم (اختيارية) تفتح للقسم كل وحداته التابعة له دفعة واحدة.</div>` : ""}
@@ -3593,6 +3645,26 @@ function attachClickListener() {
         S.units = [...S.units, { id: uid("center"), name, password, role: "center", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
         dataStore.saveUnits(S.units);
         S.ui.newCenterName = ""; S.ui.newCenterPassword = ""; S.ui.newCenterDept = "";
+        render();
+        break;
+      }
+      case "add-executive": {
+        const name = (document.getElementById("new-executive-name").value || "").trim();
+        const password = (document.getElementById("new-executive-password").value || "").trim();
+        if (!name) break;
+        S.units = [...S.units, { id: uid("exec"), name, password, role: "executive", status: "active", departmentId: "", createdAt: Date.now() }];
+        dataStore.saveUnits(S.units);
+        S.ui.newExecutiveName = ""; S.ui.newExecutivePassword = "";
+        render();
+        break;
+      }
+      case "add-sysadmin": {
+        const name = (document.getElementById("new-sysadmin-name").value || "").trim();
+        const password = (document.getElementById("new-sysadmin-password").value || "").trim();
+        if (!name) break;
+        S.units = [...S.units, { id: uid("admin"), name, password, role: "admin", status: "active", departmentId: "", createdAt: Date.now() }];
+        dataStore.saveUnits(S.units);
+        S.ui.newSysadminName = ""; S.ui.newSysadminPassword = "";
         render();
         break;
       }
