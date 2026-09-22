@@ -445,6 +445,7 @@ const S = {
   isDepartmentUser: false,
   isExecutive: false,
   cameFromAllReports: false,
+  adminPreviewOrigin: null,
   sidebarOpen: true,
   mobileSidebarOpen: false,
   // report editor state
@@ -473,6 +474,12 @@ function render() {
     html = shellWrap(renderDashboard());
   } else if (S.view === "admin-reports") {
     html = shellWrap(renderUnitsOverview());
+  } else if (S.view === "departments-list") {
+    html = shellWrap(renderEntityPickerPage("departments"));
+  } else if (S.view === "units-list") {
+    html = shellWrap(renderEntityPickerPage("units"));
+  } else if (S.view === "centers-list") {
+    html = shellWrap(renderEntityPickerPage("centers"));
   } else if (S.view === "department-overview") {
     html = shellWrap(renderDepartmentOverview());
   } else if (S.view === "executive-dashboard") {
@@ -527,6 +534,9 @@ const SIDEBAR_PAGES = [
   { id: "indicators-manage", label: "إدارة مؤشرات الأداء", group: "إدارة التقارير", icon: "gauge" },
   { id: "goals-manage", label: "إدارة الأهداف والمستهدفات", group: "إدارة التقارير", icon: "target" },
   { id: "units-manage", label: "المستخدمون", group: "المستخدمون", icon: "building" },
+  { id: "departments-list", label: "قسمي", group: "الأقسام", icon: "building" },
+  { id: "units-list", label: "تقاريري", group: "الوحدات", icon: "document" },
+  { id: "centers-list", label: "تقاريري", group: "المراكز", icon: "document" },
   { id: "department-overview", label: "قسمي", group: "الرئيسية", icon: "building" },
   { id: "executive-dashboard", label: "لوحة المعلومات", group: "الإدارة العليا", icon: "home" },
   { id: "executive-summary", label: "الملخص التنفيذي", group: "الإدارة العليا", icon: "document" },
@@ -534,7 +544,7 @@ const SIDEBAR_PAGES = [
   { id: "unit-reports", label: "تقاريري", group: "التقارير", scope: "unit", icon: "document" },
   { id: "unit-report", label: "متابعة التقرير المفتوح", group: "التقارير", scope: "unitreport", icon: "pencil" },
 ];
-const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "المستخدمون", "الإدارة العليا", "التقارير"];
+const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "المستخدمون", "الأقسام", "الوحدات", "المراكز", "الإدارة العليا", "التقارير"];
 function sidebarNavIcon(key, size, color) {
   const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter };
   const fn = map[key] || iconDocument;
@@ -565,10 +575,6 @@ function renderMainSidebar(mobile) {
   const groupsHtml = SIDEBAR_GROUPS.map((g) => {
     const items = visible.filter((p) => p.group === g);
     if (!items.length) return "";
-    const isHomeGroup = g === "الرئيسية" && items.length > 1;
-    const homeArrows = isHomeGroup ? `
-      <button class="icon-btn" style="width:22px;height:22px;" data-action="home-group-nav" data-dir="prev" title="السابق">${iconChevronRight(12, INK)}</button>
-      <button class="icon-btn" style="width:22px;height:22px;" data-action="home-group-nav" data-dir="next" title="التالي">${iconChevronLeft(12, INK)}</button>` : "";
     // أكورديون: يفيد فقط لما القائمة كاملة تكون طويلة (عدة مجموعات بعناصر كثيرة،
     // زي مديرة النظام). لو كل قائمة المستخدمة قصيرة أصلًا (وحدة، مركز، قسم، إدارة
     // عليا)، نخلي كل المجموعات مفتوحة دائمًا بدون طي، لأن الطي هنا يزيد خطوة بلا فائدة.
@@ -580,7 +586,6 @@ function renderMainSidebar(mobile) {
       <div class="nav-group ${isOpen ? "open" : ""}">
         <button class="nav-group-label" data-action="toggle-sidebar-group" data-group="${esc(g)}" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;padding:0;">
           <span style="display:flex;align-items:center;gap:6px;">${esc(g)} <span style="display:inline-flex;transition:transform 0.15s;transform:rotate(${isOpen ? "0" : "-90"}deg);">${iconChevronDown(11, SUBTLE)}</span></span>
-          ${homeArrows ? `<span style="display:flex;gap:4px;" onclick="event.stopPropagation()">${homeArrows}</span>` : ""}
         </button>
         ${isOpen ? `<div class="nav-list">
           ${items.map((p) => {
@@ -617,7 +622,7 @@ function renderMainSidebar(mobile) {
     <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-sep"></div>
-    <div class="sidebar-tagline">تقارير دقيقة.. لأثر أكبر</div>
+    ${S.isAdmin ? "" : `<div class="sidebar-tagline">تقارير دقيقة.. لأثر أكبر</div>`}
     <button class="logout-btn" data-action="logout">${iconLogout(16, ROSE)} تسجيل الخروج</button>
   `;
 
@@ -821,6 +826,7 @@ async function refreshReportsFromSheet(unitId) {
 function doLogin(user) {
   S.currentUser = user;
   S.cameFromAllReports = false;
+  S.adminPreviewOrigin = null;
   S.isAdmin = user.role === "admin";
   S.isDepartmentUser = user.role === "department";
   S.isExecutive = user.role === "executive";
@@ -866,7 +872,7 @@ function doLogin(user) {
 }
 
 function doLogout() {
-  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.cameFromAllReports = false; S.view = "login"; S.ui = {};
+  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.view = "login"; S.ui = {};
   render();
 }
 
@@ -1122,6 +1128,26 @@ function unitCardHtml(unit, department, report) {
   </div>`;
 }
 
+// صفحة اختيار مبسّطة لمديرة النظام — تفتح نفس واجهة "قسمي" أو "تقاريري" الحقيقية
+// حسب النوع، بدون أي صفحة مكررة، وبصلاحية اطلاع فقط.
+function renderEntityPickerPage(kind) {
+  const config = {
+    departments: { title: "الأقسام", items: S.departments.filter((d) => d.status === "active"), action: "open-department-preview", sub: (d) => `${S.units.filter((u) => u.departmentId === d.id).length} وحدة/مركز` },
+    units: { title: "الوحدات", items: S.units.filter((u) => u.role !== "center" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
+    centers: { title: "المراكز", items: S.units.filter((u) => u.role === "center" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
+  }[kind];
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: config.title, subtitle: `${config.items.length} — اضغطي لعرض واجهتها الحقيقية للاطلاع` })}
+    ${config.items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد عناصر بعد.</div>` :
+      `<div style="display:flex;flex-direction:column;gap:8px;">${config.items.map((it) => `
+        <button class="card" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:1px solid ${BORDER};cursor:pointer;text-align:right;" data-action="${config.action}" data-id="${esc(it.id)}">
+          <span style="font-size:13.5px;font-weight:700;">${esc(it.name)}</span>
+          <span style="font-size:11px;color:${SUBTLE};display:flex;align-items:center;gap:6px;">${esc(config.sub(it))} ${iconChevronLeft(14, SUBTLE)}</span>
+        </button>`).join("")}</div>`}
+  </div></div>`;
+}
+
 function renderUnitsOverview() {
   const activeDepartments = S.departments.filter((d) => d.status === "active");
   const sections = activeDepartments.map((dept) => {
@@ -1162,7 +1188,7 @@ function renderDepartmentOverview() {
   return `
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: dept.name, subtitle: `مرحبًا — ${units.length} وحدة تابعة لهذا القسم`,
-      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+      right: S.isAdmin && S.adminPreviewOrigin ? pillBtn("رجوع", { variant: "ghost", icon: iconChevronRight(15, INK), action: "nav-to", data: { view: S.adminPreviewOrigin } }) : pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
     ${units.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد وحدات نشطة تابعة لهذا القسم بعد.</div>` :
       `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${units.map((u) => unitCardHtml(u, null, latestReportForUnit(u.id))).join("")}</div>`}
     ${deptCurationSectionHtml(dept)}
@@ -1710,7 +1736,9 @@ function renderUnitReportsHub() {
 
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "نظام توثيق الأداء", subtitle: dept ? `${unit.name} — ${dept.name}` : unit.name, backAction: S.isAdmin ? "nav-back-admin" : S.isDepartmentUser ? "nav-back-department" : "" ,
+    ${topBarHtml({ title: "نظام توثيق الأداء", subtitle: dept ? `${unit.name} — ${dept.name}` : unit.name,
+      backAction: S.isAdmin && S.adminPreviewOrigin ? "nav-to" : S.isAdmin ? "nav-back-admin" : S.isDepartmentUser ? "nav-back-department" : "",
+      backData: S.isAdmin && S.adminPreviewOrigin ? { view: S.adminPreviewOrigin } : undefined,
       right: pillBtn("إنشاء تقرير", { icon: iconPlus(15, "#fff"), action: "create-new-report" }) })}
     <div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
       <div style="width:36px;height:36px;border-radius:10px;background:${GREEN_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconLayers(17, GREEN)}</div>
@@ -3558,9 +3586,28 @@ function attachClickListener() {
       /* ---------- units overview ---------- */
       case "open-unit": {
         const unitId = ds.unitId;
+        S.adminPreviewOrigin = null;
         ensureUnitReportsLoaded(unitId);
         S.currentUnitId = unitId; S.currentReportId = null; S.view = "unit-reports"; S.openPhaseId = null; S.activeSectionId = null; render();
         if (sheetsConfigured()) refreshReportsFromSheet(unitId).then(() => { if (S.currentUnitId === unitId) render(); });
+        break;
+      }
+      case "open-unit-preview": {
+        // اطلاع مديرة النظام على واجهة "تقاريري" الحقيقية لوحدة أو مركز — نفس الصفحة تمامًا.
+        const unit = S.units.find((u) => u.id === ds.id);
+        if (!unit) break;
+        S.adminPreviewOrigin = unit.role === "center" ? "centers-list" : "units-list";
+        ensureUnitReportsLoaded(unit.id);
+        S.currentUnitId = unit.id; S.currentReportId = null; S.view = "unit-reports"; S.openPhaseId = null; S.activeSectionId = null; render();
+        if (sheetsConfigured()) refreshReportsFromSheet(unit.id).then(() => { if (S.currentUnitId === unit.id) render(); });
+        break;
+      }
+      case "open-department-preview": {
+        // اطلاع مديرة النظام على واجهة "قسمي" الحقيقية لقسم معيّن — نفس الصفحة تمامًا.
+        S.adminPreviewOrigin = "departments-list";
+        S.currentDepartmentId = ds.id;
+        S.view = "department-overview";
+        render();
         break;
       }
       case "set-unit-reports-filter": S.ui.unitReportsFilter = ds.filter; render(); break;
