@@ -541,25 +541,27 @@ function sidebarNavIcon(key, size, color) {
   return key === "building" || key === "gauge" ? fn(color, size) : fn(size, color);
 }
 
-function renderMainSidebar(mobile) {
+function computeVisibleSidebarPages() {
   // The "التقارير" sidebar group (تقاريري / متابعة التقرير المفتوح / عرض كامل / معاينة)
   // is unit-scoped work, not site administration — admin and department-level
   // accounts only see it while actually inside a specific unit's pages, not on
   // their own overview page. A unit's own account always sees only this group.
   const UNIT_SCOPED_VIEWS = ["unit-reports", "unit-report", "full-report", "report-preview"];
-  let visible;
   if (S.isAdmin) {
     // مديرة النظام تشوف كل شي بالموقع — بما فيها صفحات الإدارة العليا للاطلاع.
-    visible = SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && (p.group !== "التقارير" || UNIT_SCOPED_VIEWS.includes(S.view)));
+    return SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && (p.group !== "التقارير" || UNIT_SCOPED_VIEWS.includes(S.view)));
   } else if (S.isDepartmentUser) {
-    visible = SIDEBAR_PAGES.filter((p) => p.id === "department-overview" || p.id === "all-reports" || (p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view)));
+    return SIDEBAR_PAGES.filter((p) => p.id === "department-overview" || p.id === "all-reports" || (p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view)));
   } else if (S.isExecutive) {
-    visible = SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا" || p.id === "all-reports");
-  } else {
-    // موظفة الوحدة أو المركز: تشوف "تقاريري" + "جميع التقارير" — بدون
-    // "الأقسام والوحدات" (ذاك رابط إشرافي خاص بمديرة النظام).
-    visible = SIDEBAR_PAGES.filter((p) => p.id === "all-reports" || (p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view)));
+    return SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا" || p.id === "all-reports");
   }
+  // موظفة الوحدة أو المركز: تشوف "تقاريري" + "جميع التقارير" — بدون
+  // "الأقسام والوحدات" (ذاك رابط إشرافي خاص بمديرة النظام).
+  return SIDEBAR_PAGES.filter((p) => p.id === "all-reports" || (p.group === "التقارير" && UNIT_SCOPED_VIEWS.includes(S.view)));
+}
+
+function renderMainSidebar(mobile) {
+  const visible = computeVisibleSidebarPages();
   const groupsHtml = SIDEBAR_GROUPS.map((g) => {
     const items = visible.filter((p) => p.group === g);
     if (!items.length) return "";
@@ -567,20 +569,27 @@ function renderMainSidebar(mobile) {
     const homeArrows = isHomeGroup ? `
       <button class="icon-btn" style="width:22px;height:22px;" data-action="home-group-nav" data-dir="prev" title="السابق">${iconChevronRight(12, INK)}</button>
       <button class="icon-btn" style="width:22px;height:22px;" data-action="home-group-nav" data-dir="next" title="التالي">${iconChevronLeft(12, INK)}</button>` : "";
+    // أكورديون: يفيد فقط لما القائمة كاملة تكون طويلة (عدة مجموعات بعناصر كثيرة،
+    // زي مديرة النظام). لو كل قائمة المستخدمة قصيرة أصلًا (وحدة، مركز، قسم، إدارة
+    // عليا)، نخلي كل المجموعات مفتوحة دائمًا بدون طي، لأن الطي هنا يزيد خطوة بلا فائدة.
+    const shortSidebar = visible.length <= 6;
+    const containsActive = items.some((p) => p.id === S.view);
+    const manualState = (S.ui.sidebarGroupState || {})[g];
+    const isOpen = manualState !== undefined ? manualState : (shortSidebar || containsActive);
     return `
-      <div>
-        <div class="nav-group-label" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>${esc(g)}</span>
-          ${homeArrows ? `<span style="display:flex;gap:4px;">${homeArrows}</span>` : ""}
-        </div>
-        <div class="nav-list">
+      <div class="nav-group ${isOpen ? "open" : ""}">
+        <button class="nav-group-label" data-action="toggle-sidebar-group" data-group="${esc(g)}" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;padding:0;">
+          <span style="display:flex;align-items:center;gap:6px;">${esc(g)} <span style="display:inline-flex;transition:transform 0.15s;transform:rotate(${isOpen ? "0" : "-90"}deg);">${iconChevronDown(11, SUBTLE)}</span></span>
+          ${homeArrows ? `<span style="display:flex;gap:4px;" onclick="event.stopPropagation()">${homeArrows}</span>` : ""}
+        </button>
+        ${isOpen ? `<div class="nav-list">
           ${items.map((p) => {
             const disabled = (p.scope === "unit" && !S.currentUnitId) || (p.scope === "unitreport" && !(S.currentUnitId && S.currentReportId));
             const active = S.view === p.id;
             const iconColor = disabled ? "#cfc3c8" : active ? "#fff" : INK;
             return `<button class="nav-item ${active ? "active" : ""}" ${disabled ? "disabled" : ""} data-action="nav-to" data-view="${p.id}">${sidebarNavIcon(p.icon, 15, iconColor)}<span>${esc(p.label)}</span></button>`;
           }).join("")}
-        </div>
+        </div>` : ""}
       </div>`;
   }).join("");
 
@@ -1749,81 +1758,99 @@ function simpleAccountRowHtml(u, roleLabel) {
   </div>`;
 }
 
+function collapsibleUsersSection({ key, title, count, formHtml, listHtml }) {
+  const manualState = (S.ui.usersSectionState || {})[key];
+  const isOpen = manualState !== undefined ? manualState : false;
+  return `
+    <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;">
+      <button data-action="toggle-users-section" data-key="${esc(key)}" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;cursor:pointer;padding:14px 16px;">
+        <span style="font-size:13.5px;font-weight:800;color:${ROSE};">${esc(title)} <span style="font-size:11px;font-weight:700;color:${SUBTLE};">(${count})</span></span>
+        <span style="display:inline-flex;transition:transform 0.15s;transform:rotate(${isOpen ? "0" : "-90"}deg);">${iconChevronDown(14, SUBTLE)}</span>
+      </button>
+      ${isOpen ? `<div style="padding:0 16px 16px;">${formHtml}${listHtml}</div>` : ""}
+    </div>`;
+}
+
 function renderDepartmentsManage() {
   const ui = S.ui;
+  const execUnits = S.units.filter((u) => u.role === "executive");
+  const adminUnits = S.units.filter((u) => u.role === "admin");
+  const unitUnits = S.units.filter((u) => u.role !== "center");
+  const centerUnits = S.units.filter((u) => u.role === "center");
+
   return `
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "المستخدمون", backAction: "nav-back-admin" })}
 
-    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الإدارة العليا</div>
-    <div class="card" style="margin-bottom:14px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input class="input" id="new-executive-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newExecutiveName || "")}" />
-        <input class="input" id="new-executive-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newExecutivePassword || "")}" />
-        ${pillBtn("إضافة حساب إدارة عليا", { icon: iconPlus(15, "#fff"), action: "add-executive" })}
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-      ${S.units.filter((u) => u.role === "executive").map((u) => simpleAccountRowHtml(u, "إدارة عليا")).join("") || `<div class="hint">لا توجد حسابات إدارة عليا بعد.</div>`}
-    </div>
+    ${collapsibleUsersSection({
+      key: "executive", title: "الإدارة العليا", count: execUnits.length,
+      formHtml: `<div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="input" id="new-executive-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newExecutiveName || "")}" />
+          <input class="input" id="new-executive-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newExecutivePassword || "")}" />
+          ${pillBtn("إضافة حساب إدارة عليا", { icon: iconPlus(15, "#fff"), action: "add-executive" })}
+        </div>
+      </div>`,
+      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${execUnits.map((u) => simpleAccountRowHtml(u, "إدارة عليا")).join("") || `<div class="hint">لا توجد حسابات إدارة عليا بعد.</div>`}</div>`,
+    })}
 
-    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">مديرة النظام</div>
-    <div class="card" style="margin-bottom:14px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input class="input" id="new-sysadmin-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newSysadminName || "")}" />
-        <input class="input" id="new-sysadmin-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newSysadminPassword || "")}" />
-        ${pillBtn("إضافة حساب مديرة نظام", { icon: iconPlus(15, "#fff"), action: "add-sysadmin" })}
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-      ${S.units.filter((u) => u.role === "admin").map((u) => simpleAccountRowHtml(u, "مديرة نظام")).join("") || `<div class="hint">لا توجد حسابات مديرة نظام إضافية بعد.</div>`}
-    </div>
+    ${collapsibleUsersSection({
+      key: "sysadmin", title: "مديرة النظام", count: adminUnits.length,
+      formHtml: `<div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="input" id="new-sysadmin-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newSysadminName || "")}" />
+          <input class="input" id="new-sysadmin-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newSysadminPassword || "")}" />
+          ${pillBtn("إضافة حساب مديرة نظام", { icon: iconPlus(15, "#fff"), action: "add-sysadmin" })}
+        </div>
+      </div>`,
+      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${adminUnits.map((u) => simpleAccountRowHtml(u, "مديرة نظام")).join("") || `<div class="hint">لا توجد حسابات مديرة نظام إضافية بعد.</div>`}</div>`,
+    })}
 
-    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الأقسام</div>
-    ${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة مرور القسم (اختيارية) تفتح للقسم كل وحداته التابعة له دفعة واحدة.</div>` : ""}
-    <div class="card" style="margin-bottom:14px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input class="input" id="new-dept-name" style="flex:2;min-width:160px;" placeholder="اسم القسم الجديد" value="${esc(ui.newDeptName || "")}" />
-        <input class="input" id="new-dept-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور (اختياري)" value="${esc(ui.newDeptPassword || "")}" />
-        ${pillBtn("إضافة قسم", { icon: iconPlus(15, "#fff"), action: "add-department" })}
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-      ${S.departments.map((d) => departmentRowHtml(d)).join("")}
-    </div>
+    ${collapsibleUsersSection({
+      key: "departments", title: "الأقسام", count: S.departments.length,
+      formHtml: `${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة مرور القسم (اختيارية) تفتح للقسم كل وحداته التابعة له دفعة واحدة.</div>` : ""}
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="input" id="new-dept-name" style="flex:2;min-width:160px;" placeholder="اسم القسم الجديد" value="${esc(ui.newDeptName || "")}" />
+          <input class="input" id="new-dept-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور (اختياري)" value="${esc(ui.newDeptPassword || "")}" />
+          ${pillBtn("إضافة قسم", { icon: iconPlus(15, "#fff"), action: "add-department" })}
+        </div>
+      </div>`,
+      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${S.departments.map((d) => departmentRowHtml(d)).join("")}</div>`,
+    })}
 
-    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الوحدات</div>
-    ${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة المرور هنا هي نفسها اللي تسجّل بيها الوحدة دخولها.</div>` : ""}
-    <div class="card" style="margin-bottom:14px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input class="input" id="new-unit-name" style="flex:2;min-width:160px;" placeholder="اسم الوحدة الجديدة" value="${esc(ui.newUnitName || "")}" />
-        <input class="input" id="new-unit-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newUnitPassword || "")}" />
-        <select class="input" id="new-unit-dept" style="flex:1;min-width:140px;">
-          <option value="">القسم (اختياري)</option>
-          ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newUnitDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
-        </select>
-        ${pillBtn("إضافة وحدة", { icon: iconPlus(15, "#fff"), action: "add-unit" })}
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-      ${S.units.filter((u) => u.role !== "center").map((u) => unitRowHtml(u)).join("")}
-    </div>
+    ${collapsibleUsersSection({
+      key: "units", title: "الوحدات", count: unitUnits.length,
+      formHtml: `${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة المرور هنا هي نفسها اللي تسجّل بيها الوحدة دخولها.</div>` : ""}
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="input" id="new-unit-name" style="flex:2;min-width:160px;" placeholder="اسم الوحدة الجديدة" value="${esc(ui.newUnitName || "")}" />
+          <input class="input" id="new-unit-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newUnitPassword || "")}" />
+          <select class="input" id="new-unit-dept" style="flex:1;min-width:140px;">
+            <option value="">القسم (اختياري)</option>
+            ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newUnitDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
+          </select>
+          ${pillBtn("إضافة وحدة", { icon: iconPlus(15, "#fff"), action: "add-unit" })}
+        </div>
+      </div>`,
+      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${unitUnits.map((u) => unitRowHtml(u)).join("")}</div>`,
+    })}
 
-    <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">المراكز</div>
-    <div class="card" style="margin-bottom:14px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input class="input" id="new-center-name" style="flex:2;min-width:160px;" placeholder="اسم المركز الجديد" value="${esc(ui.newCenterName || "")}" />
-        <input class="input" id="new-center-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newCenterPassword || "")}" />
-        <select class="input" id="new-center-dept" style="flex:1;min-width:140px;">
-          <option value="">القسم (اختياري)</option>
-          ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newCenterDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
-        </select>
-        ${pillBtn("إضافة مركز", { icon: iconPlus(15, "#fff"), action: "add-center" })}
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${S.units.filter((u) => u.role === "center").map((u) => unitRowHtml(u)).join("")}
-    </div>
+    ${collapsibleUsersSection({
+      key: "centers", title: "المراكز", count: centerUnits.length,
+      formHtml: `<div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="input" id="new-center-name" style="flex:2;min-width:160px;" placeholder="اسم المركز الجديد" value="${esc(ui.newCenterName || "")}" />
+          <input class="input" id="new-center-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newCenterPassword || "")}" />
+          <select class="input" id="new-center-dept" style="flex:1;min-width:140px;">
+            <option value="">القسم (اختياري)</option>
+            ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newCenterDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
+          </select>
+          ${pillBtn("إضافة مركز", { icon: iconPlus(15, "#fff"), action: "add-center" })}
+        </div>
+      </div>`,
+      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${centerUnits.map((u) => unitRowHtml(u)).join("")}</div>`,
+    })}
   </div></div>`;
 }
 
@@ -3462,6 +3489,9 @@ function attachClickListener() {
       /* ---------- navigation & shell ---------- */
       case "nav-to": {
         S.view = ds.view; if (ds.view !== "unit-report") S.activeSectionId = null; if (isMobileViewport()) S.mobileSidebarOpen = false;
+        // نلغي أي طيّ يدوي للمجموعة اللي تحتوي الصفحة الجديدة، عشان تفتح تلقائيًا وتبيّن أين نحن.
+        const targetPage = SIDEBAR_PAGES.find((p) => p.id === ds.view);
+        if (targetPage && S.ui.sidebarGroupState) delete S.ui.sidebarGroupState[targetPage.group];
         render();
         if (sheetsConfigured()) {
           if (ds.view === "admin-reports" || ds.view === "units-manage" || ds.view === "department-overview") {
@@ -3483,6 +3513,25 @@ function attachClickListener() {
       case "open-sidebar": if (isMobileViewport()) S.mobileSidebarOpen = true; else S.sidebarOpen = true; render(); break;
       case "close-sidebar": S.sidebarOpen = false; render(); break;
       case "close-mobile-sidebar": S.mobileSidebarOpen = false; render(); break;
+      case "toggle-sidebar-group": {
+        S.ui.sidebarGroupState = S.ui.sidebarGroupState || {};
+        const g = ds.group;
+        const visible = computeVisibleSidebarPages();
+        const items = visible.filter((p) => p.group === g);
+        const containsActive = items.some((p) => p.id === S.view);
+        const shortSidebar = visible.length <= 6;
+        const current = S.ui.sidebarGroupState[g] !== undefined ? S.ui.sidebarGroupState[g] : (shortSidebar || containsActive);
+        S.ui.sidebarGroupState[g] = !current;
+        render();
+        break;
+      }
+      case "toggle-users-section": {
+        S.ui.usersSectionState = S.ui.usersSectionState || {};
+        const k = ds.key;
+        S.ui.usersSectionState[k] = !(S.ui.usersSectionState[k] !== undefined ? S.ui.usersSectionState[k] : false);
+        render();
+        break;
+      }
       case "home-group-nav": {
         const idx = HOME_GROUP_ORDER.indexOf(S.view);
         const cur = idx === -1 ? 0 : idx;
