@@ -7,7 +7,7 @@
 
 /* =============================== Design tokens (JS mirror of CSS vars) ===== */
 /* Brand palette — keep in sync with the CSS custom properties in style.css */
-const ROSE = "#C24A6C", ROSE_DARK = "#9c3a56", INK = "#2E2430", SUBTLE = "#9c8b92",
+const ROSE = "#6b2337", ROSE_DARK = "#521a2a", INK = "#2E2430", SUBTLE = "#9c8b92",
       BORDER = "#eddde2", GREEN = "#2E8B67", GREEN_BG = "#e7f5ee", GOLD = "#D89A57",
       GOLD_BG = "#fbf0e1", GRAY_BG = "#f3edef", BLUE = "#8B4A73", BLUE_BG = "#f3e9ef",
       DANGER = "#D65B57", DANGER_BG = "#fcebe9";

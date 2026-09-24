@@ -2,8 +2,8 @@
 /* Primary brand accent: vivid burgundy (same vividness/lightness the reference
    design used for its blue), status colors (green/gold/danger) unchanged. */
 :root {
-  --rose: #C24A6C;        /* primary (burgundy) — one consistent shade site-wide */
-  --rose-dark: #9c3a56;   /* primary hover/active */
+  --rose: #6b2337;        /* primary (burgundy) — one consistent shade site-wide */
+  --rose-dark: #521a2a;   /* primary hover/active */
   --blush-bg: #F2ECE8;    /* page background (warm off-white) */
   --ink: #2E2430;         /* body text (dark warm charcoal) */
   --subtle: #9c8b92;      /* muted secondary text */
@@ -78,6 +78,7 @@ img { max-width: 100%; }
 .sidebar-head-icons-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .sidebar-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .icon-badge { width: 30px; height: 30px; border-radius: 9px; background: #DDCCC2; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-logo { display: block; width: 30px; height: 30px; object-fit: contain; margin: 0 auto 6px; }
 .sidebar-title { display: block; font-size: 15px; font-weight: 900; color: #6b2337; text-align: center; white-space: normal; line-height: 1.35; }
 .icon-btn { width: 28px; height: 28px; border-radius: 8px; border: none; background: #fdfbfa; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
 .sidebar .icon-btn { background: var(--gray-bg); }
