@@ -1345,7 +1345,7 @@ function unitCardHtml(unit, department, report) {
 function renderEntityPickerPage(kind) {
   const config = {
     departments: { title: "الأقسام", items: S.departments.filter((d) => d.status === "active"), action: "open-department-preview", sub: (d) => `${S.units.filter((u) => u.departmentId === d.id).length} وحدة/مركز` },
-    units: { title: "الوحدات", items: S.units.filter((u) => u.role !== "center" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
+    units: { title: "الوحدات", items: S.units.filter((u) => u.role !== "center" && u.role !== "admin" && u.role !== "executive" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
     centers: { title: "المراكز", items: S.units.filter((u) => u.role === "center" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
   }[kind];
   return `
@@ -1375,7 +1375,7 @@ function renderUnitsOverview() {
     </div>`;
   }).join("");
 
-  const unassigned = S.units.filter((u) => u.status === "active" && !S.departments.some((d) => d.id === u.departmentId && d.status === "active"));
+  const unassigned = S.units.filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive" && !S.departments.some((d) => d.id === u.departmentId && d.status === "active"));
   const unassignedHtml = unassigned.length ? `
     <div class="card card-lg">
       <div style="font-size:16px;font-weight:800;margin-bottom:16px;">وحدات بدون قسم</div>
@@ -1875,7 +1875,7 @@ function renderAllReports() {
 
   let scopeUnits;
   if (S.isAdmin || S.isExecutive) {
-    scopeUnits = S.units.filter((u) => u.status === "active");
+    scopeUnits = S.units.filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive");
   } else if (S.isDepartmentUser) {
     scopeUnits = S.units.filter((u) => u.status === "active" && u.departmentId === S.currentDepartmentId);
   } else {
@@ -2123,7 +2123,7 @@ function renderDepartmentsManage() {
   const ui = S.ui;
   const execUnits = S.units.filter((u) => u.role === "executive");
   const adminUnits = S.units.filter((u) => u.role === "admin");
-  const unitUnits = S.units.filter((u) => u.role !== "center");
+  const unitUnits = S.units.filter((u) => u.role !== "center" && u.role !== "admin" && u.role !== "executive");
   const centerUnits = S.units.filter((u) => u.role === "center");
 
   return `
