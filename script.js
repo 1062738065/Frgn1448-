@@ -211,8 +211,8 @@ function unitToRow(u) { return { id: u.id, name: u.name, password: u.password ||
 function rowToUnit(r) { return { id: r.id, name: r.name, password: r.password || "", role: r.role || "unit", departmentId: r.department_id || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, email: r.email || "" }; }
 function deptToRow(d) { return { id: d.id, name: d.name, password: d.password || "", status: d.status || "active", created_at: d.createdAt || Date.now(), curation: d.curation || { approvedKeys: [] }, email: d.email || "", office_id: d.officeId || "" }; }
 function rowToDept(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, email: r.email || "", officeId: r.office_id || "" }; }
-function officeToRow(o) { return { id: o.id, name: o.name, status: o.status || "active", created_at: o.createdAt || Date.now() }; }
-function rowToOffice(r) { return { id: r.id, name: r.name, status: r.status || "active", createdAt: Number(r.created_at) || 0 }; }
+function officeToRow(o) { return { id: o.id, name: o.name, password: o.password || "", status: o.status || "active", created_at: o.createdAt || Date.now() }; }
+function rowToOffice(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0 }; }
 function siteSettingsToRow(s) { return { id: "main", primary_color: s.primary || DEFAULT_SITE_COLORS.primary, background: s.background || DEFAULT_SITE_COLORS.background }; }
 function rowToSiteSettings(r) { return { primary: r.primary_color || DEFAULT_SITE_COLORS.primary, background: r.background || DEFAULT_SITE_COLORS.background }; }
 function indDefToRow(d) { return { id: d.id, name: d.name, category: d.category || "", direction: d.direction || "", nature: d.nature || "", frequency: d.frequency || "", unit: d.unit || "", target: String(d.target ?? ""), data_source: d.dataSource || "", calculation_method: d.calculationMethod || "" }; }
@@ -268,8 +268,8 @@ function seedDepartments() {
 // إضافة بحتة: لا تُنشئ أو تُعدّل أي قسم/وحدة/تقرير موجود.
 function seedOffices() {
   return [
-    { id: "office-1", name: "مكتب إشراف الطائف", status: "active", createdAt: Date.now() },
-    { id: "office-2", name: "مكتب إشراف الحوية", status: "active", createdAt: Date.now() },
+    { id: "office-1", name: "مكتب إشراف الطائف", password: "", status: "active", createdAt: Date.now() },
+    { id: "office-2", name: "مكتب إشراف الحوية", password: "", status: "active", createdAt: Date.now() },
   ];
 }
 // تربط تلقائيًا الأقسام المعروفة بمكتب إشرافها الصحيح — تُطبَّق فقط على قسم
@@ -2372,12 +2372,21 @@ function departmentRowHtml(d) {
 function officeRowHtml(o) {
   const isActive = o.status === "active";
   const editing = S.ui.editingOfficeId === o.id;
+  const editingPassword = S.ui.editingOfficePasswordId === o.id;
   const confirming = S.ui.confirmRemoveOfficeId === o.id;
   const linkedDeptsCount = S.departments.filter((d) => d.officeId === o.id).length;
   if (confirming) {
     return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <span style="font-size:12px;font-weight:700;">حذف "${esc(o.name)}" نهائيًا؟ الأقسام التابعة له تصبح بدون مكتب إشراف.</span>
       <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-office", data: { id: o.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-office" })}</div>
+    </div>`;
+  }
+  if (editingPassword) {
+    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
+      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(o.name)} —</span>
+      <input class="input" id="edit-office-password" style="flex:1;" placeholder="كلمة المرور الجديدة" value="${esc(S.ui.editOfficePasswordValue || "")}" />
+      <button data-action="save-office-password" data-id="${esc(o.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
+      <button data-action="cancel-office-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
     </div>`;
   }
   if (editing) {
@@ -2390,9 +2399,10 @@ function officeRowHtml(o) {
   return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconLayers(16, ROSE)}</div>
-      <div><div style="font-size:13.5px;font-weight:700;">${esc(o.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : `<div style="font-size:10.5px;color:${SUBTLE}">${linkedDeptsCount} قسم تابع</div>`}</div>
+      <div><div style="font-size:13.5px;font-weight:700;">${esc(o.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : o.password ? `<div style="font-size:10.5px;color:${GREEN}">كلمة سر المكتب مضبوطة</div>` : `<div style="font-size:10.5px;color:${SUBTLE}">${linkedDeptsCount} قسم تابع</div>`}</div>
     </div>
     <div style="display:flex;gap:6px;">
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-password" data-id="${esc(o.id)}" title="كلمة مرور المكتب">${iconKey(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-edit" data-id="${esc(o.id)}" data-name="${esc(o.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-office" data-id="${esc(o.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-office" data-id="${esc(o.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
@@ -4336,7 +4346,7 @@ function attachClickListener() {
         const nameEl = document.getElementById("new-office-name");
         const name = (nameEl.value || "").trim();
         if (!name) break;
-        S.offices = [...(S.offices || []), { id: uid("office"), name, status: "active", createdAt: Date.now() }];
+        S.offices = [...(S.offices || []), { id: uid("office"), name, password: "", status: "active", createdAt: Date.now() }];
         dataStore.saveOffices(S.offices);
         S.ui.newOfficeName = "";
         render();
@@ -4364,6 +4374,15 @@ function attachClickListener() {
         const val = document.getElementById("edit-office-name").value.trim();
         if (val) { S.offices = (S.offices || []).map((o) => o.id === ds.id ? { ...o, name: val } : o); dataStore.saveOffices(S.offices); }
         S.ui.editingOfficeId = null; render();
+        break;
+      }
+      case "start-office-password": S.ui.editingOfficePasswordId = ds.id; S.ui.editOfficePasswordValue = ""; render(); break;
+      case "cancel-office-password": S.ui.editingOfficePasswordId = null; render(); break;
+      case "save-office-password": {
+        const val = (document.getElementById("edit-office-password").value || "").trim();
+        S.offices = (S.offices || []).map((o) => o.id === ds.id ? { ...o, password: val } : o);
+        dataStore.saveOffices(S.offices);
+        S.ui.editingOfficePasswordId = null; render();
         break;
       }
 
