@@ -235,7 +235,13 @@ async function supabaseLogin(name, password) {
     if (m.status === "disabled") return { ok: false, error: "هذا الحساب معطّل حاليًا" };
     return { ok: true, user: { id: m.id, name: m.name, role: "department", departmentId: m.id } };
   }
-  return { ok: false, error: "اسم الوحدة أو القسم أو كلمة المرور غير صحيحة" };
+  const oRes = await supabaseRequest(`offices?name=eq.${encodeURIComponent(name)}&password=eq.${encodeURIComponent(password)}&select=*&limit=1`);
+  if (oRes.ok && Array.isArray(oRes.data) && oRes.data.length && oRes.data[0].password) {
+    const m = rowToOffice(oRes.data[0]);
+    if (m.status === "disabled") return { ok: false, error: "هذا الحساب معطّل حاليًا" };
+    return { ok: true, user: { id: m.id, name: m.name, role: "office", officeId: m.id } };
+  }
+  return { ok: false, error: "اسم الوحدة أو القسم أو المكتب أو كلمة المرور غير صحيحة" };
 }
 
 const MOCK_USERS = [
@@ -244,6 +250,7 @@ const MOCK_USERS = [
   { username: "dept1", password: "1234", role: "department", name: "قسم شؤون المكاتب", departmentId: "dept-2" },
   { username: "exec1", password: "1234", role: "executive", name: "الإدارة العليا" },
   { username: "center1", password: "1234", role: "center", name: "مركز تجريبي", unitId: "seed-center-1" },
+  { username: "office1", password: "1234", role: "office", name: "مكتب إشراف الطائف", officeId: "office-1" },
 ];
 
 /* =============================== Storage layer ============================= */
@@ -509,6 +516,8 @@ const S = {
   isAdmin: false,
   isDepartmentUser: false,
   isExecutive: false,
+  isOfficeUser: false,
+  currentOfficeId: null,
   cameFromAllReports: false,
   adminPreviewOrigin: null,
   sidebarOpen: true,
@@ -575,6 +584,8 @@ function render() {
     html = shellWrap(renderFullReport());
   } else if (S.view === "report-preview") {
     html = shellWrap(renderReportPreview());
+  } else if (S.view === "office-dashboard") {
+    html = shellWrap(renderOfficeDashboard());
   } else {
     html = renderLogin();
   }
@@ -617,6 +628,7 @@ const SIDEBAR_PAGES = [
   { id: "unit-reports", label: "تقارير", group: "unit-home", scope: "unit", icon: "document" },
   { id: "unit-report", label: "إنشاء تقرير", group: "unit-home", icon: "pencil" },
   { id: "unit-settings", label: "الإعدادات", group: "unit-home", scope: "unit", icon: "gauge" },
+  { id: "office-dashboard", label: "الأقسام التابعة", group: "الرئيسية", icon: "building" },
 ];
 const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "المستخدمون", "الأقسام", "الوحدات", "المراكز", "الإدارة العليا", "unit-home"];
 const SIDEBAR_GROUP_LABELS = { "unit-home": "الرئيسية" };
@@ -638,6 +650,8 @@ function computeVisibleSidebarPages() {
     return SIDEBAR_PAGES.filter((p) => p.id === "department-overview" || p.id === "all-reports" || (p.group === "unit-home" && UNIT_SCOPED_VIEWS.includes(S.view)));
   } else if (S.isExecutive) {
     return SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا" || p.id === "all-reports");
+  } else if (S.isOfficeUser) {
+    return SIDEBAR_PAGES.filter((p) => p.id === "office-dashboard");
   }
   // موظفة الوحدة أو المركز: تشوف "تقاريري" + "جميع التقارير" — بدون
   // "الأقسام والوحدات" (ذاك رابط إشرافي خاص بمديرة النظام).
@@ -958,6 +972,7 @@ function doLogin(user) {
   S.isAdmin = user.role === "admin";
   S.isDepartmentUser = user.role === "department";
   S.isExecutive = user.role === "executive";
+  S.isOfficeUser = user.role === "office";
   S.units = dataStore.getUnits();
   S.departments = dataStore.getDepartments();
   S.offices = dataStore.getOffices();
@@ -981,6 +996,12 @@ function doLogin(user) {
     S.units.forEach((u) => { reports[u.id] = dataStore.getReports(u.id); });
     S.reports = reports;
     S.view = "executive-dashboard";
+  } else if (S.isOfficeUser) {
+    // اطلاع مكتب الإشراف: يشوف فقط الأقسام التابعة له، وعند اختيار قسم يشوف
+    // وحداته — بدون أي دخول لتقارير الوحدات أو تعديلها (خارج نطاق هذي الخطوة).
+    S.currentOfficeId = user.officeId || "";
+    S.ui.officeSelectedDeptId = null;
+    S.view = "office-dashboard";
   } else {
     const unitId = user.unitId;
     S.reports[unitId] = dataStore.getReports(unitId);
@@ -1001,7 +1022,7 @@ function doLogin(user) {
 }
 
 function doLogout() {
-  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.view = "login"; S.ui = {};
+  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.currentOfficeId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.view = "login"; S.ui = {};
   render();
 }
 
@@ -1426,6 +1447,45 @@ function renderEntityPickerPage(kind) {
         <button class="card" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:1px solid ${BORDER};cursor:pointer;text-align:right;" data-action="${config.action}" data-id="${esc(it.id)}">
           <span style="font-size:13.5px;font-weight:700;">${esc(it.name)}</span>
           <span style="font-size:11px;color:${SUBTLE};display:flex;align-items:center;gap:6px;">${esc(config.sub(it))} ${iconChevronLeft(14, SUBTLE)}</span>
+        </button>`).join("")}</div>`}
+  </div></div>`;
+}
+
+/* =============================== Office dashboard (مكتب الإشراف) ============= */
+// اطلاع فقط: مكتب الإشراف يشوف الأقسام التابعة له (عبر officeId)، وعند اختيار
+// قسم يشوف وحداته. بدون أي دخول لتقارير الوحدات أو صلاحياتها في هذي الخطوة.
+function renderOfficeDashboard() {
+  const office = (S.offices || []).find((o) => o.id === S.currentOfficeId);
+  const officeName = office ? office.name : (S.currentUser && S.currentUser.name) || "مكتب الإشراف";
+  const linkedDepartments = S.departments.filter((d) => d.officeId === S.currentOfficeId);
+  const selectedDept = S.ui.officeSelectedDeptId ? linkedDepartments.find((d) => d.id === S.ui.officeSelectedDeptId) : null;
+
+  if (selectedDept) {
+    const units = S.units.filter((u) => u.departmentId === selectedDept.id);
+    return `
+    <div class="page-wrap"><div class="page-inner">
+      ${topBarHtml({ title: selectedDept.name, subtitle: `تابع لـ ${officeName}`, backAction: "office-back-to-departments",
+        right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+      ${units.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد وحدات في هذا القسم بعد.</div>` :
+        `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${units.map((u) => `
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBuilding(ROSE, 16)}</div>
+              <div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:9.5px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:1px 6px;border-radius:999px;">مركز</span>` : ""}</div>
+            </div>
+          </div>`).join("")}</div>`}
+    </div></div>`;
+  }
+
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: officeName, subtitle: "الأقسام التابعة للمكتب",
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    ${linkedDepartments.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد أقسام مرتبطة بهذا المكتب بعد.</div>` :
+      `<div style="display:flex;flex-direction:column;gap:8px;">${linkedDepartments.map((d) => `
+        <button class="card" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:1px solid ${BORDER};cursor:pointer;text-align:right;" data-action="open-office-department" data-id="${esc(d.id)}">
+          <span style="font-size:13.5px;font-weight:700;">${esc(d.name)}</span>
+          <span style="font-size:11px;color:${SUBTLE};display:flex;align-items:center;gap:6px;">${S.units.filter((u) => u.departmentId === d.id).length} وحدة/مركز ${iconChevronLeft(14, SUBTLE)}</span>
         </button>`).join("")}</div>`}
   </div></div>`;
 }
@@ -4137,6 +4197,8 @@ function attachClickListener() {
       }
       case "set-all-reports-filter": S.ui.allReportsFilter = ds.filter; render(); break;
       case "logout": doLogout(); break;
+      case "open-office-department": S.ui.officeSelectedDeptId = ds.id; render(); break;
+      case "office-back-to-departments": S.ui.officeSelectedDeptId = null; render(); break;
       case "confirm-delete-report": S.ui.confirmDeleteReportId = ds.id; render(); break;
       case "cancel-delete-report": S.ui.confirmDeleteReportId = null; render(); break;
       case "toggle-report-notes": S.ui.showReportNotesId = S.ui.showReportNotesId === ds.id ? null : ds.id; render(); break;
