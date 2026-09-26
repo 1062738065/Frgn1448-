@@ -7,7 +7,8 @@
 
 /* =============================== Design tokens (JS mirror of CSS vars) ===== */
 /* Brand palette — keep in sync with the CSS custom properties in style.css */
-const ROSE = "#6b2337", ROSE_DARK = "#521a2a", INK = "#2E2430", SUBTLE = "#9c8b92",
+let ROSE = "#6b2337", ROSE_DARK = "#521a2a";
+const INK = "#2E2430", SUBTLE = "#9c8b92",
       BORDER = "#eddde2", GREEN = "#2E8B67", GREEN_BG = "#e7f5ee", GOLD = "#D89A57",
       GOLD_BG = "#fbf0e1", GRAY_BG = "#f3edef", BLUE = "#8B4A73", BLUE_BG = "#f3e9ef",
       DANGER = "#D65B57", DANGER_BG = "#fcebe9";
@@ -210,6 +211,8 @@ function unitToRow(u) { return { id: u.id, name: u.name, password: u.password ||
 function rowToUnit(r) { return { id: r.id, name: r.name, password: r.password || "", role: r.role || "unit", departmentId: r.department_id || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, email: r.email || "" }; }
 function deptToRow(d) { return { id: d.id, name: d.name, password: d.password || "", status: d.status || "active", created_at: d.createdAt || Date.now(), curation: d.curation || { approvedKeys: [] }, email: d.email || "" }; }
 function rowToDept(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, email: r.email || "" }; }
+function siteSettingsToRow(s) { return { id: "main", primary_color: s.primary || DEFAULT_SITE_COLORS.primary, background: s.background || DEFAULT_SITE_COLORS.background }; }
+function rowToSiteSettings(r) { return { primary: r.primary_color || DEFAULT_SITE_COLORS.primary, background: r.background || DEFAULT_SITE_COLORS.background }; }
 function indDefToRow(d) { return { id: d.id, name: d.name, category: d.category || "", direction: d.direction || "", nature: d.nature || "", frequency: d.frequency || "", unit: d.unit || "", target: String(d.target ?? ""), data_source: d.dataSource || "", calculation_method: d.calculationMethod || "" }; }
 function rowToIndDef(r) { return { id: r.id, name: r.name, category: r.category || "", direction: r.direction || "", nature: r.nature || "", frequency: r.frequency || "", unit: r.unit || "", target: r.target || "", dataSource: r.data_source || "", calculationMethod: r.calculation_method || "" }; }
 function goalToRow(g, kind) { return { id: g.id, name: g.name, kind }; }
@@ -243,7 +246,9 @@ const MOCK_USERS = [
 
 /* =============================== Storage layer ============================= */
 const UNITS_KEY = "prs:units", DEPARTMENTS_KEY = "prs:departments",
-      INDICATOR_DEFINITIONS_KEY = "prs:indicator-definitions", GOALS_DEFINITIONS_KEY = "prs:goals-definitions";
+      INDICATOR_DEFINITIONS_KEY = "prs:indicator-definitions", GOALS_DEFINITIONS_KEY = "prs:goals-definitions",
+      SITE_SETTINGS_KEY = "prs:site-settings";
+const DEFAULT_SITE_COLORS = { primary: "#6b2337", background: "#F2ECE8" };
 const reportKey = (unitId) => `prs:report:${unitId}`;
 const reportsKey = (unitId) => `prs:reports:${unitId}`;
 
@@ -307,6 +312,11 @@ const dataStore = {
   saveIndicatorDefinitions(d) {
     lsSet(INDICATOR_DEFINITIONS_KEY, JSON.stringify(d));
     if (sheetsConfigured()) supabaseReplaceTable("indicator_definitions", d.map(indDefToRow)).catch(() => {});
+  },
+  getSiteSettings() { const v = lsGet(SITE_SETTINGS_KEY); return v ? JSON.parse(v) : { ...DEFAULT_SITE_COLORS }; },
+  saveSiteSettings(s) {
+    lsSet(SITE_SETTINGS_KEY, JSON.stringify(s));
+    if (sheetsConfigured()) supabaseRequest("site_settings", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(siteSettingsToRow(s)) }).catch(() => {});
   },
   cacheIndicatorDefinitionsLocally(d) { lsSet(INDICATOR_DEFINITIONS_KEY, JSON.stringify(d)); },
   cacheUnitsLocally(u) { lsSet(UNITS_KEY, JSON.stringify(u)); },
@@ -491,6 +501,8 @@ function render() {
     html = shellWrap(renderDashboard());
   } else if (S.view === "admin-reports") {
     html = shellWrap(renderUnitsOverview());
+  } else if (S.view === "site-settings") {
+    html = shellWrap(renderSiteSettings());
   } else if (S.view === "departments-list") {
     html = shellWrap(renderEntityPickerPage("departments"));
   } else if (S.view === "units-list") {
@@ -551,6 +563,7 @@ const HOME_GROUP_ORDER = ["dashboard", "admin-reports"];
 const SIDEBAR_PAGES = [
   { id: "dashboard", label: "لوحة المعلومات", group: "الرئيسية", icon: "home" },
   { id: "admin-reports", label: "الأقسام والوحدات", group: "الرئيسية", icon: "building" },
+  { id: "site-settings", label: "إعدادات الموقع", group: "الرئيسية", icon: "gauge" },
   { id: "all-reports", label: "جميع التقارير", group: "إدارة التقارير", icon: "document" },
   { id: "indicators-manage", label: "إدارة مؤشرات الأداء", group: "إدارة التقارير", icon: "gauge" },
   { id: "goals-manage", label: "إدارة الأهداف والمستهدفات", group: "إدارة التقارير", icon: "target" },
@@ -869,6 +882,16 @@ async function refreshGoalsDefinitionsFromSheet() {
       operational: res.data.filter((r) => r.kind === "operational").map(rowToGoal),
     };
     dataStore.cacheGoalsDefinitionsLocally(S.goalsDefinitions);
+  }
+}
+
+async function refreshSiteSettingsFromSheet() {
+  if (!sheetsConfigured()) return;
+  const res = await supabaseRequest("site_settings?id=eq.main&select=*");
+  if (res.ok && Array.isArray(res.data) && res.data.length) {
+    S.siteSettings = rowToSiteSettings(res.data[0]);
+    lsSet(SITE_SETTINGS_KEY, JSON.stringify(S.siteSettings));
+    applySiteColors(S.siteSettings);
   }
 }
 
@@ -1360,6 +1383,36 @@ function renderEntityPickerPage(kind) {
   </div></div>`;
 }
 
+/* =============================== Site settings (admin) ======================= */
+function renderSiteSettings() {
+  const current = S.siteSettings || dataStore.getSiteSettings();
+  const isDefault = current.primary === DEFAULT_SITE_COLORS.primary && current.background === DEFAULT_SITE_COLORS.background;
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "إعدادات الموقع", subtitle: "تخصيص ألوان الموقع — التغيير يظهر فورًا هنا، ولازم الضغط على \"حفظ\" ليصير دائمًا" })}
+    <div class="card" style="max-width:480px;">
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;">اللون الأساسي (الأزرار، العناوين، التحديد)</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="color" id="site-primary-color" value="${esc(current.primary)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+          <span style="font-size:12.5px;color:${SUBTLE};font-family:monospace;">${esc(current.primary)}</span>
+        </div>
+      </div>
+      <div style="margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;">لون خلفية الموقع</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="color" id="site-bg-color" value="${esc(current.background)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+          <span style="font-size:12.5px;color:${SUBTLE};font-family:monospace;">${esc(current.background)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${pillBtn("حفظ", { icon: iconCheckCircle(15, "#fff"), action: "save-site-settings" })}
+        ${pillBtn("استعادة الألوان الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-settings-defaults", disabled: isDefault })}
+      </div>
+      ${S.ui.siteSettingsSaved ? `<div class="hint" style="color:${GREEN};margin-top:10px;">تم الحفظ ✓ — التغيير صار دائمًا لكل زوار الموقع.</div>` : ""}
+    </div>
+  </div></div>`;
+}
 function renderUnitsOverview() {
   const activeDepartments = S.departments.filter((d) => d.status === "active");
   const sections = activeDepartments.map((dept) => {
@@ -3784,6 +3837,14 @@ function attachFormListeners() {
       return;
     }
     if (el.id === "login-username") { S.ui.loginUsernameVal = el.value; return; }
+    if (el.id === "site-primary-color" || el.id === "site-bg-color") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, [el.id === "site-primary-color" ? "primary" : "background"]: el.value };
+      S.ui.siteSettingsSaved = false;
+      applySiteColors(S.siteSettings);
+      render();
+      return;
+    }
     if (el.id === "login-password") { S.ui.loginPasswordVal = el.value; return; }
     if (el.dataset && el.dataset.field && el.tagName !== "SELECT") {
       setFieldFromEl(el);
@@ -3902,6 +3963,21 @@ function attachClickListener() {
         break;
       }
       case "nav-back-admin": S.view = "admin-reports"; render(); break;
+      case "save-site-settings": {
+        const settings = S.siteSettings || dataStore.getSiteSettings();
+        dataStore.saveSiteSettings(settings);
+        S.ui.siteSettingsSaved = true;
+        render();
+        break;
+      }
+      case "restore-site-settings-defaults": {
+        S.siteSettings = { ...DEFAULT_SITE_COLORS };
+        applySiteColors(S.siteSettings);
+        dataStore.saveSiteSettings(S.siteSettings);
+        S.ui.siteSettingsSaved = true;
+        render();
+        break;
+      }
       case "nav-back-department": S.view = "department-overview"; render(); break;
       case "nav-back-from-report": S.view = "unit-reports"; S.activeSectionId = null; render(); break;
       case "nav-to-unit-report": S.view = "unit-report"; render(); break;
@@ -4477,15 +4553,25 @@ function trySaveSectionWithStatus(status) {
 }
 
 /* =============================== After-render hook + bootstrap ================ */
+function applySiteColors(settings) {
+  ROSE = settings.primary;
+  ROSE_DARK = settings.primary;
+  const root = document.documentElement;
+  root.style.setProperty("--rose", settings.primary);
+  root.style.setProperty("--rose-dark", settings.primary);
+  root.style.setProperty("--blush-bg", settings.background);
+}
 function afterRender() {
   const loginUserEl = document.getElementById("login-username");
   if (loginUserEl) loginUserEl.focus();
 }
 
 function boot() {
+  applySiteColors(dataStore.getSiteSettings());
   attachFormListeners();
   attachClickListener();
   render();
+  if (sheetsConfigured()) refreshSiteSettingsFromSheet().then(() => render());
 }
 
 document.addEventListener("DOMContentLoaded", boot);
