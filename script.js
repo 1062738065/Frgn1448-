@@ -613,14 +613,14 @@ const SIDEBAR_PAGES = [
   { id: "dashboard", label: "لوحة المعلومات", group: "الرئيسية", icon: "home" },
   { id: "admin-reports", label: "الأقسام والوحدات", group: "الرئيسية", icon: "building" },
   { id: "site-settings", label: "إعدادات الموقع", group: "الرئيسية", icon: "gauge" },
-  { id: "all-reports", label: "جميع التقارير", group: "إدارة التقارير", icon: "document" },
+  { id: "all-reports", label: "جميع التقارير", group: "standalone", icon: "document" },
   { id: "indicators-manage", label: "إدارة مؤشرات الأداء", group: "إدارة التقارير", icon: "gauge" },
   { id: "goals-manage", label: "إدارة الأهداف والمستهدفات", group: "إدارة التقارير", icon: "target" },
-  { id: "units-manage", label: "المستخدمون", group: "المستخدمون", icon: "building" },
-  { id: "offices-manage", label: "مكاتب الإشراف", group: "المستخدمون", icon: "layers" },
-  { id: "departments-list", label: "الأقسام", group: "الأقسام", icon: "building" },
-  { id: "units-list", label: "تقاريري", group: "الوحدات", icon: "document" },
-  { id: "centers-list", label: "تقاريري", group: "المراكز", icon: "document" },
+  { id: "units-manage", label: "المستخدمون", group: "standalone", icon: "building" },
+  { id: "offices-manage", label: "مكاتب الإشراف", group: "الهيكل التنظيمي", icon: "layers" },
+  { id: "departments-list", label: "الأقسام", group: "الهيكل التنظيمي", icon: "building" },
+  { id: "units-list", label: "الوحدات", group: "الهيكل التنظيمي", icon: "document" },
+  { id: "centers-list", label: "المراكز", group: "الهيكل التنظيمي", icon: "document" },
   { id: "department-overview", label: "قسمي", group: "الرئيسية", icon: "building" },
   { id: "executive-dashboard", label: "لوحة المعلومات", group: "الإدارة العليا", icon: "home" },
   { id: "executive-summary", label: "الملخص التنفيذي", group: "الإدارة العليا", icon: "document" },
@@ -630,7 +630,7 @@ const SIDEBAR_PAGES = [
   { id: "unit-report", label: "إنشاء تقرير", group: "unit-home", icon: "pencil" },
   { id: "unit-settings", label: "الإعدادات", group: "unit-home", scope: "unit", icon: "gauge" },
 ];
-const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "المستخدمون", "الأقسام", "الوحدات", "المراكز", "الإدارة العليا", "unit-home"];
+const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "__standalone__all-reports", "__standalone__units-manage", "الإدارة العليا", "الهيكل التنظيمي", "unit-home"];
 const SIDEBAR_GROUP_LABELS = { "unit-home": "الرئيسية" };
 function sidebarNavIcon(key, size, color) {
   const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter, plus: iconPlus };
@@ -689,6 +689,21 @@ function renderMainSidebar(mobile) {
   const visible = computeVisibleSidebarPages();
   const notifCount = computeNotificationCount();
   const groupsHtml = SIDEBAR_GROUPS.map((g) => {
+    if (g.indexOf("__standalone__") === 0) {
+      // عنصر قائم بذاته بالشريط الجانبي (بدون تفرعات وبدون عنوان مجموعة قابل للطي) —
+      // نفس بيانات وصلاحيات العنصر الأصلي في SIDEBAR_PAGES، فقط تغيّر مكان عرضه.
+      const soloId = g.slice("__standalone__".length);
+      const page = visible.find((p) => p.id === soloId);
+      if (!page) return "";
+      const active = S.view === page.id;
+      const iconColor = active ? "#6b2337" : INK;
+      return `
+        <div class="nav-group open">
+          <div class="nav-list" style="padding-right:0;width:100%;">
+            <button class="nav-item ${active ? "active" : ""}" data-action="nav-to" data-view="${page.id}">${sidebarNavIcon(page.icon, 15, iconColor)}<span>${esc(page.label)}</span></button>
+          </div>
+        </div>`;
+    }
     const items = visible.filter((p) => p.group === g);
     if (!items.length) return "";
     // أكورديون: يفيد فقط لما القائمة كاملة تكون طويلة (عدة مجموعات بعناصر كثيرة،
