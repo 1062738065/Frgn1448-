@@ -209,8 +209,10 @@ async function supabaseReplaceTable(table, rows) {
 /* ---- تحويل الأشكال بين JS (camelCase) وأعمدة قاعدة البيانات (snake_case) ---- */
 function unitToRow(u) { return { id: u.id, name: u.name, password: u.password || "", role: u.role || "unit", department_id: u.departmentId || "", status: u.status || "active", created_at: u.createdAt || Date.now(), email: u.email || "" }; }
 function rowToUnit(r) { return { id: r.id, name: r.name, password: r.password || "", role: r.role || "unit", departmentId: r.department_id || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, email: r.email || "" }; }
-function deptToRow(d) { return { id: d.id, name: d.name, password: d.password || "", status: d.status || "active", created_at: d.createdAt || Date.now(), curation: d.curation || { approvedKeys: [] }, email: d.email || "" }; }
-function rowToDept(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, email: r.email || "" }; }
+function deptToRow(d) { return { id: d.id, name: d.name, password: d.password || "", status: d.status || "active", created_at: d.createdAt || Date.now(), curation: d.curation || { approvedKeys: [] }, email: d.email || "", office_id: d.officeId || "" }; }
+function rowToDept(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, email: r.email || "", officeId: r.office_id || "" }; }
+function officeToRow(o) { return { id: o.id, name: o.name, status: o.status || "active", created_at: o.createdAt || Date.now() }; }
+function rowToOffice(r) { return { id: r.id, name: r.name, status: r.status || "active", createdAt: Number(r.created_at) || 0 }; }
 function siteSettingsToRow(s) { return { id: "main", primary_color: s.primary || DEFAULT_SITE_COLORS.primary, background: s.background || DEFAULT_SITE_COLORS.background }; }
 function rowToSiteSettings(r) { return { primary: r.primary_color || DEFAULT_SITE_COLORS.primary, background: r.background || DEFAULT_SITE_COLORS.background }; }
 function indDefToRow(d) { return { id: d.id, name: d.name, category: d.category || "", direction: d.direction || "", nature: d.nature || "", frequency: d.frequency || "", unit: d.unit || "", target: String(d.target ?? ""), data_source: d.dataSource || "", calculation_method: d.calculationMethod || "" }; }
@@ -245,7 +247,7 @@ const MOCK_USERS = [
 ];
 
 /* =============================== Storage layer ============================= */
-const UNITS_KEY = "prs:units", DEPARTMENTS_KEY = "prs:departments",
+const UNITS_KEY = "prs:units", DEPARTMENTS_KEY = "prs:departments", OFFICES_KEY = "prs:offices",
       INDICATOR_DEFINITIONS_KEY = "prs:indicator-definitions", GOALS_DEFINITIONS_KEY = "prs:goals-definitions",
       SITE_SETTINGS_KEY = "prs:site-settings";
 const DEFAULT_SITE_COLORS = { primary: "#6b2337", background: "#F2ECE8" };
@@ -261,6 +263,29 @@ function seedDepartments() {
     { id: "dept-1", name: "المراكز", password: "9999", status: "active", createdAt: Date.now() },
     { id: "dept-2", name: "قسم شؤون المكاتب", password: "1234", status: "active", createdAt: Date.now() },
   ];
+}
+// مكاتب الإشراف — مستوى تنظيمي أعلى من الأقسام (مكتب الإشراف ← القسم ← الوحدة ← التقارير).
+// إضافة بحتة: لا تُنشئ أو تُعدّل أي قسم/وحدة/تقرير موجود.
+function seedOffices() {
+  return [
+    { id: "office-1", name: "مكتب إشراف الطائف", status: "active", createdAt: Date.now() },
+    { id: "office-2", name: "مكتب إشراف الحوية", status: "active", createdAt: Date.now() },
+  ];
+}
+// تربط تلقائيًا الأقسام المعروفة بمكتب إشرافها الصحيح — تُطبَّق فقط على قسم
+// ليس له "officeId" محفوظ أصلاً؛ لا تلمس أي قسم مربوط أو مُعدَّل يدويًا من قبل.
+const TAIF_OFFICE_ID = "office-1";
+const TAIF_LINKED_DEPARTMENT_NAMES = ["قسم الموارد البشرية", "الموارد البشرية", "قسم شؤون المكاتب", "شؤون المكاتب"];
+function autoLinkDepartmentOffices(departments) {
+  let changed = false;
+  const next = departments.map((d) => {
+    if (!d.officeId && TAIF_LINKED_DEPARTMENT_NAMES.some((n) => (d.name || "").trim() === n)) {
+      changed = true;
+      return { ...d, officeId: TAIF_OFFICE_ID };
+    }
+    return d;
+  });
+  return { departments: next, changed };
 }
 function seedUnits() {
   return [
@@ -298,11 +323,23 @@ function buildSampleIndicatorHistory() {
 }
 
 const dataStore = {
-  getDepartments() { const v = lsGet(DEPARTMENTS_KEY); if (v) return JSON.parse(v); const seed = seedDepartments(); lsSet(DEPARTMENTS_KEY, JSON.stringify(seed)); return seed; },
+  getDepartments() {
+    const v = lsGet(DEPARTMENTS_KEY);
+    const list = v ? JSON.parse(v) : (() => { const seed = seedDepartments(); lsSet(DEPARTMENTS_KEY, JSON.stringify(seed)); return seed; })();
+    const linked = autoLinkDepartmentOffices(list);
+    if (linked.changed) dataStore.saveDepartments(linked.departments);
+    return linked.departments;
+  },
   saveDepartments(d) {
     lsSet(DEPARTMENTS_KEY, JSON.stringify(d));
     if (sheetsConfigured()) supabaseReplaceTable("departments", d.map(deptToRow)).catch(() => {});
   },
+  getOffices() { const v = lsGet(OFFICES_KEY); if (v) return JSON.parse(v); const seed = seedOffices(); lsSet(OFFICES_KEY, JSON.stringify(seed)); return seed; },
+  saveOffices(o) {
+    lsSet(OFFICES_KEY, JSON.stringify(o));
+    if (sheetsConfigured()) supabaseReplaceTable("offices", o.map(officeToRow)).catch(() => {});
+  },
+  cacheOfficesLocally(o) { lsSet(OFFICES_KEY, JSON.stringify(o)); },
   getUnits() { const v = lsGet(UNITS_KEY); if (v) return JSON.parse(v); const seed = seedUnits(); lsSet(UNITS_KEY, JSON.stringify(seed)); return seed; },
   saveUnits(u) {
     lsSet(UNITS_KEY, JSON.stringify(u));
@@ -461,6 +498,7 @@ const S = {
   currentUser: null,
   units: [],
   departments: [],
+  offices: [],
   indicatorDefinitions: [],
   goalsDefinitions: { strategic: [], operational: [] },
   reports: {},
@@ -850,17 +888,24 @@ async function handleLoginSubmit() {
 
 async function refreshUnitsAndDepartmentsFromSheet() {
   if (!sheetsConfigured()) return;
-  const [unitsRes, deptRes] = await Promise.all([
+  const [unitsRes, deptRes, officesRes] = await Promise.all([
     supabaseRequest("units?select=*"),
     supabaseRequest("departments?select=*"),
+    supabaseRequest("offices?select=*"),
   ]);
   if (unitsRes.ok && Array.isArray(unitsRes.data)) {
     S.units = unitsRes.data.map(rowToUnit);
     dataStore.cacheUnitsLocally(S.units);
   }
   if (deptRes.ok && Array.isArray(deptRes.data)) {
-    S.departments = deptRes.data.map(rowToDept);
+    const linked = autoLinkDepartmentOffices(deptRes.data.map(rowToDept));
+    S.departments = linked.departments;
     dataStore.cacheDepartmentsLocally(S.departments);
+    if (linked.changed) dataStore.saveDepartments(S.departments);
+  }
+  if (officesRes.ok && Array.isArray(officesRes.data)) {
+    S.offices = officesRes.data.map(rowToOffice);
+    dataStore.cacheOfficesLocally(S.offices);
   }
 }
 
@@ -914,6 +959,7 @@ function doLogin(user) {
   S.isExecutive = user.role === "executive";
   S.units = dataStore.getUnits();
   S.departments = dataStore.getDepartments();
+  S.offices = dataStore.getOffices();
   S.indicatorDefinitions = dataStore.getIndicatorDefinitions();
   S.goalsDefinitions = dataStore.getGoalsDefinitions();
   S.sidebarOpen = !isMobileViewport();
@@ -2209,6 +2255,17 @@ function renderDepartmentsManage() {
     })}
 
     ${collapsibleUsersSection({
+      key: "offices", title: "مكاتب الإشراف", count: (S.offices || []).length,
+      formHtml: `<div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="input" id="new-office-name" style="flex:2;min-width:160px;" placeholder="اسم مكتب الإشراف الجديد" value="${esc(ui.newOfficeName || "")}" />
+          ${pillBtn("إضافة مكتب إشراف", { icon: iconPlus(15, "#fff"), action: "add-office" })}
+        </div>
+      </div>`,
+      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${(S.offices || []).map((o) => officeRowHtml(o)).join("") || `<div class="hint">لا توجد مكاتب إشراف بعد.</div>`}</div>`,
+    })}
+
+        ${collapsibleUsersSection({
       key: "departments", title: "الأقسام", count: S.departments.length,
       formHtml: `${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة مرور القسم (اختيارية) تفتح للقسم كل وحداته التابعة له دفعة واحدة.</div>` : ""}
       <div class="card" style="margin-bottom:14px;">
@@ -2290,16 +2347,52 @@ function departmentRowHtml(d) {
       <button data-action="cancel-dept-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
     </div>`;
   }
+  const linkedOffice = (S.offices || []).find((o) => o.id === d.officeId);
   return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconLayers(16, ROSE)}</div>
-      <div><div style="font-size:13.5px;font-weight:700;">${esc(d.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : d.password ? `<div style="font-size:10.5px;color:${GREEN}">دخول بكلمة سر القسم مفعّل</div>` : ""}</div>
+      <div><div style="font-size:13.5px;font-weight:700;">${esc(d.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : d.password ? `<div style="font-size:10.5px;color:${GREEN}">دخول بكلمة سر القسم مفعّل</div>` : ""}${linkedOffice ? `<div style="font-size:10.5px;color:${SUBTLE}">تابع لـ ${esc(linkedOffice.name)}</div>` : ""}</div>
     </div>
-    <div style="display:flex;gap:6px;">
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <select class="input" style="padding:6px 8px;font-size:12px;width:170px;" data-action="assign-dept-office" data-id="${esc(d.id)}">
+        <option value="">بدون مكتب إشراف</option>
+        ${(S.offices || []).map((o) => `<option value="${esc(o.id)}" ${d.officeId === o.id ? "selected" : ""}>${esc(o.name)}</option>`).join("")}
+      </select>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-dept-password" data-id="${esc(d.id)}" title="كلمة مرور القسم">${iconKey(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-dept-edit" data-id="${esc(d.id)}" data-name="${esc(d.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-department" data-id="${esc(d.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-department" data-id="${esc(d.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
+    </div>
+  </div>`;
+}
+
+function officeRowHtml(o) {
+  const isActive = o.status === "active";
+  const editing = S.ui.editingOfficeId === o.id;
+  const confirming = S.ui.confirmRemoveOfficeId === o.id;
+  const linkedDeptsCount = S.departments.filter((d) => d.officeId === o.id).length;
+  if (confirming) {
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;font-weight:700;">حذف "${esc(o.name)}" نهائيًا؟ الأقسام التابعة له تصبح بدون مكتب إشراف.</span>
+      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-office", data: { id: o.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-office" })}</div>
+    </div>`;
+  }
+  if (editing) {
+    return `<div class="card" style="display:flex;gap:6px;">
+      <input class="input" id="edit-office-name" style="flex:1;" value="${esc(S.ui.editOfficeValue || "")}" />
+      <button data-action="save-office-edit" data-id="${esc(o.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;color:${GREEN}">${iconCheck(16, GREEN)}</button>
+      <button data-action="cancel-office-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
+    </div>`;
+  }
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconLayers(16, ROSE)}</div>
+      <div><div style="font-size:13.5px;font-weight:700;">${esc(o.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : `<div style="font-size:10.5px;color:${SUBTLE}">${linkedDeptsCount} قسم تابع</div>`}</div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-edit" data-id="${esc(o.id)}" data-name="${esc(o.name)}" title="تعديل">${iconPencil(14, INK)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-office" data-id="${esc(o.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-office" data-id="${esc(o.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
     </div>
   </div>`;
 }
@@ -3902,6 +3995,12 @@ function attachFormListeners() {
       render();
       return;
     }
+    if (el.dataset && el.dataset.action === "assign-dept-office") {
+      const d = S.departments.find((x) => x.id === el.dataset.id);
+      if (d) { d.officeId = el.value; dataStore.saveDepartments(S.departments); }
+      render();
+      return;
+    }
   });
 
   document.body.addEventListener("submit", (e) => {
@@ -4216,6 +4315,42 @@ function attachClickListener() {
         const val = document.getElementById("edit-dept-name").value.trim();
         if (val) { S.departments = S.departments.map((d) => d.id === ds.id ? { ...d, name: val } : d); dataStore.saveDepartments(S.departments); }
         S.ui.editingDeptId = null; render();
+        break;
+      }
+
+      /* ---------- supervision offices management ---------- */
+      case "add-office": {
+        const nameEl = document.getElementById("new-office-name");
+        const name = (nameEl.value || "").trim();
+        if (!name) break;
+        S.offices = [...(S.offices || []), { id: uid("office"), name, status: "active", createdAt: Date.now() }];
+        dataStore.saveOffices(S.offices);
+        S.ui.newOfficeName = "";
+        render();
+        break;
+      }
+      case "toggle-office": {
+        S.offices = (S.offices || []).map((o) => o.id === ds.id ? { ...o, status: o.status === "active" ? "disabled" : "active" } : o);
+        dataStore.saveOffices(S.offices); render();
+        break;
+      }
+      case "confirm-remove-office": S.ui.confirmRemoveOfficeId = ds.id; render(); break;
+      case "cancel-remove-office": S.ui.confirmRemoveOfficeId = null; render(); break;
+      case "delete-office": {
+        S.offices = (S.offices || []).filter((o) => o.id !== ds.id);
+        S.departments = S.departments.map((d) => d.officeId === ds.id ? { ...d, officeId: "" } : d);
+        dataStore.saveOffices(S.offices);
+        dataStore.saveDepartments(S.departments);
+        S.ui.confirmRemoveOfficeId = null;
+        render();
+        break;
+      }
+      case "start-office-edit": S.ui.editingOfficeId = ds.id; S.ui.editOfficeValue = ds.name; render(); break;
+      case "cancel-office-edit": S.ui.editingOfficeId = null; render(); break;
+      case "save-office-edit": {
+        const val = document.getElementById("edit-office-name").value.trim();
+        if (val) { S.offices = (S.offices || []).map((o) => o.id === ds.id ? { ...o, name: val } : o); dataStore.saveOffices(S.offices); }
+        S.ui.editingOfficeId = null; render();
         break;
       }
 
