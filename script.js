@@ -780,6 +780,7 @@ const iconDownload = (s, c) => svgIcon(`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 
 const iconHome = (s, c) => svgIcon(`<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/>`, s || 15, c);
 const iconTarget = (s, c) => svgIcon(`<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>`, s || 15, c);
 const iconKey = (s, c) => svgIcon(`<circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5 18 5"/><path d="M18 8 20.5 5.5"/>`, s || 14, c);
+const iconMail = (s, c) => svgIcon(`<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>`, s || 14, c);
 const ICONS_BY_SECTION = {}; // not needed for section icons; use a generic dot instead
 
 function fieldWrap(label, requiredOrHtml, maybeHtml) {
@@ -2286,6 +2287,7 @@ function renderDepartmentsManage() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input class="input" id="new-unit-name" style="flex:2;min-width:160px;" placeholder="اسم الوحدة الجديدة" value="${esc(ui.newUnitName || "")}" />
           <input class="input" id="new-unit-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newUnitPassword || "")}" />
+          <input class="input" id="new-unit-email" style="flex:1;min-width:160px;" type="email" placeholder="الإيميل (اختياري)" value="${esc(ui.newUnitEmail || "")}" />
           <select class="input" id="new-unit-dept" style="flex:1;min-width:140px;">
             <option value="">القسم (اختياري)</option>
             ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newUnitDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
@@ -2302,6 +2304,7 @@ function renderDepartmentsManage() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input class="input" id="new-center-name" style="flex:2;min-width:160px;" placeholder="اسم المركز الجديد" value="${esc(ui.newCenterName || "")}" />
           <input class="input" id="new-center-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newCenterPassword || "")}" />
+          <input class="input" id="new-center-email" style="flex:1;min-width:160px;" type="email" placeholder="الإيميل (اختياري)" value="${esc(ui.newCenterEmail || "")}" />
           <select class="input" id="new-center-dept" style="flex:1;min-width:140px;">
             <option value="">القسم (اختياري)</option>
             ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newCenterDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
@@ -2401,6 +2404,7 @@ function unitRowHtml(u) {
   const isActive = u.status === "active";
   const editing = S.ui.editingUnitId === u.id;
   const editingPassword = S.ui.editingUnitPasswordId === u.id;
+  const editingEmail = S.ui.editingUnitEmailId === u.id;
   const confirming = S.ui.confirmDeleteUnitId === u.id;
   if (confirming) {
     return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -2416,6 +2420,14 @@ function unitRowHtml(u) {
       <button data-action="cancel-unit-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
     </div>`;
   }
+  if (editingEmail) {
+    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
+      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(u.name)} —</span>
+      <input class="input" id="edit-unit-email" type="email" style="flex:1;" placeholder="الإيميل" value="${esc(S.ui.editUnitEmailValue || "")}" />
+      <button data-action="save-unit-email" data-id="${esc(u.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
+      <button data-action="cancel-unit-email" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
+    </div>`;
+  }
   if (editing) {
     return `<div class="card" style="display:flex;gap:6px;">
       <input class="input" id="edit-unit-name" style="flex:1;" value="${esc(S.ui.editUnitValue || "")}" />
@@ -2426,13 +2438,14 @@ function unitRowHtml(u) {
   return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconBuilding(ROSE, 16)}</div>
-      <div><div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:10px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:2px 7px;border-radius:999px;">مركز</span>` : ""}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّلة</div>` : ""}</div>
+      <div><div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:10px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:2px 7px;border-radius:999px;">مركز</span>` : ""}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّلة</div>` : ""}${u.email ? `<div style="font-size:10.5px;color:${SUBTLE}">${esc(u.email)}</div>` : ""}</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
       <select class="input" style="padding:6px 8px;font-size:12px;width:150px;" data-action="assign-unit-dept" data-id="${esc(u.id)}">
         <option value="">بدون قسم</option>
         ${S.departments.map((d) => `<option value="${esc(d.id)}" ${u.departmentId === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
       </select>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-email" data-id="${esc(u.id)}" data-email="${esc(u.email || "")}" title="الإيميل">${iconMail(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-password" data-id="${esc(u.id)}" title="تغيير كلمة المرور">${iconKey(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-edit" data-id="${esc(u.id)}" data-name="${esc(u.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-unit" data-id="${esc(u.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
@@ -4358,22 +4371,24 @@ function attachClickListener() {
       case "add-unit": {
         const name = (document.getElementById("new-unit-name").value || "").trim();
         const password = (document.getElementById("new-unit-password").value || "").trim();
+        const email = (document.getElementById("new-unit-email").value || "").trim();
         const deptId = document.getElementById("new-unit-dept").value;
         if (!name) break;
-        S.units = [...S.units, { id: uid("unit"), name, password, role: "unit", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
+        S.units = [...S.units, { id: uid("unit"), name, password, email, role: "unit", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
         dataStore.saveUnits(S.units);
-        S.ui.newUnitName = ""; S.ui.newUnitPassword = ""; S.ui.newUnitDept = "";
+        S.ui.newUnitName = ""; S.ui.newUnitPassword = ""; S.ui.newUnitEmail = ""; S.ui.newUnitDept = "";
         render();
         break;
       }
       case "add-center": {
         const name = (document.getElementById("new-center-name").value || "").trim();
         const password = (document.getElementById("new-center-password").value || "").trim();
+        const email = (document.getElementById("new-center-email").value || "").trim();
         const deptId = document.getElementById("new-center-dept").value;
         if (!name) break;
-        S.units = [...S.units, { id: uid("center"), name, password, role: "center", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
+        S.units = [...S.units, { id: uid("center"), name, password, email, role: "center", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
         dataStore.saveUnits(S.units);
-        S.ui.newCenterName = ""; S.ui.newCenterPassword = ""; S.ui.newCenterDept = "";
+        S.ui.newCenterName = ""; S.ui.newCenterPassword = ""; S.ui.newCenterEmail = ""; S.ui.newCenterDept = "";
         render();
         break;
       }
@@ -4412,6 +4427,15 @@ function attachClickListener() {
         const val = document.getElementById("edit-unit-password").value.trim();
         if (val) { S.units = S.units.map((u) => u.id === ds.id ? { ...u, password: val } : u); dataStore.saveUnits(S.units); }
         S.ui.editingUnitPasswordId = null; render();
+        break;
+      }
+      case "start-unit-email": S.ui.editingUnitEmailId = ds.id; S.ui.editUnitEmailValue = ds.email || ""; render(); break;
+      case "cancel-unit-email": S.ui.editingUnitEmailId = null; render(); break;
+      case "save-unit-email": {
+        const val = document.getElementById("edit-unit-email").value.trim();
+        S.units = S.units.map((u) => u.id === ds.id ? { ...u, email: val } : u);
+        dataStore.saveUnits(S.units);
+        S.ui.editingUnitEmailId = null; render();
         break;
       }
       case "toggle-unit": {
