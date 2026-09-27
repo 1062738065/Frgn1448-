@@ -586,6 +586,8 @@ function render() {
     html = shellWrap(renderReportPreview());
   } else if (S.view === "offices-manage") {
     html = shellWrap(renderOfficesManagePage());
+  } else if (S.view === "unit-role-select") {
+    html = renderUnitRoleSelect();
   } else {
     html = renderLogin();
   }
@@ -859,6 +861,42 @@ function badgeHtml(label, color, bg) {
 }
 
 /* =============================== Login ======================================= */
+// شاشة اختيار صفة الدخول لموظفة الوحدة (وليست مركزًا) — نفس اسم الوحدة ونفس كلمة
+// المرور بالضبط؛ الاختيار هنا يحدد فقط أي واجهة تُفتح (الإدارية أو رئيسة الوحدة)
+// لنفس الحساب، بدون إنشاء أي حساب أو كلمة مرور جديدة وبدون أي بيانات تجريبية.
+function renderUnitRoleSelect() {
+  const unit = (S.units || []).find((u) => u.id === S.pendingUnitLoginId);
+  return `
+  <div class="login-wrap">
+    <div class="login-box" style="max-width:440px;">
+      <div class="login-card">
+        <div style="text-align:center;margin-bottom:22px;">
+          <img class="login-logo" src="${ASSOCIATION_LOGO}" alt="جمعية فرقان" />
+          <div class="prs-title" style="font-size:19px;font-weight:900;color:#000">كيف تريدين الدخول؟</div>
+          ${unit ? `<div style="font-size:11.5px;color:${SUBTLE};margin-top:4px;">${esc(unit.name)}</div>` : ""}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <button type="button" class="card" data-action="choose-unit-entry-mode" data-mode="admin" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconDocument(19, ROSE)}</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">الإدارية</div>
+              <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول إلى واجهة الإدارية الخاصة بالوحدة</div>
+            </div>
+          </button>
+          <button type="button" class="card" data-action="choose-unit-entry-mode" data-mode="head" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">رئيسة الوحدة</div>
+              <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول إلى واجهة رئيسة الوحدة الخاصة بالوحدة</div>
+            </div>
+          </button>
+        </div>
+      </div>
+      <button type="button" data-action="logout" style="display:block;margin:16px auto 0;background:none;border:none;color:${SUBTLE};font-size:11.5px;cursor:pointer;text-decoration:underline;">ليست أنتِ؟ تسجيل الخروج</button>
+    </div>
+  </div>`;
+}
+
 function renderLogin() {
   const err = S.ui.loginError || "";
   const showPw = !!S.ui.loginShowPw;
@@ -1017,12 +1055,19 @@ function doLogin(user) {
     S.currentOfficeId = user.officeId || "";
     S.ui.departmentsPageSelectedId = null;
     S.view = "departments-list";
-  } else {
+  } else if (user.role === "center") {
     const unitId = user.unitId;
     S.reports[unitId] = dataStore.getReports(unitId);
     S.currentUnitId = unitId;
     S.currentReportId = null;
     S.view = "unit-dashboard";
+  } else {
+    // موظفة الوحدة (وليست مركزًا): تختار أولًا كيف تريد الدخول — الإدارية أو رئيسة
+    // الوحدة — قبل الدخول لصفحات الوحدة نفسها. نفس الحساب ونفس كلمة المرور بالضبط،
+    // بدون أي حساب أو صلاحية جديدة؛ الاختيار مجرد واجهة عرض تُحدَّد بعد الدخول.
+    S.pendingUnitLoginId = user.unitId;
+    S.currentUnitEntryMode = null;
+    S.view = "unit-role-select";
   }
   render();
   if (sheetsConfigured()) {
@@ -1037,7 +1082,7 @@ function doLogin(user) {
 }
 
 function doLogout() {
-  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.currentOfficeId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.view = "login"; S.ui = {};
+  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.currentOfficeId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.pendingUnitLoginId = null; S.currentUnitEntryMode = null; S.view = "login"; S.ui = {};
   render();
 }
 
@@ -4343,6 +4388,18 @@ function attachClickListener() {
       }
       case "set-all-reports-filter": S.ui.allReportsFilter = ds.filter; render(); break;
       case "logout": doLogout(); break;
+      case "choose-unit-entry-mode": {
+        const unitId = S.pendingUnitLoginId;
+        S.currentUnitEntryMode = ds.mode === "head" ? "head" : "admin";
+        S.reports[unitId] = dataStore.getReports(unitId);
+        S.currentUnitId = unitId;
+        S.currentReportId = null;
+        S.pendingUnitLoginId = null;
+        S.view = "unit-dashboard";
+        render();
+        if (sheetsConfigured()) { refreshReportsFromSheet(unitId).then(() => { if (S.currentUser) render(); }); }
+        break;
+      }
       case "open-office-department": S.ui.officeSelectedDeptId = ds.id; render(); break;
       case "office-back-to-departments": S.ui.officeSelectedDeptId = null; render(); break;
       case "departments-page-open": S.ui.departmentsPageSelectedId = ds.id; render(); break;
