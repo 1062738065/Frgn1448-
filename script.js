@@ -459,6 +459,9 @@ function reportStatusMeta(status) {
   if (status === "under_review") return { label: "بانتظار المراجعة", color: GOLD, bg: GOLD_BG };
   if (status === "needs_completion") return { label: "بحاجة إلى استكمال", color: "#c9863a", bg: "#faf0e3" };
   if (status === "returned") return { label: "بحاجة إلى تعديل", color: DANGER, bg: DANGER_BG };
+  if (status === "pending_head_review") return { label: "بانتظار مراجعة رئيسة الوحدة", color: GOLD, bg: GOLD_BG };
+  if (status === "head_returned_edit") return { label: "معاد للتعديل", color: DANGER, bg: DANGER_BG };
+  if (status === "head_returned_completion") return { label: "معاد للاستكمال", color: "#c9863a", bg: "#faf0e3" };
   return { label: "مسودة", color: BLUE, bg: BLUE_BG };
 }
 const REPORT_TYPES = [
@@ -580,6 +583,8 @@ function render() {
     html = shellWrap(renderUnitReportsHub());
   } else if (S.view === "unit-report") {
     html = shellWrap(renderUnitReport());
+  } else if (S.view === "unit-notifications") {
+    html = shellWrap(renderUnitNotifications());
   } else if (S.view === "full-report") {
     html = shellWrap(renderFullReport());
   } else if (S.view === "report-preview") {
@@ -635,7 +640,7 @@ const SIDEBAR_PAGES = [
 const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "__standalone__all-reports", "__standalone__units-manage", "الإدارة العليا", "الهيكل التنظيمي", "unit-home"];
 const SIDEBAR_GROUP_LABELS = { "unit-home": "الرئيسية" };
 function sidebarNavIcon(key, size, color) {
-  const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter, plus: iconPlus };
+  const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter, plus: iconPlus, bell: iconBell };
   const fn = map[key] || iconDocument;
   return key === "building" || key === "gauge" ? fn(color, size) : fn(size, color);
 }
@@ -688,6 +693,9 @@ function computeReportRecipients(unit) {
   return list;
 }
 function renderMainSidebar(mobile) {
+  if (S.currentUnitEntryMode === "admin" && !S.isAdmin && !S.isDepartmentUser && !S.isExecutive && !S.isOfficeUser) {
+    return renderUnitAdminSidebar(mobile);
+  }
   const visible = computeVisibleSidebarPages();
   const notifCount = computeNotificationCount();
   const groupsHtml = SIDEBAR_GROUPS.map((g) => {
@@ -2338,6 +2346,19 @@ function reportCardHtml(unit, entry) {
       ${showNotes ? `<div class="hint" style="text-align:right;">${esc(managerNotes)}</div>` : ""}
       ${pillBtn(entry.status === "returned" ? "إعادة التعديل" : "استكمال التقرير", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
     </div>`;
+  } else if (entry.status === "pending_head_review") {
+    actionsHtml = `<div style="display:flex;gap:6px;">
+      ${pillBtn("عرض", { variant: "ghost", icon: iconEye(14, INK), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id } })}
+    </div>`;
+  } else if (entry.status === "head_returned_edit" || entry.status === "head_returned_completion") {
+    const headNotes = entry.internalReviewNotes || "";
+    const returnedDateStr = entry.internalReturnedAt ? new Date(entry.internalReturnedAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+    actionsHtml = `<div style="display:flex;flex-direction:column;gap:6px;">
+      ${returnedDateStr ? `<div style="font-size:10px;color:${SUBTLE};">تاريخ الإعادة: ${esc(returnedDateStr)}</div>` : ""}
+      ${headNotes ? `<button class="pill-btn pill-ghost" data-action="toggle-report-notes" data-id="${entry.id}" style="width:100%;">${iconEye(14, INK)} ${showNotes ? "إخفاء الملاحظات" : "عرض ملاحظات رئيسة الوحدة"}</button>` : ""}
+      ${showNotes ? `<div class="hint" style="text-align:right;">${esc(headNotes)}</div>` : ""}
+      ${pillBtn(entry.status === "head_returned_edit" ? "تعديل التقرير" : "استكمال التقرير", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
+    </div>`;
   } else {
     // مكتمل أو معتمد
     actionsHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -2966,6 +2987,114 @@ function phaseSidebarHtml(report) {
 }
 
 /* =============================== Unit report page ============================= */
+// ============ واجهة "الإدارية" الخاصة بالوحدة (نفس حساب الوحدة، صفة دخول فقط) ====
+// تقارير الوحدة التي أعادتها رئيسة الوحدة ولم تُرسَل مجددًا بعد — هذي نفسها قائمة
+// "التنبيهات" الخاصة بالوحدة، بدون أي مخزن بيانات إضافي أو تجريبي: نفس سجلات
+// التقارير الموجودة فعليًا، فقط نقرأ حالتها.
+function unitHeadReturnedReports(unitId) {
+  return ensureUnitReportsLoaded(unitId).filter((r) => r.status === "head_returned_edit" || r.status === "head_returned_completion");
+}
+
+// شريط جانبي مخصص لصفة "الإدارية" فقط: الرئيسية (لوحة المعلومات) — التقارير
+// (إنشاء تقرير / التقارير / التنبيهات). لا صفحات إضافية غير هذه الثلاث حسب هذي
+// الخطوة بالضبط. صفة "رئيسة الوحدة" ومركز تسجيل الدخول يستمران بنفس الشريط
+// الجانبي العام الموجود مسبقًا (renderMainSidebar الأصلي) بدون أي تغيير عليه.
+function renderUnitAdminSidebar(mobile) {
+  const notifCount = S.currentUnitId ? unitHeadReturnedReports(S.currentUnitId).length : 0;
+  const activeDash = S.view === "unit-dashboard";
+  const activeReports = S.view === "unit-reports";
+  const activeNotif = S.view === "unit-notifications";
+
+  const groupsHtml = `
+    <div class="nav-group open">
+      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("home", 13, SUBTLE)}الرئيسية</div>
+      <div class="nav-list">
+        <button class="nav-item ${activeDash ? "active" : ""}" data-action="nav-to" data-view="unit-dashboard">${sidebarNavIcon("home", 15, activeDash ? "#6b2337" : INK)}<span>لوحة المعلومات</span></button>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("document", 13, SUBTLE)}التقارير</div>
+      <div class="nav-list">
+        <button class="nav-item" data-action="open-or-create-report">${sidebarNavIcon("pencil", 15, INK)}<span>إنشاء تقرير</span></button>
+        <button class="nav-item ${activeReports ? "active" : ""}" data-action="nav-to" data-view="unit-reports">${sidebarNavIcon("document", 15, activeReports ? "#6b2337" : INK)}<span>التقارير</span></button>
+        <button class="nav-item ${activeNotif ? "active" : ""}" data-action="nav-to" data-view="unit-notifications" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:10px;">${sidebarNavIcon("bell", 15, activeNotif ? "#6b2337" : INK)}<span>التنبيهات</span></span>
+          ${notifCount > 0 ? `<span style="background:#d65b57;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}
+        </button>
+      </div>
+    </div>`;
+
+  const initial = (S.currentUser && S.currentUser.name ? S.currentUser.name.trim()[0] : "؟");
+  const inner = `
+    <div class="sidebar-head">
+      <div class="sidebar-head-icons-row">
+        <div class="icon-badge">${iconGauge("#6b2337")}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="sidebar-bell" title="الإشعارات">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
+          <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
+        </div>
+      </div>
+      <img src="${ASSOCIATION_LOGO}" class="sidebar-logo" alt="جمعية فرقان" />
+      <div class="prs-title sidebar-title">منصة التقارير</div>
+    </div>
+    <div class="sidebar-user-block">
+      <div class="sidebar-user-avatar">${esc(initial)}</div>
+      <div style="min-width:0;">
+        <div class="sidebar-user-hello">أهلًا وسهلًا</div>
+        <div class="sidebar-user-name">${esc(S.currentUser ? S.currentUser.name : "")}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-sep"></div>
+    <button class="logout-btn" data-action="logout">${iconLogout(16, "#6b2337")} تسجيل الخروج</button>
+  `;
+
+  if (!mobile) return `<div class="sidebar">${inner}</div>`;
+  return `
+    <div class="mobile-backdrop" data-action="close-mobile-sidebar"></div>
+    <div class="sidebar-mobile-panel"><div class="sidebar" style="margin:0;border-radius:0;height:100vh;max-height:100vh;">${inner}</div></div>
+  `;
+}
+
+// صفحة قفل التقرير أثناء وجوده لدى رئيسة الوحدة — نفس نموذج التقرير بدون أي
+// تغيير في حقوله؛ فقط لا يُعرض للتعديل أثناء هذي الحالة تحديدًا.
+function unitReportLockedHtml(entry) {
+  const sentDateStr = entry.internalSentAt ? new Date(entry.internalSentAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+  return `
+  <div class="card card-lg" style="text-align:center;padding:40px 20px;">
+    <div style="width:56px;height:56px;border-radius:16px;background:${GOLD_BG};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">${iconCheckCircle(26, GOLD)}</div>
+    <div style="font-size:15px;font-weight:800;margin-bottom:6px;">التقرير بانتظار مراجعة رئيسة الوحدة</div>
+    <div style="font-size:12px;color:${SUBTLE};max-width:360px;margin:0 auto;">${sentDateStr ? `تم إرسال هذا التقرير بتاريخ ${esc(sentDateStr)} و` : "تم إرسال هذا التقرير و"}لا يمكن تعديله حاليًا حتى تنتهي رئيسة الوحدة من مراجعته.</div>
+  </div>`;
+}
+
+// صفحة "التنبيهات" الخاصة بالوحدة — تقارير هذي الوحدة فقط التي أعادتها رئيسة
+// الوحدة ولم تُرسَل مجددًا بعد. الضغط على أي تنبيه يفتح التقرير مباشرة.
+function renderUnitNotifications() {
+  const unit = S.units.find((u) => u.id === S.currentUnitId);
+  if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
+  const items = unitHeadReturnedReports(unit.id).slice().sort((a, b) => (b.internalReturnedAt || 0) - (a.internalReturnedAt || 0));
+  return `
+  <div class="page-wrap"><div class="page-inner narrow">
+    ${topBarHtml({ title: "التنبيهات", subtitle: "تنبيهات هذه الوحدة فقط", backAction: "nav-to", backData: { view: "unit-dashboard" } })}
+    ${items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تنبيهات حاليًا.</div>` :
+      `<div style="display:flex;flex-direction:column;gap:10px;">${items.map((r) => {
+        const dateStr = r.internalReturnedAt ? new Date(r.internalReturnedAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+        const verb = r.status === "head_returned_edit" ? "معاد للتعديل" : "معاد للاستكمال";
+        return `
+        <button class="card" data-action="open-report" data-unit-id="${esc(unit.id)}" data-report-id="${esc(r.id)}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;">
+          <div style="width:38px;height:38px;border-radius:11px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBell(17, ROSE)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;">تقرير ${esc(unit.name)} ${verb}</div>
+            ${dateStr ? `<div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(dateStr)}</div>` : ""}
+          </div>
+          ${iconChevronLeft(14, SUBTLE)}
+        </button>`;
+      }).join("")}</div>`}
+  </div></div>`;
+}
+
 function renderUnitReport() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
   if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
@@ -2980,7 +3109,7 @@ function renderUnitReport() {
     const resumeId = entry.lastSectionId && SECTIONS.some((s) => s.id === entry.lastSectionId) ? entry.lastSectionId : SECTIONS[0].id;
     loadSectionIntoDraft(resumeId);
   }
-  const mainContent = sectionEditorHtml(unit, entry);
+  const mainContent = entry.status === "pending_head_review" ? unitReportLockedHtml(entry) : sectionEditorHtml(unit, entry);
 
   return `
   <div class="report-layout">
@@ -3148,8 +3277,8 @@ function sectionEditorHtml(unit, report) {
       ${pillBtn("السابق", { variant: "ghost", action: "section-prev", disabled: sectionIndex <= 0 })}
       <div style="flex:1;">${pillBtn(S.sectionSaveStatus || "حفظ كمسودة", { variant: "soft", icon: iconSave(15, GREEN), action: "section-save-draft" })}</div>
       ${sectionIndex >= SECTIONS.length - 1
-        ? (report.status === "draft" || report.status === "returned" || report.status === "needs_completion"
-            ? pillBtn("إرسال للمراجعة", { icon: iconCheckCircle(15, "#fff"), action: "start-send-report" })
+        ? (report.status === "draft" || report.status === "returned" || report.status === "needs_completion" || report.status === "head_returned_edit" || report.status === "head_returned_completion"
+            ? pillBtn("إرسال للمراجعة", { icon: iconCheckCircle(15, "#fff"), action: S.currentUnitEntryMode === "admin" ? "submit-report-to-head" : "start-send-report" })
             : report.status === "under_review"
             ? pillBtn("بانتظار مراجعة القسم", { variant: "soft", icon: iconCheckCircle(15, GOLD), disabled: true })
             : report.status === "completed"
@@ -4388,6 +4517,13 @@ function attachClickListener() {
       }
       case "set-all-reports-filter": S.ui.allReportsFilter = ds.filter; render(); break;
       case "logout": doLogout(); break;
+      case "submit-report-to-head": {
+        const entry = getCurrentReportEntry();
+        if (!entry) break;
+        saveReportEntry(S.currentUnitId, { ...entry, status: "pending_head_review", internalSentAt: Date.now(), internalSentBy: "admin", updatedAt: Date.now() });
+        render();
+        break;
+      }
       case "choose-unit-entry-mode": {
         const unitId = S.pendingUnitLoginId;
         S.currentUnitEntryMode = ds.mode === "head" ? "head" : "admin";
@@ -4469,7 +4605,7 @@ function attachClickListener() {
         // إنشاء تقرير: تكمل آخر تقرير لسا شغّالة عليه (مسودة/بحاجة لتعديل أو استكمال)،
         // أو تنشئ تقرير جديد فورًا بدون أي اختيار وسيط.
         const list = ensureUnitReportsLoaded(S.currentUnitId);
-        const openStatuses = ["draft", "returned", "needs_completion"];
+        const openStatuses = ["draft", "returned", "needs_completion", "head_returned_edit", "head_returned_completion"];
         const inProgress = [...list].reverse().find((r) => openStatuses.includes(r.status));
         const entry = inProgress || createNewReportEntry(S.currentUnitId);
         S.currentReportId = entry.id; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
