@@ -585,6 +585,10 @@ function render() {
     html = shellWrap(renderUnitReport());
   } else if (S.view === "unit-notifications") {
     html = shellWrap(renderUnitNotifications());
+  } else if (S.view === "unit-incoming-review") {
+    html = shellWrap(renderUnitIncomingReviewPage());
+  } else if (S.view === "unit-all-reports") {
+    html = shellWrap(renderUnitAllReportsPage());
   } else if (S.view === "full-report") {
     html = shellWrap(renderFullReport());
   } else if (S.view === "report-preview") {
@@ -695,6 +699,9 @@ function computeReportRecipients(unit) {
 function renderMainSidebar(mobile) {
   if (S.currentUnitEntryMode === "admin" && !S.isAdmin && !S.isDepartmentUser && !S.isExecutive && !S.isOfficeUser) {
     return renderUnitAdminSidebar(mobile);
+  }
+  if (S.currentUnitEntryMode === "head" && !S.isAdmin && !S.isDepartmentUser && !S.isExecutive && !S.isOfficeUser) {
+    return renderUnitHeadSidebar(mobile);
   }
   const visible = computeVisibleSidebarPages();
   const notifCount = computeNotificationCount();
@@ -2313,7 +2320,11 @@ function isReportArchived(report) {
   return !isNaN(end) && end < Date.now();
 }
 function reportCardHtml(unit, entry) {
-  const meta = reportStatusMeta(entry.status);
+  const metaBase = reportStatusMeta(entry.status);
+  const meta = (entry.status === "under_review" && entry.headReviewedBy === "head")
+    ? { label: "قيد مراجعة القسم", color: metaBase.color, bg: metaBase.bg }
+    : metaBase;
+  const headApprovedDateStr = entry.headReviewedAt ? new Date(entry.headReviewedAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
   const typeMeta = reportTypeMeta(entry.reportType);
   const progress = computeProgress(entry);
   const dateStr = new Date(entry.createdAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" });
@@ -2372,7 +2383,7 @@ function reportCardHtml(unit, entry) {
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="width:30px;height:30px;border-radius:9px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${reportTypeIconHtml(entry.reportType, 14, ROSE)}</div>
-        <div><div style="font-size:14px;font-weight:800;">${esc(entry.label || "تقرير")}</div><div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(dateStr)}</div></div>
+        <div><div style="font-size:14px;font-weight:800;">${esc(entry.label || "تقرير")}</div><div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(dateStr)}</div>${headApprovedDateStr ? `<div style="font-size:10px;color:${SUBTLE};margin-top:2px;">اعتمدته رئيسة الوحدة بتاريخ ${esc(headApprovedDateStr)}</div>` : ""}</div>
       </div>
       ${badgeHtml(meta.label, meta.color, meta.bg)}
     </div>
@@ -3071,17 +3082,25 @@ function unitReportLockedHtml(entry) {
 
 // صفحة "التنبيهات" الخاصة بالوحدة — تقارير هذي الوحدة فقط التي أعادتها رئيسة
 // الوحدة ولم تُرسَل مجددًا بعد. الضغط على أي تنبيه يفتح التقرير مباشرة.
+function unitPendingHeadReviewReports(unitId) {
+  return ensureUnitReportsLoaded(unitId).filter((r) => r.status === "pending_head_review");
+}
+
 function renderUnitNotifications() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
   if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
-  const items = unitHeadReturnedReports(unit.id).slice().sort((a, b) => (b.internalReturnedAt || 0) - (a.internalReturnedAt || 0));
+  const isHead = S.currentUnitEntryMode === "head";
+  const items = (isHead ? unitPendingHeadReviewReports(unit.id) : unitHeadReturnedReports(unit.id))
+    .slice()
+    .sort((a, b) => (isHead ? (b.internalSentAt || 0) - (a.internalSentAt || 0) : (b.internalReturnedAt || 0) - (a.internalReturnedAt || 0)));
   return `
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "التنبيهات", subtitle: "تنبيهات هذه الوحدة فقط", backAction: "nav-to", backData: { view: "unit-dashboard" } })}
     ${items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تنبيهات حاليًا.</div>` :
       `<div style="display:flex;flex-direction:column;gap:10px;">${items.map((r) => {
-        const dateStr = r.internalReturnedAt ? new Date(r.internalReturnedAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
-        const verb = r.status === "head_returned_edit" ? "معاد للتعديل" : "معاد للاستكمال";
+        const dateVal = isHead ? r.internalSentAt : r.internalReturnedAt;
+        const dateStr = dateVal ? new Date(dateVal).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+        const verb = isHead ? "بانتظار المراجعة" : (r.status === "head_returned_edit" ? "معاد للتعديل" : "معاد للاستكمال");
         return `
         <button class="card" data-action="open-report" data-unit-id="${esc(unit.id)}" data-report-id="${esc(r.id)}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;">
           <div style="width:38px;height:38px;border-radius:11px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBell(17, ROSE)}</div>
@@ -3092,6 +3111,195 @@ function renderUnitNotifications() {
           ${iconChevronLeft(14, SUBTLE)}
         </button>`;
       }).join("")}</div>`}
+  </div></div>`;
+}
+
+// ============ واجهة "رئيسة الوحدة" الخاصة بالوحدة (نفس حساب الوحدة، صفة دخول فقط) ==
+// شريط جانبي مخصص لصفة "رئيسة الوحدة": الرئيسية (لوحة المعلومات) — التقارير
+// (التقارير الواردة للمراجعة / التقارير / جميع التقارير) — التنبيهات. صفة
+// "الإدارية" ومركز تسجيل الدخول لا يتأثران بأي شيء هنا.
+function renderUnitHeadSidebar(mobile) {
+  const pendingCount = S.currentUnitId ? unitPendingHeadReviewReports(S.currentUnitId).length : 0;
+  const badgeHtmlSmall = (n) => n > 0 ? `<span style="background:#d65b57;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;">${n > 9 ? "9+" : n}</span>` : "";
+  const activeDash = S.view === "unit-dashboard";
+  const activeIncoming = S.view === "unit-incoming-review";
+  const activeReports = S.view === "unit-reports";
+  const activeAll = S.view === "unit-all-reports";
+  const activeNotif = S.view === "unit-notifications";
+
+  const groupsHtml = `
+    <div class="nav-group open">
+      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("home", 13, SUBTLE)}الرئيسية</div>
+      <div class="nav-list">
+        <button class="nav-item ${activeDash ? "active" : ""}" data-action="nav-to" data-view="unit-dashboard">${sidebarNavIcon("home", 15, activeDash ? "#6b2337" : INK)}<span>لوحة المعلومات</span></button>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("document", 13, SUBTLE)}التقارير</div>
+      <div class="nav-list">
+        <button class="nav-item ${activeIncoming ? "active" : ""}" data-action="nav-to" data-view="unit-incoming-review" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:10px;">${sidebarNavIcon("document", 15, activeIncoming ? "#6b2337" : INK)}<span>التقارير الواردة للمراجعة</span></span>
+          ${badgeHtmlSmall(pendingCount)}
+        </button>
+        <button class="nav-item ${activeReports ? "active" : ""}" data-action="nav-to" data-view="unit-reports">${sidebarNavIcon("document", 15, activeReports ? "#6b2337" : INK)}<span>التقارير</span></button>
+        <button class="nav-item ${activeAll ? "active" : ""}" data-action="nav-to" data-view="unit-all-reports">${sidebarNavIcon("layers", 15, activeAll ? "#6b2337" : INK)}<span>جميع التقارير</span></button>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("bell", 13, SUBTLE)}التنبيهات</div>
+      <div class="nav-list">
+        <button class="nav-item ${activeNotif ? "active" : ""}" data-action="nav-to" data-view="unit-notifications" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:10px;">${sidebarNavIcon("bell", 15, activeNotif ? "#6b2337" : INK)}<span>التنبيهات</span></span>
+          ${badgeHtmlSmall(pendingCount)}
+        </button>
+      </div>
+    </div>`;
+
+  const initial = (S.currentUser && S.currentUser.name ? S.currentUser.name.trim()[0] : "؟");
+  const inner = `
+    <div class="sidebar-head">
+      <div class="sidebar-head-icons-row">
+        <div class="icon-badge">${iconGauge("#6b2337")}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="sidebar-bell" title="الإشعارات">${iconBell(15, INK)}${pendingCount > 0 ? `<span class="notif-badge">${pendingCount > 9 ? "9+" : pendingCount}</span>` : ""}</button>
+          <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
+        </div>
+      </div>
+      <img src="${ASSOCIATION_LOGO}" class="sidebar-logo" alt="جمعية فرقان" />
+      <div class="prs-title sidebar-title">منصة التقارير</div>
+    </div>
+    <div class="sidebar-user-block">
+      <div class="sidebar-user-avatar">${esc(initial)}</div>
+      <div style="min-width:0;">
+        <div class="sidebar-user-hello">أهلًا وسهلًا</div>
+        <div class="sidebar-user-name">${esc(S.currentUser ? S.currentUser.name : "")}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-sep"></div>
+    <button class="logout-btn" data-action="logout">${iconLogout(16, "#6b2337")} تسجيل الخروج</button>
+  `;
+
+  if (!mobile) return `<div class="sidebar">${inner}</div>`;
+  return `
+    <div class="mobile-backdrop" data-action="close-mobile-sidebar"></div>
+    <div class="sidebar-mobile-panel"><div class="sidebar" style="margin:0;border-radius:0;height:100vh;max-height:100vh;">${inner}</div></div>
+  `;
+}
+
+// "التقارير الواردة للمراجعة" — تقارير هذي الوحدة التي أرسلتها الإدارية وبانتظار
+// مراجعة رئيسة الوحدة تحديدًا (pending_head_review). لا علاقة لها بتقارير أي
+// وحدة أخرى ولا بمرحلة مراجعة القسم.
+function renderUnitIncomingReviewPage() {
+  const unit = S.units.find((u) => u.id === S.currentUnitId);
+  if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
+  const dept = S.departments.find((d) => d.id === unit.departmentId);
+  const items = unitPendingHeadReviewReports(unit.id).slice().sort((a, b) => (b.internalSentAt || 0) - (a.internalSentAt || 0));
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: `التقارير الواردة للمراجعة (${items.length})`, subtitle: dept ? `${unit.name} — ${dept.name}` : unit.name, backAction: "nav-to", backData: { view: "unit-dashboard" } })}
+    ${items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير بانتظار مراجعتك حاليًا.</div>` :
+      `<div style="display:flex;flex-direction:column;gap:10px;">${items.map((r) => incomingReviewRowHtml(unit, r)).join("")}</div>`}
+  </div></div>`;
+}
+function incomingReviewRowHtml(unit, r) {
+  const periodType = r.sections?.basic?.data?.periodType || "";
+  const hijriYear = r.sections?.basic?.data?.hijriYear || "";
+  const typeMeta = reportTypeMeta(r.reportType || "general");
+  const sentDateStr = r.internalSentAt ? new Date(r.internalSentAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+  const meta = reportStatusMeta(r.status);
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div style="min-width:0;">
+      <div style="font-size:13.5px;font-weight:800;">${esc(r.label || "تقرير")}</div>
+      <div style="font-size:11px;color:${SUBTLE};margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
+        <span>الوحدة: ${esc(unit.name)}</span>
+        ${periodType ? `<span>الفترة: ${esc(periodType)}${hijriYear ? ` ${esc(hijriYear)}` : ""}</span>` : ""}
+        <span>النوع: ${esc(typeMeta.label)}</span>
+        ${sentDateStr ? `<span>تاريخ الإرسال: ${esc(sentDateStr)}</span>` : ""}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      ${badgeHtml(meta.label, meta.color, meta.bg)}
+      ${pillBtn("فتح التقرير", { icon: iconChevronLeft(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: r.id } })}
+    </div>
+  </div>`;
+}
+
+// لوحة المراجعة داخل التقرير نفسه — تظهر فقط لرئيسة الوحدة على تقرير بانتظار
+// مراجعتها. لا تغيّر نموذج التقرير أو حقوله؛ تعرض فقط قرارات المراجعة الثلاثة.
+// المعاينة والاطلاع على المرفقات تبقى عبر زرّي "عرض كامل"/"معاينة الطباعة"
+// الموجودين أصلًا في أعلى هذي الصفحة (بدون أي تغيير عليهما).
+function unitReportHeadReviewHtml(unit, entry) {
+  const sentDateStr = entry.internalSentAt ? new Date(entry.internalSentAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+  const returnMode = S.ui.headReturnMode || null;
+  return `
+  <div class="card card-lg">
+    <div style="font-size:15px;font-weight:800;margin-bottom:6px;">مراجعة التقرير</div>
+    <div style="font-size:12px;color:${SUBTLE};margin-bottom:18px;">${sentDateStr ? `أرسلته الإدارية بتاريخ ${esc(sentDateStr)} — ` : ""}استخدمي "عرض كامل" أو "معاينة الطباعة" بالأعلى للاطلاع على التقرير كاملًا بما فيه المرفقات، ثم قرري.</div>
+    ${returnMode ? `
+      <div class="card" style="border:1.5px solid ${ROSE};margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:10px;">${returnMode === "edit" ? "إعادة التقرير للتعديل" : "إعادة التقرير للاستكمال"}</div>
+        <textarea class="input" id="head-return-notes" rows="3" style="width:100%;margin-bottom:10px;" placeholder="${returnMode === "edit" ? "اكتبي ملاحظاتك لرئيسة القسم... (إلزامي)" : "ملاحظات (اختياري)"}">${esc(S.ui.headReturnNotesVal || "")}</textarea>
+        ${S.ui.headReturnError ? `<div class="error-box" style="margin-bottom:10px;">${esc(S.ui.headReturnError)}</div>` : ""}
+        <div style="display:flex;gap:8px;">
+          ${pillBtn("تأكيد الإعادة", { icon: iconCheckCircle(14, "#fff"), action: "confirm-head-return", data: { mode: returnMode } })}
+          ${pillBtn("إلغاء", { variant: "ghost", action: "cancel-head-return" })}
+        </div>
+      </div>` : `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${pillBtn("اعتماد التقرير", { icon: iconCheckCircle(15, "#fff"), action: "approve-report-by-head" })}
+        ${pillBtn("إعادة للتعديل", { variant: "ghost", icon: iconPencil(15, DANGER), action: "start-head-return", data: { mode: "edit" } })}
+        ${pillBtn("إعادة للاستكمال", { variant: "ghost", icon: iconPencil(15, "#c9863a"), action: "start-head-return", data: { mode: "completion" } })}
+      </div>`}
+  </div>`;
+}
+
+// "جميع التقارير" — أرشيف كل تقارير هذي الوحدة (وليس تقارير النظام)، مع تصفية
+// حسب السنة/الفترة/نوع التقرير/الحالة. مختلفة عن "التقارير" التي تتابع دورة
+// العمل والحالات عبر تبويبات. تُستخدَم نفس بطاقة reportCardHtml الموجودة أصلًا
+// فتعرض تلقائيًا كل الأزرار والحالات الصحيحة لكل تقرير بدون أي تكرار للمنطق.
+const UNIT_ALL_REPORTS_STATUS_OPTIONS = [
+  { id: "draft", label: "مسودة" },
+  { id: "pending_head_review", label: "بانتظار مراجعة رئيسة الوحدة" },
+  { id: "head_returned_edit", label: "معاد للتعديل" },
+  { id: "head_returned_completion", label: "معاد للاستكمال" },
+  { id: "under_review", label: "قيد مراجعة القسم" },
+  { id: "completed", label: "مكتمل" },
+  { id: "approved", label: "معتمد" },
+];
+function renderUnitAllReportsPage() {
+  const unit = S.units.find((u) => u.id === S.currentUnitId);
+  if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
+  const dept = S.departments.find((d) => d.id === unit.departmentId);
+  const list = ensureUnitReportsLoaded(unit.id);
+  const yearFilter = S.ui.unitAllReportsYearFilter || "";
+  const periodFilter = S.ui.unitAllReportsPeriodFilter || "";
+  const typeFilter = S.ui.unitAllReportsTypeFilter || "";
+  const statusFilter = S.ui.unitAllReportsStatusFilter || "";
+
+  let filtered = list.slice();
+  if (yearFilter) filtered = filtered.filter((r) => (r.sections?.basic?.data?.hijriYear || "") === yearFilter);
+  if (periodFilter) filtered = filtered.filter((r) => (r.sections?.basic?.data?.periodType || "") === periodFilter);
+  if (typeFilter) filtered = filtered.filter((r) => (r.reportType || "general") === typeFilter);
+  if (statusFilter) filtered = filtered.filter((r) => r.status === statusFilter);
+  const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
+  const yearOptions = [...new Set(list.map((r) => r.sections?.basic?.data?.hijriYear).filter(Boolean))];
+
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "جميع التقارير", subtitle: dept ? `${unit.name} — ${dept.name}` : unit.name, backAction: "nav-to", backData: { view: "unit-dashboard" } })}
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select class="input" style="flex:1;min-width:110px;" data-action="filter-unit-all-reports-year"><option value="">السنة: الكل</option>${yearOptions.map((y) => `<option value="${esc(y)}" ${yearFilter === y ? "selected" : ""}>${esc(y)}</option>`).join("")}</select>
+        <select class="input" style="flex:1;min-width:130px;" data-action="filter-unit-all-reports-period"><option value="">الفترة: الكل</option>${PERIOD_TYPES.map((p) => `<option value="${esc(p)}" ${periodFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
+        <select class="input" style="flex:1;min-width:130px;" data-action="filter-unit-all-reports-type"><option value="">نوع التقرير: الكل</option>${REPORT_TYPES.map((t) => `<option value="${esc(t.id)}" ${typeFilter === t.id ? "selected" : ""}>${esc(t.label)}</option>`).join("")}</select>
+        <select class="input" style="flex:1;min-width:150px;" data-action="filter-unit-all-reports-status"><option value="">الحالة: الكل</option>${UNIT_ALL_REPORTS_STATUS_OPTIONS.map((s) => `<option value="${esc(s.id)}" ${statusFilter === s.id ? "selected" : ""}>${esc(s.label)}</option>`).join("")}</select>
+      </div>
+    </div>
+    <div style="font-size:12px;color:${SUBTLE};margin-bottom:10px;">عدد التقارير: ${sorted.length}</div>
+    ${sorted.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير مطابقة.</div>` :
+      `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${sorted.map((entry) => reportCardHtml(unit, entry)).join("")}</div>`}
   </div></div>`;
 }
 
@@ -3109,7 +3317,7 @@ function renderUnitReport() {
     const resumeId = entry.lastSectionId && SECTIONS.some((s) => s.id === entry.lastSectionId) ? entry.lastSectionId : SECTIONS[0].id;
     loadSectionIntoDraft(resumeId);
   }
-  const mainContent = entry.status === "pending_head_review" ? unitReportLockedHtml(entry) : sectionEditorHtml(unit, entry);
+  const mainContent = entry.status === "pending_head_review" ? (S.currentUnitEntryMode === "head" ? unitReportHeadReviewHtml(unit, entry) : unitReportLockedHtml(entry)) : sectionEditorHtml(unit, entry);
 
   return `
   <div class="report-layout">
@@ -4342,6 +4550,7 @@ function attachFormListeners() {
       return;
     }
     if (el.id === "login-password") { S.ui.loginPasswordVal = el.value; return; }
+    if (el.id === "head-return-notes") { S.ui.headReturnNotesVal = el.value; return; }
     if (el.dataset && el.dataset.field && el.tagName !== "SELECT") {
       setFieldFromEl(el);
       liveUpdateComputed(el);
@@ -4358,6 +4567,10 @@ function attachFormListeners() {
     if (el.dataset && el.dataset.action === "filter-all-reports-dept") { S.ui.allReportsDept = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-type") { S.ui.unitReportsTypeFilter = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-year") { S.ui.unitReportsYearFilter = el.value; render(); return; }
+    if (el.dataset && el.dataset.action === "filter-unit-all-reports-year") { S.ui.unitAllReportsYearFilter = el.value; render(); return; }
+    if (el.dataset && el.dataset.action === "filter-unit-all-reports-period") { S.ui.unitAllReportsPeriodFilter = el.value; render(); return; }
+    if (el.dataset && el.dataset.action === "filter-unit-all-reports-type") { S.ui.unitAllReportsTypeFilter = el.value; render(); return; }
+    if (el.dataset && el.dataset.action === "filter-unit-all-reports-status") { S.ui.unitAllReportsStatusFilter = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "pick-report-recipient") { S.ui.sendReportRecipientId = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "set-review-decision-choice") {
       const key = `${el.dataset.unitId}:${el.dataset.reportId}`;
@@ -4521,6 +4734,49 @@ function attachClickListener() {
         const entry = getCurrentReportEntry();
         if (!entry) break;
         saveReportEntry(S.currentUnitId, { ...entry, status: "pending_head_review", internalSentAt: Date.now(), internalSentBy: "admin", updatedAt: Date.now() });
+        render();
+        break;
+      }
+      case "approve-report-by-head": {
+        const entry = getCurrentReportEntry();
+        if (!entry) break;
+        const unit = S.units.find((u) => u.id === S.currentUnitId);
+        const recipients = computeReportRecipients(unit);
+        const deptRecipient = recipients.find((r) => r.id.indexOf("dept:") === 0) || recipients[0] || null;
+        saveReportEntry(S.currentUnitId, { ...entry, status: "under_review", sentTo: deptRecipient, sentAt: Date.now(), headReviewedAt: Date.now(), headReviewedBy: "head", updatedAt: Date.now() });
+        S.view = "unit-incoming-review";
+        render();
+        break;
+      }
+      case "start-head-return": {
+        S.ui.headReturnMode = ds.mode === "completion" ? "completion" : "edit";
+        S.ui.headReturnNotesVal = "";
+        S.ui.headReturnError = "";
+        render();
+        break;
+      }
+      case "cancel-head-return": {
+        S.ui.headReturnMode = null;
+        S.ui.headReturnNotesVal = "";
+        S.ui.headReturnError = "";
+        render();
+        break;
+      }
+      case "confirm-head-return": {
+        const mode = ds.mode === "completion" ? "completion" : "edit";
+        const notes = (S.ui.headReturnNotesVal || "").trim();
+        if (mode === "edit" && !notes) {
+          S.ui.headReturnError = "الرجاء كتابة ملاحظات قبل إعادة التقرير للتعديل.";
+          render();
+          break;
+        }
+        const entry = getCurrentReportEntry();
+        if (!entry) break;
+        saveReportEntry(S.currentUnitId, { ...entry, status: mode === "edit" ? "head_returned_edit" : "head_returned_completion", internalReviewNotes: notes, internalReturnedAt: Date.now(), updatedAt: Date.now() });
+        S.ui.headReturnMode = null;
+        S.ui.headReturnNotesVal = "";
+        S.ui.headReturnError = "";
+        S.view = "unit-incoming-review";
         render();
         break;
       }
