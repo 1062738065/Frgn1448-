@@ -8,7 +8,7 @@
 /* =============================== Design tokens (JS mirror of CSS vars) ===== */
 /* Brand palette — keep in sync with the CSS custom properties in style.css */
 let ROSE = "#6b2337", ROSE_DARK = "#521a2a";
-const INK = "#2E2430", SUBTLE = "#9c8b92",
+let INK = "#2E2430", SUBTLE = "#9c8b92",
       BORDER = "#eddde2", GREEN = "#2E8B67", GREEN_BG = "#e7f5ee", GOLD = "#D89A57",
       GOLD_BG = "#fbf0e1", GRAY_BG = "#f3edef", BLUE = "#8B4A73", BLUE_BG = "#f3e9ef",
       DANGER = "#D65B57", DANGER_BG = "#fcebe9";
@@ -55,6 +55,25 @@ const PHASES = [
 ];
 
 const PERIOD_TYPES = ["شهري", "ربع سنوي", "فصلي", "نصف سنوي", "سنوي", "تقرير برنامج أو مشروع", "صيفي"];
+const PERIOD_TYPES_DEFAULT = PERIOD_TYPES.slice();
+// "شهري" و"فصلي" مرتبطتان بحقلَي "الشهر" و"الفصل" (يظهران فقط عند اختيارهما)،
+// فتبقيان دائمًا بالقائمة بأسمائهما ولا تُحذفان/تُعاد تسميتهما. الباقي حر بالكامل.
+const PERIOD_TYPES_LOCKED = ["شهري", "فصلي"];
+// تُعدَّل المصفوفة نفسها "في مكانها" (لا إعادة إسناد) لأن تعريف حقل periodType
+// بالبيانات الأساسية يحمل مرجعها مباشرة، فيتحدّث فورًا بكل مكان.
+function applyPeriodTypes(list) {
+  if (!Array.isArray(list) || !list.length) list = PERIOD_TYPES_DEFAULT.slice();
+  let next = Array.isArray(list) ? list.map((x) => String(x == null ? "" : x).trim()).filter(Boolean) : [];
+  next = next.filter((x, i) => next.indexOf(x) === i);
+  PERIOD_TYPES_LOCKED.forEach((n) => { if (!next.includes(n)) next.push(n); });
+  if (!next.length) next = PERIOD_TYPES_DEFAULT.slice();
+  PERIOD_TYPES.splice(0, PERIOD_TYPES.length, ...next);
+}
+function periodOptionsFor(reports) {
+  const extra = [];
+  (reports || []).forEach((r) => { const v = r && r.sections && r.sections.basic && r.sections.basic.data && r.sections.basic.data.periodType; if (v && !PERIOD_TYPES.includes(v) && !extra.includes(v)) extra.push(v); });
+  return PERIOD_TYPES.concat(extra);
+}
 const HIJRI_YEARS = Array.from({ length: 41 }, (_, i) => `${1420 + i}هـ`);
 const MONTHS = ["محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"];
 
@@ -131,6 +150,8 @@ const DELIVERY_MODES = ["حضوري", "عن بُعد", "مدمج"];
 const EXECUTION_STATUSES = ["مكتمل", "مستمر", "متعثر", "مؤجل", "ملغى"];
 const STRENGTH_AREAS_BASE = ["القيادة", "التخطيط", "الكادر", "جودة التعليم", "البرامج", "البيئة", "التقنية", "التواصل", "الشراكات", "رضا المستفيدات", "سرعة الإنجاز", "الابتكار", "قياس الأثر"];
 const CONTINUITY_OPTIONS = ["مستمرة", "مرتبطة بفترة"];
+const EVIDENCE_TYPES_LIST = ["صورة", "كشف حضور", "نتيجة استبانة", "تقرير مالي", "محضر اجتماع", "رابط لوحة مؤشرات", "نموذج من المخرجات", "خطاب", "قصة نجاح", "فيديو موثق وفق السياسة", "ملف آخر"];
+const CONFIDENTIALITY_LEVELS = ["متاح في التقرير العام", "متاح للإدارة فقط", "سري ولا يظهر إلا للمخولين"];
 const YES_NO_OPTIONS = ["نعم", "لا"];
 const CHALLENGE_AREAS_BASE = ["الموظفات", "الإجراءات", "الأنظمة التقنية", "الميزانية", "التجهيزات", "المبنى", "الحضور", "التواصل", "المستفيدات", "البيانات", "الصلاحيات", "التنسيق بين الأقسام", "الشراكات"];
 const CHALLENGE_SEVERITY = ["منخفض", "متوسط", "مرتفع", "حرج"];
@@ -149,17 +170,452 @@ const RECOMMENDATION_SOURCES = ["نتيجة مؤشر", "أداة قياس", "ص�
 const RECOMMENDATION_LEVELS = ["تنفذها الوحدة", "تنفذها إدارة القسم", "تحتاج تعاون عدة أقسام", "تحتاج قرار إدارة التعليم", "تحتاج قرار الإدارة العليا"];
 const RECOMMENDATION_PRIORITIES = ["عاجلة", "عالية", "متوسطة", "منخفضة"];
 
-const EVIDENCE_TYPES_LIST = ["صورة", "كشف حضور", "نتيجة استبانة", "تقرير مالي", "محضر اجتماع", "رابط لوحة مؤشرات", "نموذج من المخرجات", "خطاب", "قصة نجاح", "فيديو موثق وفق السياسة", "ملف آخر"];
-const CONFIDENTIALITY_LEVELS = ["متاح في التقرير العام", "متاح للإدارة فقط", "سري ولا يظهر إلا للمخولين"];
-const REVIEW_CHECKLIST_ITEMS = [
-  { key: "numbersVerified", label: "راجعت صحة الأرقام" },
-  { key: "noDuplicateBeneficiaries", label: "تأكدت من عدم تكرار المستفيدات" },
-  { key: "evidenceAttached", label: "أرفقت الأدلة اللازمة" },
-  { key: "recommendationsLinked", label: "ربطت التوصيات بالنتائج" },
-  { key: "noUnauthorizedPersonalData", label: "لم أدرج بيانات شخصية غير مصرح بها" },
-  { key: "wordingReviewed", label: "راجعت الصياغة" },
-  { key: "unitManagerApproved", label: "اعتمدت مديرة الوحدة البيانات" },
-];
+/* =============================== محرك الأقسام الديناميكية (تجريبي) =============
+ * قسم واحد فقط ("التوصيات") مُشغَّل عليه حاليًا كتجربة أولى، عشان نتأكد إن
+ * المحرك العام يعيد إنتاج نفس النموذج المخصص القديم قبل ما نعمّمه على باقي
+ * الأقسام. الشكل هنا (fields schema) هو تمامًا الشكل اللي بيُخزَّن لاحقًا في
+ * جدول report_sections بالقاعدة (عمود fields_schema) بدل ما يكون كود ثابت.
+ * أنواع الحقول المدعومة الآن: text, textarea, number, date, select, radio.
+ * (الحقول المحسوبة تلقائيًا، والقوائم القابلة للتوسعة بـ"أخرى"، والحدود
+ * الدنيا/القصوى لعدد العناصر — غير مدعومة بعد في هذا المحرك العام). */
+const SECTION_FIELD_SCHEMAS = {
+  recommendations: {
+    arrayKey: "recommendations",
+    itemLabel: "التوصية",
+    fields: [
+      { id: "source", type: "select", label: "مصدر التوصية", required: true, options: RECOMMENDATION_SOURCES, placeholder: "اختاري مصدر التوصية" },
+      { id: "level", type: "select", label: "مستوى التوصية", required: true, options: RECOMMENDATION_LEVELS, placeholder: "اختاري مستوى التوصية" },
+      { id: "text", type: "textarea", label: "نص التوصية", required: true, placeholder: "نص التوصية بوضوح" },
+      { id: "evidenceBasis", type: "textarea", label: "الدليل الذي بنيت عليه" },
+      { id: "expectedResult", type: "textarea", label: "النتيجة المتوقعة" },
+      { id: "priority", type: "radio", label: "الأولوية", options: RECOMMENDATION_PRIORITIES },
+      { id: "responsibleParty", type: "text", label: "الجهة المسؤولة", placeholder: "الجهة المسؤولة عن التنفيذ" },
+      { id: "supportingParties", type: "text", label: "الجهات المساندة", placeholder: "الجهات المساندة، إن وجدت" },
+      { id: "proposedDuration", type: "text", label: "المدة المقترحة", placeholder: "مثال: شهر واحد" },
+      { id: "expectedCost", type: "text", label: "التكلفة المتوقعة", placeholder: "مثال: 2000 ريال أو بدون تكلفة" },
+      { id: "indicator", type: "text", label: "مؤشر تحقق التوصية", placeholder: "كيف ستعرفين أن التوصية تحققت؟" },
+    ],
+  },
+  programs: {
+    arrayKey: "programs",
+    itemLabel: "العمل / البرنامج",
+    fields: [
+      { id: "workType", type: "expandableSelect", label: "نوع العمل", required: true, baseOptions: WORK_TYPES_BASE, customKey: "customWorkTypes", otherLabel: "أخرى", placeholder: "اختاري نوع العمل" },
+      { id: "name", type: "text", label: "اسم العمل", required: true, placeholder: "اسم العمل أو البرنامج", subheadBefore: "بيانات العمل" },
+      { id: "goal", type: "textarea", label: "الهدف منه", placeholder: "ما الهدف من هذا العمل؟" },
+      { id: "targetGroup", type: "text", label: "الفئة المستهدفة", placeholder: "مثال: طالبات المرحلة المتوسطة" },
+      { id: "targetCount", type: "number", label: "العدد المستهدف", placeholder: "0", rowGroup: "target" },
+      { id: "actualBeneficiaries", type: "number", label: "عدد المستفيدات الفعلي", placeholder: "0", rowGroup: "target" },
+      { id: "startDate", type: "date", label: "تاريخ البداية", rowGroup: "dates" },
+      { id: "endDate", type: "date", label: "تاريخ النهاية", rowGroup: "dates" },
+      { id: "location", type: "text", label: "مقر التنفيذ", placeholder: "مكان التنفيذ" },
+      { id: "deliveryMode", type: "radio", label: "حضوري / عن بُعد / مدمج", options: DELIVERY_MODES },
+      { id: "executingEntity", type: "text", label: "الجهة المنفذة", placeholder: "الجهة المسؤولة عن التنفيذ" },
+      { id: "participatingEntities", type: "text", label: "الجهات المشاركة", placeholder: "الجهات المشاركة، إن وجدت" },
+      { id: "responsiblePerson", type: "text", label: "المسؤولة عن التنفيذ", placeholder: "اسم المسؤولة" },
+      { id: "executionStatus", type: "radio", label: "حالة التنفيذ", options: EXECUTION_STATUSES, subheadBefore: "حالة التنفيذ" },
+      { id: "completionPercent", type: "number", label: "نسبة الإنجاز", placeholder: "0", subheadBefore: "مستوى الإنجاز", rowGroup: "completion" },
+      { id: "attendeesCount", type: "number", label: "عدد الحاضرات", placeholder: "0", rowGroup: "completion" },
+      { id: "attendanceRate", type: "number", label: "نسبة الحضور", placeholder: "0", rowGroup: "rates" },
+      { id: "continuationRate", type: "number", label: "نسبة الاستمرار", placeholder: "0", rowGroup: "rates" },
+      { id: "approvedCost", type: "number", label: "التكلفة المعتمدة", placeholder: "0", rowGroup: "costs" },
+      { id: "actualCost", type: "number", label: "التكلفة الفعلية", placeholder: "0", rowGroup: "costs" },
+      { id: "highlightResult", type: "textarea", label: "أبرز نتيجة", required: true, placeholder: "أبرز نتيجة تحققت من هذا العمل" },
+    ],
+  },
+  tools: {
+    arrayKey: "tools",
+    itemLabel: "أداة القياس",
+    fields: [
+      { id: "toolType", type: "expandableSelect", label: "نوع الأداة", required: true, baseOptions: MEASUREMENT_TOOL_TYPES, customKey: "customToolTypes", otherLabel: "أخرى", placeholder: "اختاري نوع الأداة" },
+      { id: "name", type: "text", label: "اسم الأداة", required: true, placeholder: "اسم أداة القياس", subheadBefore: "بيانات الأداة" },
+      { id: "purpose", type: "textarea", label: "الهدف من استخدامها", placeholder: "لماذا استُخدمت هذه الأداة؟" },
+      { id: "relatedProgram", type: "text", label: "الجهة أو البرنامج المرتبط بها", placeholder: "مثال: دورة إدارة الوقت" },
+      { id: "targetGroup", type: "text", label: "الفئة التي طبقت عليها", placeholder: "مثال: الموظفات" },
+      { id: "populationSize", type: "number", label: "حجم المجتمع", placeholder: "0", rowGroup: "sizes" },
+      { id: "sampleSize", type: "number", label: "حجم العينة", placeholder: "0", rowGroup: "sizes" },
+      { id: "respondentsCount", type: "number", label: "عدد المستجيبات", placeholder: "0" },
+      { id: "responseRate", type: "computed", compute: "responseRate", label: "نسبة الاستجابة" },
+      { id: "applicationDate", type: "date", label: "تاريخ التطبيق" },
+      { id: "toolLink", type: "text", label: "رابط نسخة الأداة", placeholder: "https://..." },
+      { id: "resultsLink", type: "text", label: "رابط نتائجها", placeholder: "https://..." },
+      { id: "resultQuality", type: "radio", label: "جودة نتائج الأداة", options: TOOL_RESULT_QUALITY, subheadBefore: "جودة نتائج الأداة" },
+    ],
+  },
+  challenges: {
+    arrayKey: "challenges",
+    itemLabel: "الصعوبة",
+    fields: [
+      { id: "name", type: "text", label: "اسم الصعوبة", required: true, placeholder: "مثال: نقص الكادر المؤهل" },
+      { id: "area", type: "expandableSelect", label: "مجال الصعوبة", required: true, baseOptions: CHALLENGE_AREAS_BASE, customKey: "customChallengeAreas", otherLabel: "أخرى", placeholder: "اختاري مجال الصعوبة" },
+      { id: "severity", type: "radio", label: "مستوى الصعوبة", options: CHALLENGE_SEVERITY },
+      { id: "scope", type: "select", label: "نطاق الصعوبة", options: CHALLENGE_SCOPE },
+      { id: "description", type: "textarea", label: "وصف الصعوبة", required: true, subheadBefore: "بيانات الصعوبة" },
+      { id: "rootCause", type: "textarea", label: "سببها الجذري" },
+      { id: "performanceImpact", type: "textarea", label: "أثرها في الأداء" },
+      { id: "startedWhen", type: "date", label: "متى بدأت؟" },
+      { id: "recurred", type: "radio", label: "هل تكررت سابقًا؟", options: YES_NO_OPTIONS },
+      { id: "actionTaken", type: "textarea", label: "الإجراء الذي اتخذته الوحدة" },
+      { id: "actionResult", type: "textarea", label: "نتيجة الإجراء" },
+      { id: "stillOngoing", type: "radio", label: "هل ما زالت قائمة؟", options: YES_NO_OPTIONS },
+      { id: "supportNeeded", type: "textarea", label: "الدعم أو القرار المطلوب" },
+      { id: "proposedHandler", type: "text", label: "الجهة المقترحة للمعالجة", placeholder: "مثال: قسم شؤون المكاتب" },
+      { id: "resolutionTime", type: "text", label: "المدة اللازمة للمعالجة", placeholder: "مثال: أسبوعان" },
+    ],
+  },
+  improvement: {
+    arrayKey: "opportunities",
+    itemLabel: "فرصة التحسين",
+    fields: [
+      { id: "name", type: "text", label: "اسم فرصة التحسين", required: true, placeholder: "مثال: تسريع الاستجابة لطلبات المستفيدات" },
+      { id: "field", type: "text", label: "المجال الذي يمكن تحسينه", required: true, placeholder: "مثال: سرعة الاستجابة للطلبات" },
+      { id: "currentStatus", type: "textarea", label: "الوضع الحالي" },
+      { id: "desiredStatus", type: "textarea", label: "الوضع المرغوب" },
+      { id: "gap", type: "textarea", label: "الفجوة بينهما" },
+      { id: "action", type: "textarea", label: "الإجراء التحسيني" },
+      { id: "expectedImpact", type: "textarea", label: "الأثر المتوقع" },
+      { id: "ease", type: "radio", label: "سهولة التنفيذ", options: IMPROVEMENT_EASE_OPTIONS },
+      { id: "priority", type: "radio", label: "الأولوية", options: IMPROVEMENT_PRIORITY_OPTIONS },
+      { id: "responsiblePerson", type: "text", label: "المسؤولة", placeholder: "اسم المسؤولة" },
+      { id: "implementationDate", type: "date", label: "تاريخ التنفيذ" },
+      { id: "successIndicator", type: "text", label: "مؤشر قياس نجاح التحسين", placeholder: "كيف ستعرفين أن التحسين نجح؟" },
+    ],
+  },
+  initiatives: {
+    arrayKey: "initiatives",
+    itemLabel: "المبادرة",
+    fields: [
+      { id: "entryType", type: "select", label: "نوع المدخل", required: true, options: INITIATIVE_ENTRY_TYPES, placeholder: "اختاري نوع المدخل" },
+      { id: "name", type: "text", label: "اسم المبادرة", required: true, placeholder: "اسم المبادرة أو الممارسة", subheadBefore: "بيانات المبادرة" },
+      { id: "problem", type: "textarea", label: "المشكلة التي تعالجها" },
+      { id: "ideaSummary", type: "textarea", label: "الفكرة باختصار" },
+      { id: "targetGroup", type: "text", label: "الفئة المستهدفة", placeholder: "مثال: طالبات المستوى الأول" },
+      { id: "stage", type: "select", label: "مرحلة المبادرة", options: INITIATIVE_STAGES, placeholder: "اختاري مرحلة المبادرة" },
+      { id: "beneficiariesCount", type: "number", label: "عدد المستفيدات", placeholder: "0" },
+      { id: "preliminaryResults", type: "textarea", label: "النتائج الأولية" },
+      { id: "measuredImpact", type: "textarea", label: "الأثر المقاس" },
+      { id: "cost", type: "text", label: "التكلفة", placeholder: "مثال: 3500 ريال أو بدون تكلفة" },
+      { id: "sustainability", type: "radio", label: "قابلية الاستمرار", options: YES_NO_OPTIONS },
+      { id: "scalability", type: "radio", label: "قابلية التعميم", options: YES_NO_OPTIONS },
+      { id: "needs", type: "textarea", label: "الاحتياجات", placeholder: "ما الدعم أو الموارد المطلوبة؟" },
+      { id: "fileLink", type: "text", label: "رابط ملف المبادرة", placeholder: "رابط المستند أو العرض التقديمي" },
+    ],
+  },
+  impact: {
+    arrayKey: "impactStories",
+    itemLabel: "قصة الأثر",
+    fields: [
+      { id: "impactType", type: "select", label: "نوع الأثر", required: true, options: IMPACT_TYPES, placeholder: "اختاري نوع الأثر" },
+      { id: "title", type: "text", label: "عنوان مختصر", required: true, placeholder: "عنوان قصة الأثر", subheadBefore: "بناء قصة الأثر" },
+      { id: "beforeSituation", type: "textarea", label: "وصف الوضع قبل التدخل" },
+      { id: "intervention", type: "textarea", label: "التدخل أو البرنامج المنفذ" },
+      { id: "change", type: "textarea", label: "التغير الذي حدث" },
+      { id: "evidence", type: "textarea", label: "الدليل على التغير" },
+      { id: "beneficiariesCount", type: "number", label: "عدد المستفيدات", placeholder: "0" },
+      { id: "impactDuration", type: "text", label: "مدة ظهور الأثر", placeholder: "مثال: شهرين" },
+      { id: "ongoing", type: "radio", label: "هل الأثر مستمر؟", options: YES_NO_OPTIONS },
+      { id: "testimonial", type: "textarea", label: "شهادة مستفيدة إن وجدت", placeholder: "اقتباس أو شهادة من مستفيدة" },
+      { id: "evidenceLink", type: "text", label: "رابط الشاهد", placeholder: "https://..." },
+      { id: "publicConsent", type: "radio", label: "هل يسمح بعرض القصة في التقرير العام؟", options: YES_NO_OPTIONS },
+    ],
+  },
+  strengths: {
+    arrayKey: "strengths",
+    itemLabel: "نقطة قوة",
+    maxItems: 5,
+    fields: [
+      { id: "name", type: "text", label: "اسم نقطة القوة", required: true, placeholder: "مثال: قيادة داعمة ومتابعة مستمرة" },
+      { id: "area", type: "expandableSelect", label: "مجال نقطة القوة", required: true, baseOptions: STRENGTH_AREAS_BASE, customKey: "customStrengthAreas", otherLabel: "أخرى", placeholder: "اختاري مجال نقطة القوة" },
+      { id: "description", type: "textarea", label: "وصف نقطة القوة", required: true, placeholder: "اشرحي نقطة القوة", subheadBefore: "بيانات نقطة القوة" },
+      { id: "evidence", type: "textarea", label: "الدليل عليها", placeholder: "ما الدليل أو الرقم الذي يثبتها؟" },
+      { id: "impact", type: "textarea", label: "أثرها", placeholder: "ما أثر هذه النقطة على العمل أو المستفيدات؟" },
+      { id: "continuity", type: "radio", label: "هل هي مستمرة أم مرتبطة بفترة؟", options: CONTINUITY_OPTIONS },
+      { id: "maintainHow", type: "textarea", label: "كيف يمكن المحافظة عليها؟", placeholder: "ما الإجراءات اللازمة للحفاظ عليها؟" },
+      { id: "transferable", type: "radio", label: "هل يمكن نقلها إلى وحدات أخرى؟", options: YES_NO_OPTIONS },
+    ],
+  },
+  nextplan: {
+    arrayKey: "mainTasks",
+    itemLabel: "عمل رئيسي",
+    itemLabelPlural: "أعمال",
+    minItems: 3,
+    maxItems: 5,
+    hint: "تضيف الوحدة من 3 إلى 5 أعمال رئيسة فقط لخطة الفترة القادمة.",
+    fields: [
+      { id: "name", type: "text", label: "اسم العمل الرئيسي", required: true, placeholder: "اسم العمل المخطط له في الفترة القادمة" },
+      { id: "goal", type: "textarea", label: "الهدف منه" },
+      { id: "responsiblePerson", type: "text", label: "المسؤولة عنه", placeholder: "اسم المسؤولة" },
+      { id: "expectedDate", type: "date", label: "الموعد المتوقع" },
+    ],
+  },
+  evidence: {
+    arrayKey: "evidenceItems",
+    itemLabel: "شاهد",
+    hint: "لا تُدرج الصور أو الملفات داخل التقرير نفسه — تُحفظ بالمستودع الخاص بها ويُكتفى برابطها هنا.",
+    fields: [
+      { id: "evidenceType", type: "select", label: "نوع الشاهد", required: true, options: EVIDENCE_TYPES_LIST, placeholder: "اختاري نوع الشاهد" },
+      { id: "name", type: "text", label: "اسم الشاهد", required: true, subheadBefore: "بيانات الشاهد" },
+      // ملاحظة: الحقل الأصلي كان قائمة منسدلة تُبنى من أقسام الجمعية الحالية (تتغيّر
+      // مع الوقت)، وهذا لا يناسب "الحقل المحسوب/الثابت" اللي تديره لوحة إدارة الحقول
+      // ذاتيًا — لذا تحوّل هنا لحقل نص حر (اختياري) بنفس المعنى.
+      { id: "relatedDepartment", type: "text", label: "القسم المرتبط به (اختياري)", placeholder: "اسم القسم" },
+      { id: "fileLink", type: "text", label: "رابط الملف", placeholder: "رابط الملف بالمستودع" },
+      { id: "description", type: "textarea", label: "وصف مختصر" },
+      { id: "confidentiality", type: "radio", label: "درجة السرية", required: true, options: CONFIDENTIALITY_LEVELS },
+    ],
+  },
+  // "تحليل النتائج" فيها حقول عامة ثابتة (أبرز نتيجة إيجابية/تحتاج تحسين، الخلاصة
+  // التحليلية) مختلطة مع قائمة "مقارنات" متكررة — هذا الخليط لا يناسب تحويل القسم
+  // كامل للمحرك العام (سيفقد الحقول الثابتة). لذا بقي القسم بكوده اليدوي
+  // (analysisSectionHtml)، لكن قائمة المقارنات نفسها صارت تُدار من نفس محرك الحقول
+  // الذاتي — معرّف هذا التعريف (analysisComparisons) مختلف عمدًا عن معرّف القسم
+  // (analysis) عشان ما يستبدل القسم كامل بالمحرك العام تلقائيًا.
+  analysisComparisons: {
+    arrayKey: "comparisons",
+    itemLabel: "مقارنة",
+    sectionLabel: "تحليل النتائج (المقارنات)",
+    fields: [
+      { id: "topic", type: "text", label: "موضوع المقارنة", placeholder: "مثال: نسبة الحضور" },
+      { id: "resultValue", type: "text", label: "نتيجة المقارنة بالرقم أو النسبة", placeholder: "مثال: ارتفعت من 70٪ إلى 85٪" },
+      { id: "judgment", type: "select", label: "الحكم", options: COMPARISON_JUDGMENTS },
+      { id: "changeReason", type: "expandableSelect", label: "سبب التغير", baseOptions: CHANGE_REASONS, customKey: "customChangeReasons", otherLabel: "سبب آخر", placeholder: "اختاري سبب التغير" },
+    ],
+  },
+  // "مؤشرات الأداء" فيها حقلان مرتبطان بحسابات فعلية (name يربط بتعريف المؤشر
+  // المعتمد، actual يغذّي computeIndicatorStatus/الانحراف) — نقلهما للمحرك العام
+  // يكسر الحسابات لو أُعيدت تسميتهما أو حُذفا من لوحة الإدارة، فبقيا بكودهما
+  // اليدوي. أما حقول "تحليل الانحراف والإجراء التصحيحي" (تظهر فقط لو المؤشر لم
+  // يتحقق) فهي نصية بحتة بلا أي حساب عليها، فصارت قابلة للإدارة الذاتية عبر هذا
+  // التعريف المدمج (arrayKey يشير لنفس مصفوفة indicators الحقيقية، فليست هذه
+  // حالة تعارض معرّف/مصفوفة كباقي الأمثلة أعلاه، لأنها تضيف حقولًا على نفس العنصر
+  // بدل ما تشكّل مصفوفة منفصلة).
+  kpiDeviation: {
+    arrayKey: "indicators",
+    itemLabel: "تحليل الانحراف",
+    sectionLabel: "مؤشرات الأداء (تحليل الانحراف)",
+    fields: [
+      { id: "deviationReason", type: "textarea", label: "سبب الانحراف", placeholder: "اشرحي سبب الانحراف عن المستهدف" },
+      { id: "causeType", type: "radio", label: "هل السبب داخلي أم خارجي؟", options: CAUSE_TYPES },
+      { id: "correctiveAction", type: "textarea", label: "الإجراء التصحيحي", placeholder: "ما الإجراء المتخذ لمعالجة الانحراف" },
+      { id: "responsiblePerson", type: "text", label: "المسؤولة عن الإجراء", placeholder: "اسم المسؤولة" },
+      { id: "closureDate", type: "date", label: "موعد إغلاق المعالجة" },
+      { id: "requiredSupport", type: "textarea", label: "الدعم المطلوب", placeholder: "أي دعم إضافي مطلوب لإغلاق الانحراف" },
+    ],
+  },
+  // "الأهداف والمستهدفات": مصفوفة operationalGoals متداخلة داخل كل هدف. حقل
+  // "level" يبقى بكوده اليدوي لأنه يغذّي حساب النسبة (GOAL_LEVEL_PERCENTAGE)
+  // وشارة "منجز" التلقائية (goalOverallAchieved) — حذفه أو تغيير قيمه من لوحة
+  // الإدارة يكسر هذه الحسابات. أما دليل التحقق (evidenceType/evidenceAnswer)
+  // وتفسير المستوى (explanation) فهي حقول توثيقية بحتة بلا أي حساب عليها،
+  // فصارت قابلة للإدارة الذاتية. ملاحظة: النص التوضيحي الفعلي لحقل "إجابة الدليل"
+  // يتغيّر تلقائيًا حسب نوع الدليل المختار (evidenceAnswerPlaceholder) — هذا
+  // السلوك الذكي يبقى مستقلًا عن لوحة الإدارة، فوق أي نص توضيحي تكتبه هنا.
+  goalsEvidence: {
+    // arrayKey هنا "goals" وليس "operationalGoals" رغم إن الحقول فعليًا متداخلة
+    // داخل operationalGoals — لأن data-arr على عنصر DOM (وبالتالي مفتاح
+    // CUSTOM_OPTION_FIELD_MAP عند تسجيله من لوحة الإدارة) يتبع المصفوفة
+    // الخارجية دائمًا (goals) وليس الداخلية، تمامًا مثل الحقول الأخرى المتداخلة
+    // في نفس القسم (level, strategicGoal...).
+    arrayKey: "goals",
+    itemLabel: "دليل تحقق الهدف",
+    sectionLabel: "الأهداف والمستهدفات (دليل التحقق)",
+    fields: [
+      { id: "evidenceType", type: "expandableSelect", label: "دليل تحقق الهدف", required: true, baseOptions: EVIDENCE_TYPES, customKey: "customEvidenceTypes", otherLabel: "أخرى", placeholder: "اختاري نوع الدليل" },
+      { id: "evidenceAnswer", type: "text", label: "إجابة الدليل", required: true, placeholder: "" },
+      { id: "explanation", type: "textarea", label: "تفسير مستوى التحقق", placeholder: "اشرحي سبب هذا المستوى من التحقق (٣٠٠ حرف كحد أقصى)" },
+    ],
+  },
+  // "البيانات الأساسية" و"المراجعة النهائية" قسمان بمثيل واحد لكل تقرير (لا قائمة
+  // عناصر تُضاف وتُحذف)، فليسا "repeater" مثل بقية الأقسام أعلاه — لذا fixed: true
+  // يوجّه renderSectionFields لتجاهل المحرك المتكرر (renderSchemaRepeaterHtml)
+  // ويترك الاستدعاء الفعلي لدالة مكتوبة يدويًا صغيرة (basicSectionHtml/
+  // reviewSectionHtml) تستخدم renderSchemaFixedHtml داخليًا — لأن كلا القسمين
+  // فيهما منطق عرض شرطي/زخرفي (ملاحظات تحقق، صندوق قراءة فقط لاسم الوحدة، شارة
+  // حالة التقرير) لا يصلح تعميمه كحقل عادي قابل للحذف من لوحة الإدارة.
+  basic: {
+    fixed: true,
+    // "top" (وليس "basic") — حقول هذا القسم كلها بمستوى القسم مباشرة (بدون
+    // مصفوفة عناصر)، وdata-arr الفعلي بالـ DOM لحقول من هذا النوع هو "top"
+    // (راجع CUSTOM_OPTION_FIELD_MAP)، فنطابقه هنا عشان أي تعديل حقل expandableSelect
+    // من لوحة الإدارة يسجّل مفتاح "أخرى" الصحيح.
+    arrayKey: "top",
+    itemLabel: "البيانات الأساسية",
+    fields: [
+      { id: "mainEntity", type: "text", label: "الجهة الرئيسية", required: true, placeholder: "اسم الجهة الرئيسية" },
+      { id: "reportingEntityType", type: "expandableSelect", label: "الجهة التي ترفع التقرير", baseOptions: REPORTING_TYPES_BASE, customKey: "customReportingTypes", otherLabel: "أخرى", placeholder: "اختاري (اختياري)" },
+      // "اسم الجهة" كان قائمة منسدلة مرتبطة مباشرة بـ"إدارة الأقسام والوحدات"
+      // (تتغيّر مع الوقت، وقد تختلف عن الوحدة الحالية) — حُوِّل لحقل نص حر، بنفس
+      // منطق التبسيط المطبّق سابقًا على evidenceItems.relatedDepartment؛ تنبيه
+      // مطابقة القسم (أسفل صندوق "اسم الوحدة") يبقى يعمل تمامًا لأنه مجرد مقارنة
+      // نصية بقيمة هذا الحقل.
+      { id: "entityName", type: "text", label: "اسم الجهة (القسم أو المركز)", placeholder: "اسم القسم أو المركز" },
+      { id: "officeName", type: "expandableSelect", label: "اسم المكتب", baseOptions: OFFICE_NAMES_BASE, customKey: "customOfficeNames", otherLabel: "أخرى", placeholder: "اختاري اسم المكتب", visibleWhen: { field: "reportingEntityType", equals: "مكتب" } },
+      { id: "periodType", type: "select", label: "الفترة التي يغطيها التقرير", options: PERIOD_TYPES, placeholder: "اختاري (اختياري)" },
+      { id: "startDate", type: "date", label: "تاريخ البداية", rowGroup: "dates" },
+      { id: "endDate", type: "date", label: "تاريخ النهاية", rowGroup: "dates" },
+      { id: "hijriYear", type: "select", label: "العام الهجري", options: HIJRI_YEARS, visibleWhen: { field: "periodType", notEmpty: true } },
+      { id: "month", type: "select", label: "الشهر", options: MONTHS, visibleWhen: { field: "periodType", equals: "شهري" } },
+      { id: "term", type: "expandableSelect", label: "الفصل", baseOptions: TERM_OPTIONS_BASE, customKey: "customTerms", otherLabel: "أخرى", placeholder: "اختاري الفصل", visibleWhen: { field: "periodType", equals: "فصلي" } },
+      { id: "preparerName", type: "text", label: "الاسم", required: true, placeholder: "اسم معدة التقرير", subheadBefore: "بيانات معدة التقرير" },
+      { id: "preparerTitle", type: "text", label: "المسمى الوظيفي", required: true, placeholder: "المسمى الوظيفي" },
+      { id: "managerName", type: "text", label: "اسم الرئيسة المباشرة", required: true, placeholder: "اسم الرئيسة المباشرة" },
+    ],
+  },
+  review: {
+    fixed: true,
+    itemLabel: "المراجعة النهائية",
+    fields: [
+      {
+        id: "checklist", type: "checklist", label: "قائمة التحقق (تضعها معدة التقرير)",
+        options: ["راجعت صحة الأرقام", "تأكدت من عدم تكرار المستفيدات", "أرفقت الأدلة اللازمة", "ربطت التوصيات بالنتائج", "لم أدرج بيانات شخصية غير مصرح بها", "راجعت الصياغة", "اعتمدت مديرة الوحدة البيانات"],
+      },
+    ],
+  },
+};
+
+// يرسم حقل واحد حسب نوعه — يستخدم بالضبط نفس دوال الربط العامة (inp/txt/sel/radio)
+// اللي تستخدمها كل الأقسام المكتوبة يدويًا، فيشتغل تلقائيًا مع add-item/remove-item
+// الحاليين بدون أي تعديل عليهم.
+// أنواع "الحقول المحسوبة تلقائيًا" (زي نسبة الاستجابة = عدد المستجيبات ÷ حجم
+// العينة) — دالة الحساب نفسها كود ثابت مربوط باسم (f.compute)، فهذا النوع غير
+// متاح للإضافة الذاتية من صفحة "إدارة حقول الأقسام" (لا معنى لحقل محسوب بدون
+// دالة حساب مكتوبة له)، لكنه يبقى يشتغل عاديًا للحقول المعرّفة بالكود مسبقًا.
+const SCHEMA_COMPUTED_FIELDS = {
+  responseRate: (item) => {
+    const rate = computeResponseRate(item.sampleSize, item.respondentsCount);
+    return rate != null ? `${rate}٪` : "تُحسب تلقائيًا بعد إدخال حجم العينة وعدد المستجيبات";
+  },
+};
+// subArrKey/subItemId اختياريان: لو انمررا، الحقل يُربط بعنصر متداخل داخل مصفوفة
+// فرعية (مثال: عناصر operationalGoals داخل هدف بقسم "الأهداف والمستهدفات") عبر
+// نفس دوال inpSub/txtSub/selSub/radioSub الموجودة أصلًا — بدون أي تغيير على
+// سلوك الاستدعاءات القديمة (بدون subArrKey تبقى تعمل تمامًا كما كانت).
+// حقل "checklist": قيمته كائن {نص_البند: true/false}، غير مرتبط بأي مصفوفة
+// عناصر متكررة (دايمًا حقل ثابت وحيد بمستوى القسم)، لذا لا يستخدم subArrKey/
+// inpSub وأخواتها إطلاقًا — نمط عرض/تخزين مختلف تمامًا عن بقية الأنواع.
+function checklistFieldHtml(fieldId, options, valueObj) {
+  valueObj = valueObj || {};
+  const rows = (options || []).map((label) => `
+    <button type="button" class="radio-pill ${valueObj[label] ? "active" : ""}" style="width:100%;justify-content:flex-start;margin-bottom:6px;" data-action="toggle-review-checklist" data-field="${esc(fieldId)}" data-key="${esc(label)}">
+      ${valueObj[label] ? iconCheck(14, "#fff") : iconCircle(14, SUBTLE)} ${esc(label)}
+    </button>`).join("");
+  return `<div style="display:flex;flex-direction:column;gap:2px;">${rows}</div>`;
+}
+function renderSchemaFieldHtml(f, arrKey, itemId, value, customOptionsList, item, subArrKey, subItemId) {
+  // checklist يُعرض بعنوان فرعي (subhead) بدل صندوق fieldWrap المعتاد — أقرب
+  // بصريًا لقائمة تحقق (مجموعة بنود قابلة للتأشير) لا "حقل واحد له تسمية".
+  if (f.type === "checklist") {
+    return `<div class="subhead">${esc(f.label)}</div><div style="margin-bottom:18px;">${checklistFieldHtml(f.id, f.options || [], value)}</div>`;
+  }
+  const inputType = f.type === "number" ? "number" : f.type === "date" ? "date" : "text";
+  const html =
+    f.type === "computed" ? readonlyBox((SCHEMA_COMPUTED_FIELDS[f.compute] || (() => ""))(item || {})) :
+    f.type === "textarea" ? (subArrKey ? txtSub(arrKey, itemId, subArrKey, subItemId, f.id, value, f.placeholder) : txt(arrKey, itemId, f.id, value, f.placeholder)) :
+    f.type === "select" ? (() => { const o_ = (f.options || []).includes(value) || !value ? (f.options || []) : [...(f.options || []), value]; return subArrKey ? selSub(arrKey, itemId, subArrKey, subItemId, f.id, value, o_, f.placeholder) : sel(arrKey, itemId, f.id, value, o_, f.placeholder); })() :
+    f.type === "radio" ? (subArrKey ? radioSub(arrKey, itemId, subArrKey, subItemId, f.id, value, f.options || []) : radio(arrKey, itemId, f.id, value, f.options || [])) :
+    f.type === "expandableSelect" ? expandableSelectHtml(f.id, value, f.baseOptions || [], customOptionsList || [], f.placeholder, f.otherLabel || "أخرى", arrKey, itemId, subArrKey, subItemId) :
+    (subArrKey ? inpSub(arrKey, itemId, subArrKey, subItemId, f.id, value, f.placeholder, inputType) : inp(arrKey, itemId, f.id, value, f.placeholder, inputType));
+  return fieldWrap(f.label, !!f.required, html);
+}
+// visibleWhen اختياري: شرط ظهور بسيط يعتمد على قيمة حقل آخر بنفس القسم —
+// { field: "<معرّف حقل آخر>", equals: "<قيمة>" } أو { field: "...", notEmpty: true }.
+// بيانات وصفية بسيطة (قابلة للتخزين JSON بالقاعدة) وليست دالة، عشان تنجو من
+// الحفظ والاسترجاع عبر Supabase بدون فقدان.
+function schemaFieldVisible(f, d) {
+  if (!f.visibleWhen) return true;
+  const val = d[f.visibleWhen.field];
+  if (f.visibleWhen.notEmpty) return !!val;
+  if (Object.prototype.hasOwnProperty.call(f.visibleWhen, "equals")) return val === f.visibleWhen.equals;
+  return true;
+}
+// نسخة "ثابتة" (غير متكررة) من محرك عرض الحقول — لقسم بمثيل واحد فقط لكل تقرير
+// (بيانات ثابتة، لا قائمة عناصر تُضاف/تُحذف)، مثل "البيانات الأساسية" و"المراجعة
+// النهائية". تدعم نفس subheadBefore/rowGroup الموجودة بالنسخة المتكررة، بالإضافة
+// لـ visibleWhen. الحقول تُربط مباشرة بمستوى القسم (arrKey=null/itemId=null، مثل
+// استدعاءات inp(null,null,...) القديمة قبل هذا التعميم).
+// opts.decorators: خريطة اختيارية {معرّف_حقل: (قيمة, d) => HTML إضافي يُلحق بعد
+// الحقل} — لمنطق عرض خاص (تنبيهات/ملاحظات) لا يُعتبر "حقلًا" بحد ذاته وبالتالي
+// غير قابل للحذف أو إعادة التسمية من لوحة الإدارة.
+function renderSchemaFixedHtml(schema, d, opts) {
+  opts = opts || {};
+  const decorators = opts.decorators || {};
+  const visibleFields = schema.fields.filter((f) => schemaFieldVisible(f, d));
+  let html = "";
+  let i = 0;
+  while (i < visibleFields.length) {
+    const f = visibleFields[i];
+    const subhead = f.subheadBefore ? `<div class="subhead">${esc(f.subheadBefore)}</div>` : "";
+    const next = visibleFields[i + 1];
+    const dec = (id, val) => (decorators[id] ? decorators[id](val, d) : "");
+    if (f.rowGroup && next && next.rowGroup === f.rowGroup) {
+      html += subhead + `<div class="row-flex">${renderSchemaFieldHtml(f, null, null, d[f.id], f.customKey ? d[f.customKey] : undefined, d)}${renderSchemaFieldHtml(next, null, null, d[next.id], next.customKey ? d[next.customKey] : undefined, d)}</div>`;
+      html += dec(f.id, d[f.id]) + dec(next.id, d[next.id]);
+      i += 2;
+    } else {
+      html += subhead + renderSchemaFieldHtml(f, null, null, d[f.id], f.customKey ? d[f.customKey] : undefined, d);
+      html += dec(f.id, d[f.id]);
+      i += 1;
+    }
+  }
+  return html;
+}
+// كل عنصر في schema.fields هو دائمًا حقل حقيقي واحد (له id/type/label) — ما فيه
+// "حاويات" وهمية، عشان صفحة "إدارة حقول الأقسام" تقدر تعرض وتعدّل كل حقل لحاله.
+// شكلين اختياريين للتنسيق البصري بس (لا يغيّران البيانات المخزّنة إطلاقًا):
+//  - "subheadBefore": نص يضيف عنوان فرعي <div class="subhead"> فوق الحقل.
+//  - "rowGroup": حقلين متتاليين يحملان نفس القيمة يُرسمان جنب بعض (row-flex)،
+//    مطابقةً لتنسيق الأقسام المكتوبة يدويًا. لو انكسر التتالي (مثلاً بعد إعادة
+//    ترتيب من صفحة الإدارة) يرجع كل حقل يُرسم لحاله بعرض كامل — تجميل فقط.
+function renderSchemaFieldsHtml(fields, arrKey, itemId, item, d, subArrKey, subItemId) {
+  let html = "";
+  let i = 0;
+  while (i < fields.length) {
+    const f = fields[i];
+    const subhead = f.subheadBefore ? `<div class="subhead">${esc(f.subheadBefore)}</div>` : "";
+    const next = fields[i + 1];
+    if (f.rowGroup && next && next.rowGroup === f.rowGroup) {
+      html += subhead + `<div class="row-flex">${renderSchemaFieldHtml(f, arrKey, itemId, item[f.id], f.customKey ? d[f.customKey] : undefined, item, subArrKey, subItemId)}${renderSchemaFieldHtml(next, arrKey, itemId, item[next.id], next.customKey ? d[next.customKey] : undefined, item, subArrKey, subItemId)}</div>`;
+      i += 2;
+    } else {
+      html += subhead + renderSchemaFieldHtml(f, arrKey, itemId, item[f.id], f.customKey ? d[f.customKey] : undefined, item, subArrKey, subItemId);
+      i += 1;
+    }
+  }
+  return html;
+}
+// عنصر واحد بس يبقى "مفتوح" بالمرة داخل قوائم الأقسام المبنية على المحرك العام —
+// الافتراضي هو آخر عنصر تمت إضافته (أو المُوسّع صراحة بالضغط على عنوانه)، وبقية
+// العناصر تنطوي وتبين عنوانها بس. الطي عرض فقط: لا يمس البيانات المحفوظة إطلاقًا.
+function schemaExpandedItemId(arrKey, items) {
+  if (!items.length) return null;
+  const state = S.ui.expandedRepeatItem || {};
+  // hasOwnProperty يميّز بين "لسا ما طوت/فتحت شي يدويًا" (نفتح آخر عنصر تلقائيًا)
+  // و"طوت العنصر المفتوح بنفسها" (chosen = null، يعني كل العناصر مطوية الآن).
+  if (Object.prototype.hasOwnProperty.call(state, arrKey)) {
+    const chosen = state[arrKey];
+    return items.some((it) => it.id === chosen) ? chosen : null;
+  }
+  return items[items.length - 1].id;
+}
+function renderSchemaRepeaterHtml(schema, d) {
+  const items = d[schema.arrayKey] || [];
+  const expandedId = schemaExpandedItemId(schema.arrayKey, items);
+  const rows = items.map((item, i) => {
+    const isOpen = items.length === 1 || item.id === expandedId;
+    const head = `<div class="repeat-item-head" style="cursor:pointer;" data-action="toggle-repeat-item" data-arr="${esc(schema.arrayKey)}" data-id="${esc(item.id)}"><span class="repeat-item-title">${esc(schema.itemLabel)} ${i + 1}${isOpen ? "" : ` — ${esc(item[schema.fields.find((f) => f.id)?.id] || "")}`}</span>${removeBtn(schema.arrayKey, item.id)}</div>`;
+    if (!isOpen) return `<div class="repeat-item">${head}</div>`;
+    return `<div class="repeat-item">${head}${renderSchemaFieldsHtml(schema.fields, schema.arrayKey, item.id, item, d)}</div>`;
+  }).join("");
+  // hint اختياري أعلى القسم (نفس أسلوب التنبيهات المكتوبة يدويًا بأقسام مثل "الشواهد"
+  // و"خطة الفترة القادمة")، وحد أقصى/أدنى اختياري لعدد العناصر (maxItems/minItems).
+  const hintHtml = schema.hint ? `<div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:14px;">${esc(schema.hint)}</div>` : "";
+  const atMax = schema.maxItems != null && items.length >= schema.maxItems;
+  const addLabel = atMax ? `بلغتِ الحد الأقصى (${schema.maxItems} ${schema.itemLabelPlural || schema.itemLabel})` : `إضافة ${schema.itemLabel}`;
+  const belowMin = schema.minItems != null && items.length > 0 && items.length < schema.minItems;
+  const minWarningHtml = belowMin ? `<div class="hint bad">أضيفي ${schema.minItems - items.length} ${schema.itemLabelPlural || schema.itemLabel} إضافية على الأقل لاستيفاء الحد الأدنى (${schema.minItems}).</div>` : "";
+  return `${hintHtml}${rows}${pillBtn(addLabel, { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: schema.arrayKey }, disabled: atMax })}${minWarningHtml}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
+}
+
 const MANAGER_NOTE_OPTIONS = ["معتمد دون ملاحظات", "معتمد بعد التعديل", "يعاد للاستكمال"];
 
 /* =============================== Supabase integration (optional) =============
@@ -196,53 +652,414 @@ async function supabaseRequest(path, options) {
     try { data = await res.json(); } catch (e) { /* استجابة بلا محتوى، عادي لبعض الطلبات */ }
     return { ok: true, data };
   } catch (err) {
-    return { ok: false, error: "تعذر الاتصال بقاعدة البيانات. تحققي من الاتصال بالإنترنت." };
+    return { ok: false, error: "تعذر الاتصال بقاعدة البيانات. تحققي من الاتصال بالإنترنت. [" + ((options.method || "GET") + " " + String(path).split("?")[0] + " — " + (err && err.message ? err.message : "network")) + "]" };
   }
 }
 
 // يمسح الجدول كامل ثم يعيد إدخال الصفوف الحالية — نفس أسلوب "استبدال الكل"
 // المستخدم بباقي الموقع، أبسط للتفكير فيه من مطابقة الفروقات صفًا بصف.
-async function supabaseReplaceTable(table, rows) {
+// نسخة آمنة (إصلاح): كانت تمسح الجدول كامل أولًا ثم تُدخل — فلو فشل الإدخال
+// (عمود ناقص بالقاعدة مثلًا) يبقى الجدول فاضي وتضيع كل الصفوف. الآن: نكتب
+// الصفوف أولًا (upsert بالـ id)، وفقط لو نجحت نحذف الصفوف اللي لم تعد موجودة.
+// لو فشلت الكتابة، ما نمسح أي شي ونُظهر سبب الفشل بشريط أحمر أعلى الصفحة.
+function reportSupabaseWriteError(table, msg) {
+  try { console.error("Supabase write failed:", table, msg); } catch (e) { /* تجاهل */ }
+  try {
+    let bar = document.getElementById("sb-write-error");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "sb-write-error";
+      bar.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;font-size:13px;font-weight:700;text-align:center;cursor:pointer;";
+      bar.onclick = () => bar.remove();
+      document.body.appendChild(bar);
+    }
+    bar.textContent = "تعذّر حفظ التغيير بقاعدة البيانات (جدول " + table + "): " + msg + " — لم يُحذف شيء. (اضغطي لإغلاق)";
+  } catch (e) { /* تجاهل */ }
+}
+// حفظ غير إتلافي: يضيف ويعدّل الصفوف المرسلة فقط (upsert)، ولا يحذف من القاعدة إلا الصفوف
+// التي حُذفت فعلًا من هذا المتصفح (removedIds). فلا تُمحى صفوف لمجرد أن هذا المتصفح لا يعرفها
+// (نسخة قديمة / تبويب آخر).
+async function supabaseReplaceTable(table, rows, keyCol, removedIds) {
+  keyCol = keyCol || "id";
   if (!sheetsConfigured()) return;
-  await supabaseRequest(`${table}?id=neq.__none__`, { method: "DELETE", prefer: "return=minimal" });
   if (rows.length) {
-    await supabaseRequest(table, { method: "POST", prefer: "return=minimal", body: JSON.stringify(rows) });
+    const up = await supabaseRequest(`${table}?on_conflict=${keyCol}`, { method: "POST", prefer: "resolution=merge-duplicates,return=minimal", body: JSON.stringify(rows) });
+    if (!up.ok) { reportSupabaseWriteError(table, up.error); return; }
   }
+  const gone = (removedIds || []).filter((x) => x !== undefined && x !== null && x !== "");
+  if (gone.length) {
+    const ids = gone.map((x) => '"' + String(x).replace(/"/g, "") + '"').join(",");
+    const del = await supabaseRequest(`${table}?${keyCol}=in.(${encodeURIComponent(ids)})`, { method: "DELETE", prefer: "return=minimal" });
+    if (!del.ok) reportSupabaseWriteError(table, del.error);
+  }
+}
+// المعرّفات التي كانت في النسخة المحلية قبل هذا الحفظ وليست في القائمة الجديدة = حُذفت هنا عمدًا.
+function removedIdsFor(lsKey, newIds, idsOf) {
+  try {
+    const v = lsGet(lsKey);
+    if (!v) return [];
+    const keep = new Set(newIds.map(String));
+    return idsOf(JSON.parse(v)).filter((id) => !keep.has(String(id)));
+  } catch (e) { return []; }
+}
+const idsOfList = (l) => (Array.isArray(l) ? l : []).map((x) => x && x.id);
+
+// طابور كتابة لكل جدول: لو صار أكثر من تعديل سريع بعد بعض (مثال: ضغط "نقل لأعلى"
+// عدة مرات متتالية بسرعة على حقل)، كل تعديل يبدأ كتابته للقاعدة فقط بعد ما تخلص
+// كتابة التعديل اللي قبله تمامًا — بدل ما تتسابق الطلبات وتوصل بترتيب معكوس فتطغى
+// نتيجة قديمة على نتيجة أحدث بالغلط. ودالة pendingSupabaseWrite تتيح لأي شاشة
+// "تحديث من القاعدة" (refresh*FromSheet) أن تنتظر اكتمال آخر كتابة معلّقة لنفس
+// الجدول قبل ما تقرأ منه، عشان ما ترجع بنسخة قديمة وتطبّقها فوق تعديل المستخدم
+// الأحدث (وهذا بالضبط سبب مشكلة "رجع الترتيب تحت" اللي لاحظتها).
+const supabaseWriteQueues = {};
+function queueSupabaseReplaceTable(table, rows, keyCol, removedIds) {
+  const prev = supabaseWriteQueues[table] || Promise.resolve();
+  const next = prev.catch(() => {}).then(() => supabaseReplaceTable(table, rows, keyCol, removedIds));
+  supabaseWriteQueues[table] = next;
+  return next;
+}
+function pendingSupabaseWrite(table) {
+  return supabaseWriteQueues[table] || Promise.resolve();
 }
 
 /* ---- تحويل الأشكال بين JS (camelCase) وأعمدة قاعدة البيانات (snake_case) ---- */
-function unitToRow(u) { return { id: u.id, name: u.name, password: u.password || "", role: u.role || "unit", department_id: u.departmentId || "", status: u.status || "active", created_at: u.createdAt || Date.now(), email: u.email || "" }; }
-function rowToUnit(r) { return { id: r.id, name: r.name, password: r.password || "", role: r.role || "unit", departmentId: r.department_id || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, email: r.email || "" }; }
-function deptToRow(d) { return { id: d.id, name: d.name, password: d.password || "", status: d.status || "active", created_at: d.createdAt || Date.now(), curation: d.curation || { approvedKeys: [] }, email: d.email || "", office_id: d.officeId || "" }; }
-function rowToDept(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, email: r.email || "", officeId: r.office_id || "" }; }
-function officeToRow(o) { return { id: o.id, name: o.name, password: o.password || "", status: o.status || "active", created_at: o.createdAt || Date.now() }; }
-function rowToOffice(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0 }; }
-function siteSettingsToRow(s) { return { id: "main", primary_color: s.primary || DEFAULT_SITE_COLORS.primary, background: s.background || DEFAULT_SITE_COLORS.background }; }
-function rowToSiteSettings(r) { return { primary: r.primary_color || DEFAULT_SITE_COLORS.primary, background: r.background || DEFAULT_SITE_COLORS.background }; }
+function unitToRow(u) {
+  return {
+    id: u.id, name: u.name, password: u.password || "", role: u.role || "unit", department_id: u.departmentId || "",
+    status: u.status || "active", created_at: u.createdAt || Date.now(), email: u.email || "",
+    has_head: u.hasHead !== undefined && u.hasHead !== null ? !!u.hasHead : (u.role || "unit") !== "center",
+    extra_reviewer_title: u.extraReviewerTitle || "",
+    allowed_pages: u.allowedPages || [], allowed_actions: u.allowedActions || [], report_tabs: u.reportTabs || null,
+    // حقلان جديدان خاصان بـ"وحدة" التقرير الذاتي (role: self_report) — يحتاجان
+    // عمودين جديدين فعليًا بجدول units على Supabase (انظر الملاحظة أسفل
+    // rowToUnit)، وإلا تُفقَد هذي الوحدات أو يفشل حفظها بعد أول تحديث فعلي
+    // على قاعدة بيانات حقيقية (لا تُفقَد محليًا بدون Supabase).
+    office_id: u.officeId || "", platform_user_id: u.platformUserId || "",
+    // "مسار الاعتماد الحر" الخاص بهذي الوحدة تحديدًا (اختياري) — مصفوفة مراحل
+    // مرتّبة بالكامل بحرية (كل مرحلة = مسمى وظيفي من "القوالب")، تحل محل مسار
+    // الوحدة→رئيسة الوحدة→مراجع إضافي→القسم الثابت القديم عند وجودها فقط.
+    // فاضية/غير موجودة = الوحدة تستمر بسلوكها القديم تمامًا (hasHead/
+    // extraReviewerTitle)، بدون أي تأثير — إضافة بحتة. يحتاج عمود جديد نصي
+    // (jsonb) بجدول units على Supabase: approval_path.
+    approval_path: u.approvalPath || [],
+    // دور الحساب الأساسي (الإدارية): يحدد صفحات/أزرار الدخول المباشر بدون شخص. عمود base_role_id (نص).
+    base_role_id: u.baseRoleId || "",
+  };
+}
+function rowToUnit(r) {
+  return {
+    id: r.id, name: r.name, password: r.password || "", role: r.role || "unit", departmentId: r.department_id || "",
+    status: r.status || "active", createdAt: Number(r.created_at) || 0, email: r.email || "",
+    hasHead: r.has_head !== undefined && r.has_head !== null ? !!r.has_head : (r.role || "unit") !== "center",
+    extraReviewerTitle: r.extra_reviewer_title || "",
+    allowedPages: r.allowed_pages || [], allowedActions: r.allowed_actions || [], reportTabs: parseReportTabsCfg(r.report_tabs),
+    // ملاحظة Supabase: يتطلب جدول units وجود عمودين جديدين (نص، تقبل NULL):
+    // office_id و platform_user_id — خاصّان فقط بـ"وحدة" التقرير الذاتي
+    // (role: self_report). لو role بعمود units مقيّد بقائمة قيم ثابتة
+    // (CHECK constraint)، يجب إضافة القيمة 'self_report' لها أيضًا، وإلا
+    // سيفشل حفظ أي تقرير ذاتي جديد على قاعدة البيانات الحقيقية.
+    officeId: r.office_id || "", platformUserId: r.platform_user_id || "",
+    approvalPath: r.approval_path || [],
+    baseRoleId: r.base_role_id || "",
+  };
+}
+function deptToRow(d) { return { id: d.id, name: d.name, password: d.password || "", status: d.status || "active", created_at: d.createdAt || Date.now(), curation: d.curation || { approvedKeys: [] }, email: d.email || "", office_id: d.officeId || "", allowed_pages: d.allowedPages || [], allowed_actions: d.allowedActions || [], report_tabs: d.reportTabs || null, base_role_id: d.baseRoleId || "" }; }
+function rowToDept(r) { return { id: r.id, name: r.name, password: r.password || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, email: r.email || "", officeId: r.office_id || "", allowedPages: r.allowed_pages || [], allowedActions: r.allowed_actions || [], reportTabs: parseReportTabsCfg(r.report_tabs), baseRoleId: r.base_role_id || "" }; }
+function officeToRow(o) { return { id: o.id, name: o.name, password: o.password || "", email: o.email || "", status: o.status || "active", created_at: o.createdAt || Date.now(), curation: o.curation || { approvedKeys: [] }, allowed_pages: o.allowedPages || [], allowed_actions: o.allowedActions || [], report_tabs: o.reportTabs || null, parent_office_id: o.parentOfficeId || "", base_role_id: o.baseRoleId || "" }; }
+function rowToOffice(r) { return { id: r.id, name: r.name, password: r.password || "", email: r.email || "", status: r.status || "active", createdAt: Number(r.created_at) || 0, curation: r.curation || { approvedKeys: [] }, allowedPages: r.allowed_pages || [], allowedActions: r.allowed_actions || [], reportTabs: parseReportTabsCfg(r.report_tabs), parentOfficeId: r.parent_office_id || "", baseRoleId: r.base_role_id || "" }; }
+// "حسابات إضافية" (platform_users) — طبقة مرنة إضافية فوق نظام الحسابات الحالي
+// (وحدات/أقسام/مكاتب/مديرة نظام)، لمسمّيات وظيفية جديدة كليًا (سكرتارية، مديرة
+// تعليمية...) بصلاحيات صفحات مخصّصة لكل واحدة. لا تلمس أو تعدّل حسابات units/
+// departments/offices الحالية أبدًا — إضافة بحتة، مستقلة تمامًا.
+function platformUserToRow(u) {
+  return {
+    id: u.id, job_title: u.jobTitle || "", login_type: u.loginType || "job_title", login_id: u.loginId || "",
+    password: u.password || "", allowed_pages: u.allowedPages || [], allowed_actions: u.allowedActions || [], scope_kind: u.scopeKind || "none",
+    scope_id: u.scopeId || "", status: u.status || "active", created_at: u.createdAt || Date.now(),
+    template_id: u.templateId || "",
+  };
+}
+// ---- المرحلة 1: الأدوار المركزية (roles) وسجلات الأشخاص (persons) ----
+// الأشخاص سجلات تحت جهة (وحدة/مركز) بدون حساب دخول مستقل؛ الدخول يبقى بحساب الجهة
+// ثم يُختار الشخص، وبرمز (PIN) اختياري تحدده مديرة النظام لكل دور أو شخص.
+function roleToRow(r) {
+  return { id: r.id, name: r.name || "", description: r.description || "", mode: r.mode || "admin", pin: r.pin || "", permissions: r.permissions || {}, status: r.status || "active", created_at: r.createdAt || Date.now() };
+}
+function rowToRole(r) {
+  return { id: r.id, name: r.name || "", description: r.description || "", mode: r.mode || "admin", pin: r.pin || "", permissions: (r.permissions && typeof r.permissions === "object") ? r.permissions : {}, status: r.status || "active", createdAt: Number(r.created_at) || 0 };
+}
+function personToRow(p) {
+  return { id: p.id, name: p.name || "", owner_kind: p.ownerKind || "unit", owner_id: p.ownerId || "", role_id: p.roleId || "", pin: p.pin || "", perms_override: p.permsOverride || {}, status: p.status || "active", created_at: p.createdAt || Date.now() };
+}
+function rowToPerson(r) {
+  return { id: r.id, name: r.name || "", ownerKind: r.owner_kind || "unit", ownerId: r.owner_id || "", roleId: r.role_id || "", pin: r.pin || "", permsOverride: (r.perms_override && typeof r.perms_override === "object") ? r.perms_override : {}, status: r.status || "active", createdAt: Number(r.created_at) || 0 };
+}
+// "قوالب المسميات الوظيفية" (job_title_templates) — كل قالب = مجموعة صفحات
+// وإجراءات واحدة، قابلة للربط بأي عدد من "حسابات إضافية" عبر platformUserId.
+// تعديل القالب ينعكس فورًا على كل حساب مربوط به (بدل تكرار الصلاحيات بكل حساب).
+function jobTitleTemplateToRow(t) {
+  return { id: t.id, name: t.name || "", allowed_pages: t.allowedPages || [], allowed_actions: t.allowedActions || [], status: t.status || "active", created_at: t.createdAt || Date.now(), parent_id: t.parentId || "", report_tabs: t.reportTabs || null };
+}
+function rowToJobTitleTemplate(r) {
+  return {
+    id: r.id, name: r.name || "", allowedPages: Array.isArray(r.allowed_pages) ? r.allowed_pages : [],
+    allowedActions: Array.isArray(r.allowed_actions) ? r.allowed_actions : [], status: r.status || "active", createdAt: Number(r.created_at) || 0,
+    parentId: r.parent_id || "", reportTabs: parseReportTabsCfg(r.report_tabs),
+  };
+}
+
+// أزرار صفحة "التقارير" (التبويبات) — مديرة النظام تحدد لكل وحدة/قسم/مكتب/مسمى
+// وظيفي أي أزرار تظهر له، وأيها "ينبّه" (يظهر بصفحة التنبيهات بعدد تقاريره
+// وينقل لنفس الزر). الشكل المحفوظ: { tabs: [ids], notify: [ids] } أو null (= الأزرار
+// الافتراضية القديمة بدون أي تغيير).
+const REPORT_TAB_CATALOG = [
+  { id: "all", label: "الكل" },
+  { id: "pending_head_review", label: "الواردة للمراجعة (رئيسة الوحدة)" },
+  { id: "pending_extra_review", label: "الواردة للمراجعة (المراجعة الإضافية)" },
+  { id: "draft", label: "مسوداتي" },
+  { id: "returned", label: "بحاجة إلى تعديل" },
+  { id: "needs_completion", label: "بحاجة إلى استكمال" },
+  { id: "under_review", label: "التقارير المرسلة" },
+  { id: "custom_pending", label: "قيد المراجعة" },
+  { id: "completed", label: "التقارير الكاملة" },
+  { id: "approved", label: "معتمد" },
+  { id: "archived", label: "أرشيف التقارير" },
+];
+function parseReportTabsCfg(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const tabs = Array.isArray(v.tabs) ? v.tabs : [];
+  const notify = Array.isArray(v.notify) ? v.notify : [];
+  return tabs.length || notify.length ? { tabs, notify } : null;
+}
+/* ===================== أزرار صفحة التقارير من القاعدة (جدول report_tabs) =====================
+   كل زر: id, label, statuses (حالات التقارير التي يعرضها), adminStatuses (حالات إضافية تظهر
+   فقط بصفة «الإدارية»), special ("all" كل غير المؤرشف / "archived" المؤرشف), mode ("" للجميع،
+   "head"/"extra" يظهر فقط بصفة رئيسة الوحدة/المراجعة الإضافية), enabled.
+   لو الجدول فاضي تُستخدم القائمة المدمجة أدناه كما هي (نفس الأزرار السابقة بالضبط). */
+const REPORT_TABS_KEY = "prs:report-tabs";
+const REPORT_STATUS_OPTIONS = [
+  ["draft", "مسودة"], ["returned", "بحاجة إلى تعديل"], ["needs_completion", "بحاجة إلى استكمال"],
+  ["under_review", "بانتظار مراجعة القسم"], ["pending_head_review", "بانتظار رئيسة الوحدة"], ["pending_extra_review", "بانتظار المراجعة الإضافية"],
+  ["head_returned_edit", "أعادته الرئيسة للتعديل"], ["head_returned_completion", "أعادته الرئيسة للاستكمال"],
+  ["extra_returned_edit", "أعادته المراجعة الإضافية للتعديل"], ["extra_returned_completion", "أعادته المراجعة الإضافية للاستكمال"],
+  ["custom_pending", "قيد المراجعة في المسار"], ["completed", "مكتمل"], ["approved", "معتمد"],
+];
+const REPORT_TABS_DEFAULT = [
+  { id: "all", label: "الكل", special: "all", mode: "", statuses: [], adminStatuses: [], enabled: true },
+  { id: "pending_head_review", label: "الواردة للمراجعة", special: "", mode: "head", statuses: ["pending_head_review"], adminStatuses: [], enabled: true },
+  { id: "pending_extra_review", label: "الواردة للمراجعة", special: "", mode: "extra", statuses: ["pending_extra_review"], adminStatuses: [], enabled: true },
+  { id: "draft", label: "مسوداتي", special: "", mode: "", statuses: ["draft"], adminStatuses: [], enabled: true },
+  { id: "returned", label: "بحاجة إلى تعديل", special: "", mode: "", statuses: ["returned", "head_returned_edit", "extra_returned_edit"], adminStatuses: [], enabled: true },
+  { id: "needs_completion", label: "بحاجة إلى استكمال", special: "", mode: "", statuses: ["needs_completion", "head_returned_completion", "extra_returned_completion"], adminStatuses: [], enabled: true },
+  { id: "under_review", label: "التقارير المرسلة", special: "", mode: "", statuses: ["under_review"], adminStatuses: ["pending_head_review", "pending_extra_review"], enabled: true },
+  { id: "custom_pending", label: "قيد المراجعة", special: "", mode: "", statuses: ["custom_pending"], adminStatuses: [], enabled: true },
+  { id: "completed", label: "التقارير الكاملة", special: "", mode: "", statuses: ["completed"], adminStatuses: [], enabled: true },
+  { id: "approved", label: "معتمد", special: "", mode: "", statuses: ["approved"], adminStatuses: [], enabled: true },
+  { id: "archived", label: "أرشيف التقارير", special: "archived", mode: "", statuses: [], adminStatuses: [], enabled: true },
+];
+function reportTabToRow(t, i) { return { id: t.id, label: t.label || "", statuses: t.statuses || [], admin_statuses: t.adminStatuses || [], special: t.special || "", mode: t.mode || "", order_index: i, enabled: t.enabled !== false, created_at: t.createdAt || Date.now() }; }
+function rowToReportTab(r) { return { id: r.id, label: r.label || "", statuses: Array.isArray(r.statuses) ? r.statuses : [], adminStatuses: Array.isArray(r.admin_statuses) ? r.admin_statuses : [], special: r.special || "", mode: r.mode || "", enabled: r.enabled !== false, order: Number(r.order_index) || 0, createdAt: Number(r.created_at) || 0 }; }
+// زر «بانتظار مراجعتي»: التقارير التي وصلت لمرحلتي في مسار الاعتماد (يحل محل صفحة «التقارير الواردة لي»).
+// يُضاف تلقائيًا للقائمة (دون تخزين) إن لم يكن موجودًا فيها، فلا يحتاج SQL.
+const MINE_TAB_ID = "pending_mine";
+const MINE_TAB = { id: MINE_TAB_ID, label: "بانتظار مراجعتي", special: "mine", mode: "", statuses: [], adminStatuses: [], enabled: true };
+function reportTabsList() {
+  if (!S.reportTabs) S.reportTabs = dataStore.getReportTabs();
+  const base = S.reportTabs.length ? S.reportTabs : REPORT_TABS_DEFAULT;
+  if (base.some((t) => t.id === MINE_TAB_ID)) return base;
+  const i = base.length && base[0].special === "all" ? 1 : 0;
+  return [...base.slice(0, i), MINE_TAB, ...base.slice(i)];
+}
+function reportTabDef(id) { return reportTabsList().find((t) => t.id === id) || null; }
+function reportTabModeSuffix(t) { return t.mode === "head" ? " (رئيسة الوحدة)" : t.mode === "extra" ? " (المراجعة الإضافية)" : ""; }
+// يُبقي REPORT_TAB_CATALOG وأزرار الصلاحيات (chip:*) متزامنة مع القائمة الحالية (تعديل في المكان)
+function syncReportTabCatalog() {
+  const list = reportTabsList();
+  REPORT_TAB_CATALOG.splice(0, REPORT_TAB_CATALOG.length, ...list.map((t) => ({ id: t.id, label: t.label + reportTabModeSuffix(t) })));
+  if (typeof BUTTON_CATALOG === "undefined") return;
+  for (let i = BUTTON_CATALOG.length - 1; i >= 0; i--) if (BUTTON_CATALOG[i].id.indexOf("chip:") === 0) BUTTON_CATALOG.splice(i, 1);
+  BUTTON_CATALOG.splice(0, 0, ...list.map((t) => ({ id: "chip:" + t.id, g: "قائمة التقارير", label: "زر «" + t.label + "»" + reportTabModeSuffix(t), sel: '[data-action="set-unit-reports-filter"][data-filter="' + t.id + '"]' })));
+}
+function reportMatchesCatalogTab(r, id) {
+  const t = reportTabDef(id);
+  if (!t) return false;
+  if (t.special === "all") return !isReportArchived(r);
+  if (t.special === "archived") return isReportArchived(r);
+  if (isReportArchived(r)) return false;
+  return (t.statuses || []).indexOf(r.status) !== -1 || (t.adminStatuses || []).indexOf(r.status) !== -1;
+}
+// إعداد الأزرار الفعلي للمستخدمة الحالية: المسمى الوظيفي (مع الفروع) أولًا، ثم
+// سجل الحساب نفسه. مديرة النظام بلا مسمى = كامل دائمًا (null). null = القديم.
+function effectiveReportTabsConfig() {
+  if (S.personNotifyTabs && S.personNotifyTabs.length) return { tabs: [], notify: S.personNotifyTabs };
+  if (S.currentPlatformUserTemplateId) {
+    const p = effectiveTemplatePermissions(S.currentPlatformUserTemplateId);
+    if (p.reportTabs.length || p.reportNotify.length) return { tabs: p.reportTabs, notify: p.reportNotify };
+  }
+  if (S.isAdmin || S.isExecutive) return null;
+  let ent = null;
+  if (S.isDepartmentUser) ent = (S.departments || []).find((d) => d.id === S.currentDepartmentId);
+  else if (S.isOfficeUser) ent = (S.offices || []).find((o) => o.id === S.currentOfficeId);
+  else if (!S.currentPlatformUserTemplateId) ent = (S.units || []).find((u) => u.id === S.currentUnitId);
+  return ent ? parseReportTabsCfg(ent.reportTabs) : null;
+}
+function reportTabsEditorHtml(form, scope) {
+  const tabs = form.reportTabs || [], notify = form.reportNotify || [];
+  return `
+    <div style="margin:14px 0 6px;font-size:11.5px;font-weight:800;color:${ROSE};">أزرار صفحة التقارير (اتركيها فاضية للأزرار الافتراضية)</div>
+    <div class="hint" style="margin-bottom:8px;">"يظهر" = الزر بصفحة التقارير. "ينبّه" = يظهر بصفحة التنبيهات بعدد تقاريره، وعند الضغط يفتح نفس الزر.</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${REPORT_TAB_CATALOG.map((t) => `
+        <div style="display:flex;align-items:center;gap:10px;background:${GRAY_BG};border-radius:10px;padding:7px 10px;">
+          <span style="flex:1;font-size:12px;font-weight:700;">${esc(t.label)}</span>
+          <button type="button" class="radio-pill ${tabs.includes(t.id) ? "active" : ""}" data-action="toggle-rtab" data-scope="${scope}" data-mode="tab" data-id="${t.id}">يظهر</button>
+          <button type="button" class="radio-pill ${notify.includes(t.id) ? "active" : ""}" data-action="toggle-rtab" data-scope="${scope}" data-mode="notify" data-id="${t.id}">ينبّه</button>
+        </div>`).join("")}
+    </div>`;
+}
+// تجميع صلاحيات مسمى وظيفي + كل من "يتفرع منه" للأعلى (parentId) بالاتحاد
+// (Union) — أي صفحة/إجراء مسموح بأي مستوى بالسلسلة يصير مسموح بالمسمى الفرعي
+// تلقائيًا. حماية من حلقة لا نهائية (A يتفرع من B وB يتفرع من A) عبر تتبّع
+// المسميات المُزارة؛ لو حصلت حلقة نتوقف بدل التعليق.
+function effectiveTemplatePermissions(templateId) {
+  const list = (S.jobTitleTemplates && S.jobTitleTemplates.length) ? S.jobTitleTemplates : dataStore.getJobTitleTemplates();
+  const pages = new Set();
+  const actions = new Set();
+  const rtabs = new Set();
+  const rnotify = new Set();
+  const visited = new Set();
+  let current = list.find((t) => t.id === templateId) || null;
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    (current.allowedPages || []).forEach((p) => pages.add(p));
+    (current.allowedActions || []).forEach((a) => actions.add(a));
+    if (current.reportTabs) { (current.reportTabs.tabs || []).forEach((x) => rtabs.add(x)); (current.reportTabs.notify || []).forEach((x) => rnotify.add(x)); }
+    current = current.parentId ? (list.find((t) => t.id === current.parentId) || null) : null;
+  }
+  return { allowedPages: [...pages], allowedActions: [...actions], reportTabs: [...rtabs], reportNotify: [...rnotify] };
+}
+// تُستدعى عند إضافة أي جهة جديدة (إدارة عليا/مديرة نظام/مكتب/قسم/وحدة/مركز)
+// من نموذج الإضافة الموحّد، لمّا تكتب نجود مسمى وظيفي بخانة "المسمى الوظيفي":
+// - لو المسمى موجود مسبقًا بقائمة "المسميات الوظيفية" (job_title_templates)،
+//   نطبّق صلاحياته (allowedPages/allowedActions) على الجهة الجديدة فورًا.
+// - لو مسمى جديد كليًا، ننشئ له قالبًا فارغ الصلاحيات تلقائيًا (تقدر نجود بعدين
+//   تحدد صلاحياته من تبويب "المسميات الوظيفية")، ونربطه بنفس الجهة.
+// إضافة بحتة — ما تمس أي منطق موجود، وما تسوي شي لو الخانة فاضية.
+function resolveJobTitleForEntity(jobTitleName) {
+  const name = (jobTitleName || "").trim();
+  if (!name) return { allowedPages: [], allowedActions: [] };
+  const list = (S.jobTitleTemplates && S.jobTitleTemplates.length) ? S.jobTitleTemplates : dataStore.getJobTitleTemplates();
+  const existing = list.find((t) => t.name === name);
+  if (existing) return effectiveTemplatePermissions(existing.id);
+  const fresh = { id: uid("jt"), name, allowedPages: [], allowedActions: [], status: "active", createdAt: Date.now() };
+  const updated = [...list, fresh];
+  S.jobTitleTemplates = updated;
+  dataStore.saveJobTitleTemplates(updated);
+  return { allowedPages: [], allowedActions: [] };
+}
+function entityJobTitleFieldHtml(inputId) {
+  const names = [...new Set(((S.jobTitleTemplates && S.jobTitleTemplates.length) ? S.jobTitleTemplates : dataStore.getJobTitleTemplates()).map((t) => t.name).filter(Boolean))];
+  return `<input class="input" id="${inputId}" list="entity-jobtitle-list" style="flex:1;min-width:160px;" placeholder="المسمى الوظيفي" />
+  <datalist id="entity-jobtitle-list">${names.map((n) => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
+}
+function rowToPlatformUser(r) {
+  return {
+    id: r.id, jobTitle: r.job_title || "", loginType: r.login_type || "job_title", loginId: r.login_id || "",
+    password: r.password || "", allowedPages: Array.isArray(r.allowed_pages) ? r.allowed_pages : [],
+    allowedActions: Array.isArray(r.allowed_actions) ? r.allowed_actions : [], scopeKind: r.scope_kind || "none",
+    scopeId: r.scope_id || "", status: r.status || "active", createdAt: Number(r.created_at) || 0,
+    // ملاحظة Supabase: يتطلب جدول platform_users عمود جديد template_id (نص،
+    // يقبل NULL) — يربط الحساب بقالب مسمى وظيفي (job_title_templates) ليرث
+    // صفحاته/إجراءاته منه مباشرة بدل تخزينها مكرّرة بكل حساب. حساب بلا قالب
+    // (الحقل فاضي) يبقى يعمل تمامًا بصلاحياته الخاصة المحفوظة عليه كالسابق.
+    templateId: r.template_id || "",
+  };
+}
+function siteSettingsToRow(s) {
+  return {
+    id: "main",
+    primary_color: s.primary || DEFAULT_SITE_COLORS.primary,
+    background: s.background || DEFAULT_SITE_COLORS.background,
+    logo_url: s.logo || null,
+    logo_size: s.logoSize || DEFAULT_BRANDING.logoSize,
+    banner_image_url: s.bannerImage || null,
+    banner_title: s.bannerTitle || DEFAULT_BRANDING.bannerTitle,
+    banner_sub: s.bannerSub || DEFAULT_BRANDING.bannerSub,
+    platform_name: s.platformName || DEFAULT_BRANDING.platformName,
+    sidebar_tagline: s.sidebarTagline != null ? s.sidebarTagline : DEFAULT_BRANDING.sidebarTagline,
+    sidebar_tagline_image_url: s.sidebarTaglineImage || null,
+    font_family: s.fontFamily || DEFAULT_BRANDING.fontFamily,
+    theme_json: JSON.stringify(s.theme || {}),
+  };
+}
+function rowToSiteSettings(r) {
+  return {
+    primary: r.primary_color || DEFAULT_SITE_COLORS.primary,
+    background: r.background || DEFAULT_SITE_COLORS.background,
+    logo: r.logo_url || null,
+    logoSize: Number(r.logo_size) || DEFAULT_BRANDING.logoSize,
+    bannerImage: r.banner_image_url || null,
+    bannerTitle: r.banner_title || DEFAULT_BRANDING.bannerTitle,
+    bannerSub: r.banner_sub || DEFAULT_BRANDING.bannerSub,
+    platformName: r.platform_name || DEFAULT_BRANDING.platformName,
+    sidebarTagline: r.sidebar_tagline != null ? r.sidebar_tagline : DEFAULT_BRANDING.sidebarTagline,
+    sidebarTaglineImage: r.sidebar_tagline_image_url || null,
+    fontFamily: r.font_family || DEFAULT_BRANDING.fontFamily,
+    theme: (() => { try { return r.theme_json ? JSON.parse(r.theme_json) : {}; } catch (e) { return {}; } })(),
+  };
+}
+// مخطط الهيكل التنظيمي (مسميات وظيفية حرة، للتخطيط فقط — لا علاقة له بحسابات
+// تسجيل الدخول الفعلية). يُخزَّن كصف واحد (id: "main") فيه الشجرة كاملة كـ JSON،
+// بنفس أسلوب site_settings بالضبط.
+function orgChartToRow(nodes) { return { id: "main", nodes: nodes || [] }; }
+function rowToOrgChart(r) { return Array.isArray(r.nodes) ? r.nodes : []; }
+// ما يظهر في «لوحة المعلومات» لكل نوع جهة: { [kind]: { hidden: [مفاتيح العناصر المخفية] } }.
+// الفارغ = كل شيء ظاهر كما كان. صف واحد (id: "main") بنفس أسلوب org_chart.
+function dashboardConfigToRow(cfg) { return { id: "main", config: cfg || {} }; }
+function rowToDashboardConfig(r) { return (r && r.config && typeof r.config === "object") ? r.config : {}; }
 function indDefToRow(d) { return { id: d.id, name: d.name, category: d.category || "", direction: d.direction || "", nature: d.nature || "", frequency: d.frequency || "", unit: d.unit || "", target: String(d.target ?? ""), data_source: d.dataSource || "", calculation_method: d.calculationMethod || "" }; }
 function rowToIndDef(r) { return { id: r.id, name: r.name, category: r.category || "", direction: r.direction || "", nature: r.nature || "", frequency: r.frequency || "", unit: r.unit || "", target: r.target || "", dataSource: r.data_source || "", calculationMethod: r.calculation_method || "" }; }
 function goalToRow(g, kind) { return { id: g.id, name: g.name, kind }; }
 function rowToGoal(r) { return { id: r.id, name: r.name }; }
 function sectionDefToRow(s, i) { return { id: s.id, label: s.label, order_index: s.order ?? i, enabled: s.enabled !== false }; }
 function rowToSectionDef(r) { return { id: r.id, label: r.label, order: Number(r.order_index) || 0, enabled: r.enabled !== false }; }
-function reportToRow(unitId, r) { return { id: r.id, unit_id: unitId, label: r.label || "", status: r.status || "draft", report_type: r.reportType || "general", created_at: r.createdAt || Date.now(), updated_at: r.updatedAt || Date.now(), shared: r.shared || {}, indicator_history: r.indicatorHistory || {}, sections: r.sections || {}, last_section_id: r.lastSectionId || "", sent_to: r.sentTo || null, sent_at: r.sentAt || null, internal_sent_at: r.internalSentAt || null, internal_sent_by: r.internalSentBy || null, internal_review_notes: r.internalReviewNotes || null, internal_returned_at: r.internalReturnedAt || null, head_reviewed_at: r.headReviewedAt || null, head_reviewed_by: r.headReviewedBy || null, head_approval_decision: r.headApprovalDecision || null }; }
-function rowToReport(r) { return { id: r.id, label: r.label || "", status: r.status || "draft", reportType: r.report_type || "general", createdAt: Number(r.created_at) || 0, updatedAt: Number(r.updated_at) || 0, shared: r.shared || {}, indicatorHistory: r.indicator_history || {}, sections: r.sections || {}, lastSectionId: r.last_section_id || "", sentTo: r.sent_to || null, sentAt: r.sent_at ? Number(r.sent_at) : null, internalSentAt: r.internal_sent_at ? Number(r.internal_sent_at) : null, internalSentBy: r.internal_sent_by || null, internalReviewNotes: r.internal_review_notes || null, internalReturnedAt: r.internal_returned_at ? Number(r.internal_returned_at) : null, headReviewedAt: r.head_reviewed_at ? Number(r.head_reviewed_at) : null, headReviewedBy: r.head_reviewed_by || null, headApprovalDecision: r.head_approval_decision || null }; }
+// خريطة حقول قسم واحد (section_id -> قائمة تعريفات الحقول) تُخزَّن كصف واحد لكل قسم،
+// وقيمة fields نفسها JSON خام (jsonb) بدون أي تحويل شكل — هي نفس بنية SECTION_FIELD_SCHEMAS[id].fields.
+function fieldSchemaToRow(sectionId, fields) { return { section_id: sectionId, fields: fields || [], updated_at: Date.now() }; }
+function rowToFieldSchemaEntry(r) { return { sectionId: r.section_id, fields: Array.isArray(r.fields) ? r.fields : [] }; }
+function reportToRow(unitId, r) { return { id: r.id, unit_id: unitId, label: r.label || "", status: r.status || "draft", report_type: r.reportType || "general", created_at: r.createdAt || Date.now(), updated_at: r.updatedAt || Date.now(), shared: r.shared || {}, indicator_history: r.indicatorHistory || {}, sections: r.sections || {}, last_section_id: r.lastSectionId || "", sent_to: r.sentTo || null, sent_at: r.sentAt || null, internal_sent_at: r.internalSentAt || null, internal_sent_by: r.internalSentBy || null, internal_review_notes: r.internalReviewNotes || null, internal_returned_at: r.internalReturnedAt || null, head_reviewed_at: r.headReviewedAt || null, head_reviewed_by: r.headReviewedBy || null, head_approval_decision: r.headApprovalDecision || null, extra_reviewed_at: r.extraReviewedAt || null, extra_approval_decision: r.extraApprovalDecision || null,
+  // تتبّع المرحلة الحالية بمسار الاعتماد الحر (اختياري — يُستخدم فقط لو
+  // الوحدة عندها approval_path مُعرَّف؛ غير ذلك يبقى 0 بلا أي تأثير على
+  // منطق الحالة القديم). يحتاج عمود جديد (عدد صحيح) بجدول reports: path_stage_index.
+  path_stage_index: r.pathStageIndex || 0,
+  // المسار الحر الفعلي: المرحلة الحالية (id مرحلة من unit.approvalPath) + سجل الإرسال/الإعادة.
+  custom_stage_id: r.customStageId || null,
+  custom_log: r.customLog || [],
+}; }
+function rowToReport(r) { return { id: r.id, label: r.label || "", status: r.status || "draft", reportType: r.report_type || "general", createdAt: Number(r.created_at) || 0, updatedAt: Number(r.updated_at) || 0, shared: r.shared || {}, indicatorHistory: r.indicator_history || {}, sections: r.sections || {}, lastSectionId: r.last_section_id || "", sentTo: r.sent_to || null, sentAt: r.sent_at ? Number(r.sent_at) : null, internalSentAt: r.internal_sent_at ? Number(r.internal_sent_at) : null, internalSentBy: r.internal_sent_by || null, internalReviewNotes: r.internal_review_notes || null, internalReturnedAt: r.internal_returned_at ? Number(r.internal_returned_at) : null, headReviewedAt: r.head_reviewed_at ? Number(r.head_reviewed_at) : null, headReviewedBy: r.head_reviewed_by || null, headApprovalDecision: r.head_approval_decision || null, extraReviewedAt: r.extra_reviewed_at ? Number(r.extra_reviewed_at) : null, extraApprovalDecision: r.extra_approval_decision || null,
+  pathStageIndex: Number(r.path_stage_index) || 0,
+  customStageId: r.custom_stage_id || null,
+  customLog: Array.isArray(r.custom_log) ? r.custom_log : [],
+}; }
 
 async function supabaseLogin(name, password) {
   const uRes = await supabaseRequest(`units?name=eq.${encodeURIComponent(name)}&password=eq.${encodeURIComponent(password)}&select=*&limit=1`);
-  if (uRes.ok && Array.isArray(uRes.data) && uRes.data.length) {
+  if (!uRes.ok) return { ok: false, error: uRes.error || "تعذر الاتصال بقاعدة البيانات" };
+  if (Array.isArray(uRes.data) && uRes.data.length) {
     const m = rowToUnit(uRes.data[0]);
     if (m.status === "disabled") return { ok: false, error: "هذا الحساب معطّل حاليًا" };
     return { ok: true, user: { id: m.id, name: m.name, role: m.role, unitId: m.role === "admin" ? null : m.id } };
   }
   const dRes = await supabaseRequest(`departments?name=eq.${encodeURIComponent(name)}&password=eq.${encodeURIComponent(password)}&select=*&limit=1`);
-  if (dRes.ok && Array.isArray(dRes.data) && dRes.data.length && dRes.data[0].password) {
+  if (!dRes.ok) return { ok: false, error: dRes.error || "تعذر الاتصال بقاعدة البيانات" };
+  if (Array.isArray(dRes.data) && dRes.data.length && dRes.data[0].password) {
     const m = rowToDept(dRes.data[0]);
     if (m.status === "disabled") return { ok: false, error: "هذا الحساب معطّل حاليًا" };
     return { ok: true, user: { id: m.id, name: m.name, role: "department", departmentId: m.id } };
   }
   const oRes = await supabaseRequest(`offices?name=eq.${encodeURIComponent(name)}&password=eq.${encodeURIComponent(password)}&select=*&limit=1`);
-  if (oRes.ok && Array.isArray(oRes.data) && oRes.data.length && oRes.data[0].password) {
+  if (!oRes.ok) return { ok: false, error: oRes.error || "تعذر الاتصال بقاعدة البيانات" };
+  if (Array.isArray(oRes.data) && oRes.data.length && oRes.data[0].password) {
     const m = rowToOffice(oRes.data[0]);
     if (m.status === "disabled") return { ok: false, error: "هذا الحساب معطّل حاليًا" };
     return { ok: true, user: { id: m.id, name: m.name, role: "office", officeId: m.id } };
@@ -250,20 +1067,84 @@ async function supabaseLogin(name, password) {
   return { ok: false, error: "اسم الوحدة أو القسم أو المكتب أو كلمة المرور غير صحيحة" };
 }
 
-const MOCK_USERS = [
-  { username: "admin", password: "admin123", role: "admin", name: "مديرة النظام" },
-  { username: "unit1", password: "1234", role: "user", name: "مسؤولة الوحدة", unitId: "seed-1" },
-  { username: "dept1", password: "1234", role: "department", name: "قسم شؤون المكاتب", departmentId: "dept-2" },
-  { username: "exec1", password: "1234", role: "executive", name: "الإدارة العليا" },
-  { username: "center1", password: "1234", role: "center", name: "مركز تجريبي", unitId: "seed-center-1" },
-  { username: "office1", password: "1234", role: "office", name: "مكتب إشراف الطائف", officeId: "office-1" },
-];
+const MOCK_USERS = []; // نسخة الحقيقي: لا حسابات وهمية
 
 /* =============================== Storage layer ============================= */
 const UNITS_KEY = "prs:units", DEPARTMENTS_KEY = "prs:departments", OFFICES_KEY = "prs:offices",
       INDICATOR_DEFINITIONS_KEY = "prs:indicator-definitions", GOALS_DEFINITIONS_KEY = "prs:goals-definitions",
-      SITE_SETTINGS_KEY = "prs:site-settings", REPORT_SECTIONS_KEY = "prs:report-sections";
+      SITE_SETTINGS_KEY = "prs:site-settings", REPORT_SECTIONS_KEY = "prs:report-sections",
+      SECTION_FIELD_SCHEMAS_KEY = "prs:section-field-schemas", PLATFORM_USERS_KEY = "prs:platform-users",
+      ORG_CHART_KEY = "prs:org-chart", DASHBOARD_CONFIG_KEY = "prs:dashboard-config", JOB_TITLE_TEMPLATES_KEY = "prs:job-title-templates", ROLES_KEY = "prs:roles", PERSONS_KEY = "prs:persons", PERM_LOG_KEY = "prs:perm-log", APPROVAL_PATHS_KEY = "prs:approval-paths";
 const DEFAULT_SITE_COLORS = { primary: "#6b2337", background: "#F2ECE8" };
+// ألوان الموقع الإضافية + ضبط عبارة الشريط الجانبي + ألوان بطاقات تصفّح الهيكل —
+// تُحفظ كلها في عمود واحد theme_json بجدول site_settings (نص JSON).
+const DEFAULT_THEME = {
+  ink: "#2E2430", subtle: "#9c8b92", border: "#eddde2",
+  green: "#2E8B67", gold: "#D89A57", danger: "#D65B57", blue: "#8B4A73",
+  sidebarBg: "#faf6f4", navActive: "#6b2337", sidebarBgImage: "", sidebarBgVeil: 35, iconColor: "", fieldIconColor: "",
+  navColor: "", navSize: 12, sbTitleColor: "", sbTitleSize: 15, bannerTitleColor: "", bannerTitleSize: 27, bannerSubColor: "", bannerSubSize: 13,
+  taglineOffset: 0, taglineSize: 13, taglineImgH: 70, taglineColor: "",
+  bs: ["#f1d0d9", "#e6c1cf", "#d9b6c9", "#eed3ab", "#dac3cf"],
+};
+const DEFAULT_THEME_BG = { green: "#e7f5ee", gold: "#fbf0e1", danger: "#fcebe9", blue: "#f3e9ef" };
+const THEME_COLOR_FIELDS = [
+  { key: "ink", label: "لون النصوص الأساسية" },
+  { key: "subtle", label: "لون النصوص الفرعية الباهتة" },
+  { key: "border", label: "لون الحدود والخطوط" },
+  { key: "sidebarBg", label: "خلفية الشريط الجانبي" },
+  { key: "navActive", label: "لون الصفحة المحددة بالشريط الجانبي (مثل «جميع تقارير الوحدة»)" },
+  { key: "green", label: "الأخضر (مكتمل / نجاح)" },
+  { key: "gold", label: "الذهبي (قيد المراجعة)" },
+  { key: "danger", label: "الأحمر (تنبيه / حذف)" },
+  { key: "blue", label: "اللون الثانوي (بنفسجي)" },
+];
+const TEXT_STYLE_FIELDS = [
+  { k: "nav", label: "نصوص قائمة الشريط الجانبي", min: 10, max: 18, def: 12 },
+  { k: "sbTitle", label: "اسم المنصة بالشريط الجانبي", min: 12, max: 28, def: 15 },
+  { k: "bannerTitle", label: "عنوان بانر لوحة المعلومات", min: 18, max: 48, def: 27 },
+  { k: "bannerSub", label: "وصف بانر لوحة المعلومات", min: 10, max: 24, def: 13 },
+];
+function themeOf(settings) { return { ...DEFAULT_THEME, ...((settings && settings.theme) || {}), bs: Object.assign([], DEFAULT_THEME.bs, (settings && settings.theme && settings.theme.bs) || []) }; }
+function hexToRgb(h) { h = String(h || "").replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join(""); const n = parseInt(h, 16); return isNaN(n) || h.length !== 6 ? [255, 255, 255] : [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mixHex(a, b, t) { const x = hexToRgb(a), y = hexToRgb(b); return "#" + x.map((v, i) => Math.round(v * (1 - t) + y[i] * t).toString(16).padStart(2, "0")).join(""); }
+// إعدادات الهوية القابلة للتخصيص من "إعدادات الموقع": الشعار وحجمه، بانر لوحة
+// المعلومات (صورة + عنوان + وصف)، اسم المنصة بعنوان الشريط الجانبي، وعبارة/صورة
+// الشريط الجانبي قبل زر تسجيل الخروج. null تعني: استخدام الافتراضي المُبرمَج.
+const DEFAULT_BRANDING = {
+  logo: null,
+  logoSize: 30,
+  bannerImage: null,
+  bannerTitle: "منصة التقارير",
+  bannerSub: "نحو تقارير أكثر دقة وتنظيمًا",
+  platformName: "منصة التقارير",
+  sidebarTagline: "تقارير دقيقة.. لأثر أكبر",
+  sidebarTaglineImage: null,
+  fontFamily: "IBM Plex Sans Arabic",
+};
+// قائمة خطوط عربية جاهزة (محمّلة مسبقًا من Google Fonts بملف index.html) —
+// تُطبَّق على واجهة الموقع كلها (نصوص، عناوين، أزرار) فيما عدا التقرير المطبوع/PDF
+// اللي يبقى بخطه الثابت (Almarai/Amiri) عمدًا لضمان ثبات شكل المستند المطبوع.
+const FONT_OPTIONS = [
+  { value: "IBM Plex Sans Arabic", label: "IBM Plex Sans Arabic (الافتراضي)" },
+  { value: "Cairo", label: "Cairo" },
+  { value: "Tajawal", label: "Tajawal" },
+  { value: "Almarai", label: "Almarai" },
+  { value: "Changa", label: "Changa" },
+  { value: "Noto Kufi Arabic", label: "Noto Kufi Arabic" },
+  { value: "Reem Kufi", label: "Reem Kufi" },
+  { value: "Amiri", label: "Amiri (خط كلاسيكي)" },
+];
+function siteLogoSrc(s) { return (s && s.logo) || ASSOCIATION_LOGO; }
+function siteBannerSrc(s) { return (s && s.bannerImage) || "hero-bg.jpg"; }
+function sidebarTaglineBlockHtml(site) {
+  const th = themeOf(site);
+  return `
+    <div class="sidebar-tagline-block" style="position:relative;top:${Number(th.taglineOffset) || 0}px;">
+      ${site.sidebarTaglineImage ? `<img src="${esc(site.sidebarTaglineImage)}" class="sidebar-tagline-img" alt="" style="max-height:${Number(th.taglineImgH) || 70}px;" />` : ""}
+      ${site.sidebarTagline ? `<div class="sidebar-tagline" style="font-size:${Number(th.taglineSize) || 13}px;${th.taglineColor ? "color:" + esc(th.taglineColor) + ";" : ""}">${esc(site.sidebarTagline)}</div>` : ""}
+    </div>`;
+}
+function currentSiteSettings() { return S.siteSettings || dataStore.getSiteSettings(); }
 const reportKey = (unitId) => `prs:report:${unitId}`;
 const reportsKey = (unitId) => `prs:reports:${unitId}`;
 
@@ -271,20 +1152,10 @@ function lsGet(key) { const v = localStorage.getItem(key); return v != null ? v 
 function lsSet(key, value) { localStorage.setItem(key, value); }
 function lsDelete(key) { localStorage.removeItem(key); }
 
-function seedDepartments() {
-  return [
-    { id: "dept-1", name: "المراكز", password: "9999", status: "active", createdAt: Date.now() },
-    { id: "dept-2", name: "قسم شؤون المكاتب", password: "1234", status: "active", createdAt: Date.now() },
-  ];
-}
+function seedDepartments() { return []; }
 // مكاتب الإشراف — مستوى تنظيمي أعلى من الأقسام (مكتب الإشراف ← القسم ← الوحدة ← التقارير).
 // إضافة بحتة: لا تُنشئ أو تُعدّل أي قسم/وحدة/تقرير موجود.
-function seedOffices() {
-  return [
-    { id: "office-1", name: "مكتب إشراف الطائف", password: "", status: "active", createdAt: Date.now() },
-    { id: "office-2", name: "مكتب إشراف الحوية", password: "", status: "active", createdAt: Date.now() },
-  ];
-}
+function seedOffices() { return []; }
 // تربط تلقائيًا الأقسام المعروفة بمكتب إشرافها الصحيح — تُطبَّق فقط على قسم
 // ليس له "officeId" محفوظ أصلاً؛ لا تلمس أي قسم مربوط أو مُعدَّل يدويًا من قبل.
 const TAIF_OFFICE_ID = "office-1";
@@ -300,13 +1171,7 @@ function autoLinkDepartmentOffices(departments) {
   });
   return { departments: next, changed };
 }
-function seedUnits() {
-  return [
-    { id: "seed-1", name: "وحدة الاختبارات", password: "1234", status: "active", departmentId: "dept-2", createdAt: Date.now() },
-    { id: "seed-2", name: "وحدة الإشراف التربوي", password: "1234", status: "active", departmentId: "dept-2", createdAt: Date.now() },
-    { id: "seed-center-1", name: "مركز تجريبي", password: "1234", role: "center", status: "active", departmentId: "dept-2", createdAt: Date.now() },
-  ];
-}
+function seedUnits() { return []; }
 function emptyReport() { return { sections: {}, shared: {}, indicatorHistory: {} }; }
 
 const SAMPLE_INDICATOR_DEFINITIONS = [
@@ -344,48 +1209,113 @@ const dataStore = {
     return linked.departments;
   },
   saveDepartments(d) {
+    const gone = removedIdsFor(DEPARTMENTS_KEY, d.map((x) => x.id), idsOfList);
     lsSet(DEPARTMENTS_KEY, JSON.stringify(d));
-    if (sheetsConfigured()) supabaseReplaceTable("departments", d.map(deptToRow)).catch(() => {});
+    if (sheetsConfigured()) queueSupabaseReplaceTable("departments", d.map(deptToRow), "id", gone).catch(() => {});
   },
   getOffices() { const v = lsGet(OFFICES_KEY); if (v) return JSON.parse(v); const seed = seedOffices(); lsSet(OFFICES_KEY, JSON.stringify(seed)); return seed; },
   saveOffices(o) {
+    const gone = removedIdsFor(OFFICES_KEY, o.map((x) => x.id), idsOfList);
     lsSet(OFFICES_KEY, JSON.stringify(o));
-    if (sheetsConfigured()) supabaseReplaceTable("offices", o.map(officeToRow)).catch(() => {});
+    if (sheetsConfigured()) queueSupabaseReplaceTable("offices", o.map(officeToRow), "id", gone).catch(() => {});
+  },
+  getDashboardConfig() { try { const v = lsGet(DASHBOARD_CONFIG_KEY); return v ? JSON.parse(v) : {}; } catch (e) { return {}; } },
+  saveDashboardConfig(cfg) {
+    lsSet(DASHBOARD_CONFIG_KEY, JSON.stringify(cfg));
+    if (sheetsConfigured()) supabaseRequest("dashboard_config", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(dashboardConfigToRow(cfg)) }).catch(() => {});
   },
   cacheOfficesLocally(o) { lsSet(OFFICES_KEY, JSON.stringify(o)); },
   getUnits() { const v = lsGet(UNITS_KEY); if (v) return JSON.parse(v); const seed = seedUnits(); lsSet(UNITS_KEY, JSON.stringify(seed)); return seed; },
   saveUnits(u) {
+    const gone = removedIdsFor(UNITS_KEY, u.map((x) => x.id), idsOfList);
     lsSet(UNITS_KEY, JSON.stringify(u));
-    if (sheetsConfigured()) supabaseReplaceTable("units", u.map(unitToRow)).catch(() => {});
+    if (sheetsConfigured()) queueSupabaseReplaceTable("units", u.map(unitToRow), "id", gone).catch(() => {});
   },
   getIndicatorDefinitions() { const v = lsGet(INDICATOR_DEFINITIONS_KEY); return v ? JSON.parse(v) : []; },
   saveIndicatorDefinitions(d) {
+    const gone = removedIdsFor(INDICATOR_DEFINITIONS_KEY, d.map((x) => x.id), idsOfList);
     lsSet(INDICATOR_DEFINITIONS_KEY, JSON.stringify(d));
-    if (sheetsConfigured()) supabaseReplaceTable("indicator_definitions", d.map(indDefToRow)).catch(() => {});
+    if (sheetsConfigured()) queueSupabaseReplaceTable("indicator_definitions", d.map(indDefToRow), "id", gone).catch(() => {});
   },
-  getSiteSettings() { const v = lsGet(SITE_SETTINGS_KEY); return v ? JSON.parse(v) : { ...DEFAULT_SITE_COLORS }; },
+  getSiteSettings() { const v = lsGet(SITE_SETTINGS_KEY); return { ...DEFAULT_SITE_COLORS, ...DEFAULT_BRANDING, ...(v ? JSON.parse(v) : {}) }; },
   saveSiteSettings(s) {
     lsSet(SITE_SETTINGS_KEY, JSON.stringify(s));
     if (sheetsConfigured()) supabaseRequest("site_settings", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(siteSettingsToRow(s)) }).catch(() => {});
   },
+  getOrgChart() { const v = lsGet(ORG_CHART_KEY); return v ? JSON.parse(v) : []; },
+  saveOrgChart(nodes) {
+    lsSet(ORG_CHART_KEY, JSON.stringify(nodes));
+    if (sheetsConfigured()) supabaseRequest("org_chart", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(orgChartToRow(nodes)) }).catch(() => {});
+  },
   cacheIndicatorDefinitionsLocally(d) { lsSet(INDICATOR_DEFINITIONS_KEY, JSON.stringify(d)); },
   cacheUnitsLocally(u) { lsSet(UNITS_KEY, JSON.stringify(u)); },
   cacheDepartmentsLocally(d) { lsSet(DEPARTMENTS_KEY, JSON.stringify(d)); },
+  getRoles() { const v = lsGet(ROLES_KEY); return v ? JSON.parse(v) : []; },
+  saveRoles(list) {
+    const gone = removedIdsFor(ROLES_KEY, list.map((x) => x.id), idsOfList);
+    lsSet(ROLES_KEY, JSON.stringify(list));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("roles", list.map(roleToRow), "id", gone).catch(() => {});
+  },
+  getReportTabs() { const v = lsGet(REPORT_TABS_KEY); return v ? JSON.parse(v) : []; },
+  saveReportTabs(list) {
+    const gone = removedIdsFor(REPORT_TABS_KEY, list.map((x) => x.id), idsOfList);
+    lsSet(REPORT_TABS_KEY, JSON.stringify(list));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("report_tabs", list.map(reportTabToRow), "id", gone).catch(() => {});
+  },
+  getApprovalPaths() { const v = lsGet(APPROVAL_PATHS_KEY); return v ? JSON.parse(v) : []; },
+  saveApprovalPaths(list) {
+    const gone = removedIdsFor(APPROVAL_PATHS_KEY, list.map((x) => x.id), idsOfList);
+    lsSet(APPROVAL_PATHS_KEY, JSON.stringify(list));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("approval_paths", list.map(approvalPathToRow), "id", gone).catch(() => {});
+  },
+  getPermLog() { const v = lsGet(PERM_LOG_KEY); return v ? JSON.parse(v) : []; },
+  getPersons() { const v = lsGet(PERSONS_KEY); return v ? JSON.parse(v) : []; },
+  savePersons(list) {
+    const gone = removedIdsFor(PERSONS_KEY, list.map((x) => x.id), idsOfList);
+    lsSet(PERSONS_KEY, JSON.stringify(list));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("persons", list.map(personToRow), "id", gone).catch(() => {});
+  },
+  getPlatformUsers() { const v = lsGet(PLATFORM_USERS_KEY); return v ? JSON.parse(v) : []; },
+  savePlatformUsers(list) {
+    const gone = removedIdsFor(PLATFORM_USERS_KEY, list.map((x) => x.id), idsOfList);
+    lsSet(PLATFORM_USERS_KEY, JSON.stringify(list));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("platform_users", list.map(platformUserToRow), "id", gone).catch(() => {});
+  },
+  cachePlatformUsersLocally(list) { lsSet(PLATFORM_USERS_KEY, JSON.stringify(list)); },
+  getJobTitleTemplates() { const v = lsGet(JOB_TITLE_TEMPLATES_KEY); return v ? JSON.parse(v) : []; },
+  saveJobTitleTemplates(list) {
+    const gone = removedIdsFor(JOB_TITLE_TEMPLATES_KEY, list.map((x) => x.id), idsOfList);
+    lsSet(JOB_TITLE_TEMPLATES_KEY, JSON.stringify(list));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("job_title_templates", list.map(jobTitleTemplateToRow), "id", gone).catch(() => {});
+  },
+  cacheJobTitleTemplatesLocally(list) { lsSet(JOB_TITLE_TEMPLATES_KEY, JSON.stringify(list)); },
   getGoalsDefinitions() { const v = lsGet(GOALS_DEFINITIONS_KEY); return v ? JSON.parse(v) : { strategic: [], operational: [] }; },
   saveGoalsDefinitions(d) {
+    const gone = removedIdsFor(GOALS_DEFINITIONS_KEY, (d.strategic || []).concat(d.operational || []).map((g) => g.id), (o) => ((o && o.strategic) || []).concat((o && o.operational) || []).map((g) => g.id));
     lsSet(GOALS_DEFINITIONS_KEY, JSON.stringify(d));
     if (sheetsConfigured()) {
       const rows = (d.strategic || []).map((g) => goalToRow(g, "strategic")).concat((d.operational || []).map((g) => goalToRow(g, "operational")));
-      supabaseReplaceTable("goals_definitions", rows).catch(() => {});
+      queueSupabaseReplaceTable("goals_definitions", rows, "id", gone).catch(() => {});
     }
   },
   cacheGoalsDefinitionsLocally(d) { lsSet(GOALS_DEFINITIONS_KEY, JSON.stringify(d)); },
   getReportSectionDefs() { const v = lsGet(REPORT_SECTIONS_KEY); return v ? JSON.parse(v) : DEFAULT_SECTIONS.map((s, i) => ({ id: s.id, label: s.label, order: i, enabled: true })); },
   saveReportSectionDefs(list) {
+    const gone = removedIdsFor(REPORT_SECTIONS_KEY, list.map((x) => x.id), idsOfList);
     lsSet(REPORT_SECTIONS_KEY, JSON.stringify(list));
-    if (sheetsConfigured()) supabaseReplaceTable("report_sections", list.map(sectionDefToRow)).catch(() => {});
+    if (sheetsConfigured()) queueSupabaseReplaceTable("report_sections", list.map(sectionDefToRow), "id", gone).catch(() => {});
   },
   cacheReportSectionDefsLocally(list) { lsSet(REPORT_SECTIONS_KEY, JSON.stringify(list)); },
+  // خريطة { sectionId: [field, field, ...] } — تخصيصات حقول الأقسام المبنية على
+  // المحرك العام (SECTION_FIELD_SCHEMAS). خالية = لا تخصيصات محفوظة بعد، فيستخدم
+  // النظام التعريفات الافتراضية المكتوبة بالكود كما هي.
+  getSectionFieldSchemas() { const v = lsGet(SECTION_FIELD_SCHEMAS_KEY); return v ? JSON.parse(v) : {}; },
+  saveSectionFieldSchemas(map) {
+    const gone = removedIdsFor(SECTION_FIELD_SCHEMAS_KEY, Object.keys(map), (o) => Object.keys(o || {}));
+    lsSet(SECTION_FIELD_SCHEMAS_KEY, JSON.stringify(map));
+    if (sheetsConfigured()) queueSupabaseReplaceTable("section_field_schemas", Object.keys(map).map((id) => fieldSchemaToRow(id, map[id])), "section_id", gone).catch(() => {});
+  },
+  cacheSectionFieldSchemasLocally(map) { lsSet(SECTION_FIELD_SCHEMAS_KEY, JSON.stringify(map)); },
   // Each unit now holds a LIST of report entries (one per period/submission),
   // each carrying its own status: draft / under_review / completed.
   // A unit that only ever had the old single-report shape (prs:report:<id>)
@@ -442,6 +1372,7 @@ function isUnitInUserScope(unitId) {
   const unit = S.units.find((u) => u.id === unitId);
   if (!unit) return false;
   if (S.isDepartmentUser) return unit.departmentId === S.currentDepartmentId;
+  if (S.isOfficeUser) return officeUnits(S.currentOfficeId).some((u) => u.id === unitId);
   return unit.id === S.currentUnitId;
 }
 // يرفع بيانات التقرير فعليًا لقاعدة Supabase (upsert بمفتاح id) — كانت هذي
@@ -449,15 +1380,24 @@ function isUnitInUserScope(unitId) {
 // التقارير تُحفظ محليًا بس وما توصل لقاعدة البيانات الحقيقية إطلاقًا. صُلّحت.
 function pushReportMetaToSheet(unitId, entry) {
   if (!sheetsConfigured()) return;
-  supabaseRequest("reports", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(reportToRow(unitId, entry)) }).catch(() => {});
+  supabaseRequest("reports?on_conflict=id", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(reportToRow(unitId, entry)) })
+    .then((res) => { if (res && !res.ok) reportSupabaseWriteError("reports", res.error); })
+    .catch(() => {});
 }
+// وضع "الاطلاع فقط" لمديرة النظام (الحساب الأصلي): تشوف كل التقارير والأرشيف
+// وتتصفحها، لكن بدون تعديل أو إرسال أو اعتماد أو إعادة أو حذف. حسابات "المسمى
+// الوظيفي" والأقسام والوحدات الحقيقية لا تتأثر إطلاقًا.
+function adminReportsReadOnly() { return !!(S.isAdmin && !S.currentPlatformUserJobTitle && !S.__adminAllowWrite); }
+const ADMIN_READONLY_BLOCKED = ["open-or-create-report", "create-new-report", "approve-report-by-head", "confirm-head-return", "submit-report-to-head", "confirm-send-report", "mark-report-completed", "request-report-completion", "approve-report", "return-report-for-revision", "submit-department-review-decision", "delete-report", "confirm-delete-report", "custom-path-send", "custom-path-return", "confirm-custom-send", "start-custom-send", "ap-send", "ap-send-confirm", "ap-advance", "ap-return", "ap-open-edit"];
 function saveReportEntry(unitId, updatedEntry) {
+  if (adminReportsReadOnly()) return;
   const list = ensureUnitReportsLoaded(unitId).map((r) => (r.id === updatedEntry.id ? updatedEntry : r));
   S.reports[unitId] = list;
   dataStore.saveReports(unitId, list);
   pushReportMetaToSheet(unitId, updatedEntry);
 }
 function createNewReportEntry(unitId) {
+  if (adminReportsReadOnly()) return null;
   const list = ensureUnitReportsLoaded(unitId);
   const entry = { id: uid("rep"), label: "تقرير جديد", status: "draft", createdAt: Date.now(), updatedAt: Date.now(), sections: {}, shared: {}, indicatorHistory: {} };
   S.reports[unitId] = [...list, entry];
@@ -471,11 +1411,430 @@ function reportStatusMeta(status) {
   if (status === "under_review") return { label: "بانتظار المراجعة", color: GOLD, bg: GOLD_BG };
   if (status === "needs_completion") return { label: "بحاجة إلى استكمال", color: "#c9863a", bg: "#faf0e3" };
   if (status === "returned") return { label: "بحاجة إلى تعديل", color: DANGER, bg: DANGER_BG };
+  if (status === "custom_pending") return { label: "قيد المراجعة", color: GOLD, bg: GOLD_BG };
   if (status === "pending_head_review") return { label: "بانتظار مراجعة رئيسة الوحدة", color: GOLD, bg: GOLD_BG };
   if (status === "head_returned_edit") return { label: "معاد للتعديل", color: DANGER, bg: DANGER_BG };
   if (status === "head_returned_completion") return { label: "معاد للاستكمال", color: "#c9863a", bg: "#faf0e3" };
+  // مستوى المراجعة الداخلية الإضافي الاختياري (مثال: "مديرة تعليمية") — يقع بين
+  // رئيسة الوحدة (إن وُجدت) والقسم، حسب مسار اعتماد كل وحدة (unit.extraReviewerTitle).
+  if (status === "pending_extra_review") return { label: "بانتظار المراجعة الداخلية الإضافية", color: GOLD, bg: GOLD_BG };
+  if (status === "extra_returned_edit") return { label: "معاد للتعديل (المراجعة الإضافية)", color: DANGER, bg: DANGER_BG };
+  if (status === "extra_returned_completion") return { label: "معاد للاستكمال (المراجعة الإضافية)", color: "#c9863a", bg: "#faf0e3" };
   return { label: "مسودة", color: BLUE, bg: BLUE_BG };
 }
+// مسار اعتماد الوحدة: هل لهذي الوحدة "رئيسة" تراجع التقارير قبل إرسالها للقسم؟
+// افتراضيًا: كل وحدة (role: "unit") لها رئيسة، وكل مركز (role: "center") بدون —
+// نفس السلوك الأصلي بالضبط لأي بيانات قديمة ما فيها الحقل الجديد بعد. يمكن
+// تخصيصه صراحة لكل وحدة من نموذج "المستخدمون" بغض النظر عن الدور.
+
+/* ===================== المسار الحر: تشغيل فعلي على التقارير =====================
+   وحدة عندها approvalPath (مراحل، كل مرحلة = مسمى وظيفي) تمشي تقاريرها عليه بدل
+   المسار الثابت. كل من يرسل/يعيد يختار المرحلة الهدف بنفسه. وحدة بلا approvalPath
+   ما يتغير عليها أي شي إطلاقًا. المرحلة الحالية = report.customStageId. */
+function unitCustomPath(unit) {
+  return unit && Array.isArray(unit.approvalPath) ? unit.approvalPath.filter((s) => s && s.templateId) : [];
+}
+function unitHasCustomPath(unit) { return unitCustomPath(unit).length > 0; }
+function customStageName(stage) {
+  const t = stage ? resolveJobTitleTemplate(stage.templateId) : null;
+  return t ? t.name : "مرحلة";
+}
+function userHoldsCustomStage(stage) {
+  if (!stage) return false;
+  if (S.isAdmin && !S.currentPlatformUserTemplateId) return true;
+  return !!S.currentPlatformUserTemplateId && S.currentPlatformUserTemplateId === stage.templateId;
+}
+// تقارير تنتظر المستخدمة الحالية (حسب مرحلة المسار الحر الحالية للتقرير)
+function customPathPendingForMe() {
+  const out = [];
+  (S.units || []).forEach((u) => {
+    const path = unitCustomPath(u);
+    if (!path.length) return;
+    ensureUnitReportsLoaded(u.id).forEach((r) => {
+      if (r.status !== "custom_pending") return;
+      const stage = path.find((st) => st.id === r.customStageId);
+      if (stage && userHoldsCustomStage(stage)) out.push({ unit: u, report: r, stage, path });
+    });
+  });
+  return out;
+}
+function userInAnyCustomPath() {
+  if (S.isAdmin && !S.currentPlatformUserTemplateId) return true;
+  if (userInAnyApStage()) return true;
+  if (!S.currentPlatformUserTemplateId) return false;
+  return (S.units || []).some((u) => unitCustomPath(u).some((st) => st.templateId === S.currentPlatformUserTemplateId));
+}
+// يسمح بعرض (قراءة فقط) تقرير وحدة لمن يملك المرحلة الحالية له
+function canViewReportViaCustomPath(unitId) {
+  if (canViewReportViaApPath(unitId)) return true;
+  const unit = (S.units || []).find((u) => u.id === unitId);
+  if (!unitHasCustomPath(unit)) return false;
+  return unitCustomPath(unit).some((st) => userHoldsCustomStage(st));
+}
+/* ===================== المرحلة 4: ربط «مسارات الاعتماد» (approval_paths) بحركة التقرير =====================
+   لا يوجد أي مسار افتراضي: لو ما فيه مسار «مفعّل» يطابق التقرير (الجهة + الفترة + دور الكاتبة)
+   يبقى كل شيء كما كان تمامًا. عند الإرسال يُثبَّت المسار على التقرير نفسه عبر
+   report.customStageId = "ap:<pathId>:<stageId>" (نفس عمود custom_stage_id وسجل custom_log
+   الموجودين أصلًا — لا حاجة لتعديل قاعدة البيانات).
+   قواعد المراحل: صاحب المرحلة يقدر دائمًا «يُرسل للتالية»؛ «يعتمد» يغيّر الصياغة وحالة النهاية
+   (آخر مرحلة: معتمد، وبدونها: مكتمل)؛ «يعيد للتعديل» يرجّع التقرير لصاحبته بملاحظة؛ «يعدّل» يفتح
+   له التقرير للتحرير. مرحلة لا فيها اعتماد ولا إعادة ولا تعديل، وصاحبها هي من يرسل، تُتجاوز تلقائيًا. */
+const AP_PREFIX = "ap:";
+function apRefOf(key) {
+  if (typeof key !== "string" || key.indexOf(AP_PREFIX) !== 0) return null;
+  const rest = key.slice(AP_PREFIX.length); const i = rest.indexOf(":");
+  return i < 0 ? null : { pathId: rest.slice(0, i), stageId: rest.slice(i + 1) };
+}
+function apPathById(id) { return approvalPathsList().find((p) => p.id === id) || null; }
+function apStageList(path) { return ((path && path.stages) || []).map((st) => ({ ...st, key: AP_PREFIX + path.id + ":" + st.id })); }
+// المسار المثبَّت على التقرير (من المرحلة الحالية أو من آخر حركة بالسجل)
+function reportApPathId(report) {
+  if (!report) return null;
+  const cur = apRefOf(report.customStageId);
+  if (cur) return cur.pathId;
+  const log = report.customLog || [];
+  for (let i = log.length - 1; i >= 0; i--) {
+    const r = apRefOf(log[i].to) || apRefOf(log[i].from);
+    if (r) return r.pathId;
+  }
+  return null;
+}
+function apOwnerCandidatesForUnit(unit) {
+  if (!unit) return [];
+  if (unit.role === "self_report") {
+    if (unit.departmentId) return [{ kind: "dept", id: unit.departmentId }];
+    if (unit.officeId) return [{ kind: "office", id: unit.officeId }];
+    return [];
+  }
+  return [{ kind: "unit", id: unit.id }];
+}
+function currentPersonObj() { return S.currentPersonId ? (personsList().find((x) => x.id === S.currentPersonId) || null) : null; }
+function currentAuthorRoleId() { const p = currentPersonObj(); return p ? (p.roleId || "") : ""; }
+// أنسب مسار مفعّل لهذا التقرير: الأكثر تحديدًا (فترة محددة / دور محدد) يفوز
+function matchApprovalPath(unit, report) { return matchingApprovalPaths(unit, report)[0] || null; }
+function matchingApprovalPaths(unit, report) {
+  const owners = apOwnerCandidatesForUnit(unit);
+  if (!owners.length) return [];
+  const period = (report && report.shared && report.shared.periodType) || (report && report.sections && report.sections.basic && report.sections.basic.data && report.sections.basic.data.periodType) || "";
+  const role = currentAuthorRoleId();
+  const out = [];
+  approvalPathsList().forEach((p) => {
+    if (p.status !== "active" || !(p.stages || []).length) return;
+    if (!owners.some((o) => o.kind === p.ownerKind && o.id === p.ownerId)) return;
+    if (p.periodType && p.periodType !== period) return;
+    if (p.authorRoleId && p.authorRoleId !== role) return;
+    out.push({ p, score: (p.periodType ? 1 : 0) + (p.authorRoleId ? 1 : 0) });
+  });
+  return out.sort((a, b) => b.score - a.score).map((x) => x.p);
+}
+// هل الجلسة الحالية هي صاحبة هذه المرحلة؟ (مديرة النظام للاطلاع فقط فلا تُعدّ صاحبة مرحلة)
+function userHoldsApStage(stage) {
+  if (!stage || !stage.approver || S.isAdmin) return false;
+  const s = String(stage.approver); const i = s.indexOf(":");
+  const k = s.slice(0, i), id = s.slice(i + 1);
+  if (k === "person") return S.currentPersonId === id;
+  if (k === "role") { const p = currentPersonObj(); return !!p && p.roleId === id; }
+  if (k === "dept") return !!S.isDepartmentUser && !S.currentPersonId && S.currentDepartmentId === id;
+  if (k === "office") return !!S.isOfficeUser && !S.currentPersonId && S.currentOfficeId === id;
+  return false;
+}
+function apStageIsPassThrough(st) { return !st.canApprove && !st.canReturn && !st.canEdit; }
+function apPendingForMe() {
+  const out = [];
+  (S.units || []).forEach((u) => {
+    ensureUnitReportsLoaded(u.id).forEach((r) => {
+      if (r.status !== "custom_pending") return;
+      const ref = apRefOf(r.customStageId); if (!ref) return;
+      const p = apPathById(ref.pathId); if (!p) return;
+      const stages = apStageList(p);
+      const stage = stages.find((s) => s.key === r.customStageId);
+      if (stage && userHoldsApStage(stage)) out.push({ unit: u, report: r, stage, path: stages, ap: true });
+    });
+  });
+  return out;
+}
+function userInAnyApStage() {
+  if (S.isAdmin) return false;
+  return approvalPathsList().some((p) => apStageList(p).some((st) => userHoldsApStage(st)));
+}
+function canViewReportViaApPath(unitId) {
+  return ensureUnitReportsLoaded(unitId).some((r) => {
+    const ref = apRefOf(r.customStageId); if (!ref) return false;
+    const p = apPathById(ref.pathId);
+    return !!p && apStageList(p).some((st) => userHoldsApStage(st));
+  });
+}
+function apLogEntry(kind, from, to, text) { return { at: Date.now(), kind, from, to, text, by: S.currentPersonName || (S.currentUser && S.currentUser.name) || "" }; }
+// يرسل التقرير من كاتبته لأول مرحلة فعلية بمسار مطابق؛ يرجع false لو ما فيه مسار
+function apSendReport(unitId, entry, pathId, notes) {
+  const unit = S.units.find((u) => u.id === unitId);
+  const path = matchingApprovalPaths(unit, entry).find((x) => x.id === pathId);
+  if (!path) return false;
+  const noteTxt = notes ? " — " + notes : "";
+  const stages = apStageList(path);
+  let i = 0;
+  while (i < stages.length && userHoldsApStage(stages[i]) && apStageIsPassThrough(stages[i])) i++;
+  const log = [...(entry.customLog || [])];
+  const cleanSections = {};
+  Object.entries(entry.sections || {}).forEach(([k, v]) => { if (v && v.reviewNote) { const { reviewNote, ...rest } = v; cleanSections[k] = rest; } else cleanSections[k] = v; });
+  entry = { ...entry, sections: cleanSections };
+  if (i >= stages.length) {
+    const last = stages[stages.length - 1];
+    const status = last.canApprove ? "approved" : "completed";
+    log.push(apLogEntry("final", "unit", "final", "أُرسل وانتهى المسار (" + path.name + ")" + noteTxt));
+    saveReportEntry(unitId, { ...entry, status, customStageId: null, customLog: log, internalSentAt: Date.now(), updatedAt: Date.now() });
+  } else {
+    log.push(apLogEntry("send", "unit", stages[i].key, "أُرسل إلى " + stages[i].name + " (" + path.name + ")" + noteTxt));
+    saveReportEntry(unitId, { ...entry, status: "custom_pending", customStageId: stages[i].key, customLog: log, internalSentAt: Date.now(), updatedAt: Date.now() });
+  }
+  return true;
+}
+function apAdvanceOrReturn(unitId, reportId, isReturn, notes, opts) {
+  opts = opts || {};
+  const entry = getReportEntry(unitId, reportId);
+  if (!entry || entry.status !== "custom_pending") return "غير متاح";
+  const ref = apRefOf(entry.customStageId); if (!ref) return "غير متاح";
+  const path = apPathById(ref.pathId); if (!path) return "المسار محذوف";
+  const stages = apStageList(path);
+  const idx = stages.findIndex((s) => s.key === entry.customStageId);
+  const cur = stages[idx];
+  if (!cur || !userHoldsApStage(cur)) return "ليست مرحلتك";
+  const log = [...(entry.customLog || [])];
+  if (isReturn) {
+    if (!cur.canReturn) return "هذه المرحلة لا تملك الإعادة";
+    const secNotes = Object.entries(opts.sectionNotes || {}).filter(([, t]) => String(t || "").trim());
+    if (!notes && !secNotes.length) return "الرجاء كتابة ملاحظات قبل إعادة التقرير.";
+    const secLabel = (id) => { const sc = SECTIONS.find((x) => x.id === id); return sc ? sc.label : id; };
+    const fullNotes = [notes, ...secNotes.map(([id, t]) => secLabel(id) + ": " + String(t).trim())].filter(Boolean).join(" | ");
+    const sections = { ...(entry.sections || {}) };
+    secNotes.forEach(([id, t]) => { sections[id] = { ...(sections[id] || { status: "not_started", data: {} }), reviewNote: { text: String(t).trim(), by: cur.name, at: Date.now() } }; });
+    const type = opts.type === "needs_completion" ? "needs_completion" : "returned";
+    log.push(apLogEntry("return", cur.key, "unit", "أعادته " + cur.name + (type === "needs_completion" ? " للاستكمال — " : " للتعديل — ") + fullNotes));
+    saveReportEntry(unitId, { ...entry, sections, status: type, customStageId: null, customLog: log, internalReviewNotes: fullNotes, internalReturnedAt: Date.now(), updatedAt: Date.now() });
+    return "";
+  }
+  if (cur.noteRequired && !notes) return "هذه المرحلة تلزم كتابة ملاحظة قبل الاعتماد.";
+  const next = stages[idx + 1];
+  if (!next) {
+    log.push(apLogEntry("final", cur.key, "final", (cur.canApprove ? "اعتُمد نهائيًا من " : "أنهته ") + cur.name + (notes ? " — " + notes : "")));
+    saveReportEntry(unitId, { ...entry, status: cur.canApprove ? "approved" : "completed", customStageId: null, customLog: log, updatedAt: Date.now() });
+  } else {
+    log.push(apLogEntry("send", cur.key, next.key, (cur.canApprove ? "اعتمدته " : "أرسلته ") + cur.name + " إلى " + next.name + (notes ? " — " + notes : "")));
+    saveReportEntry(unitId, { ...entry, status: "custom_pending", customStageId: next.key, customLog: log, updatedAt: Date.now() });
+  }
+  return "";
+}
+function apSendPickerHtml(unit, report) {
+  const paths = matchingApprovalPaths(unit, report);
+  const picked = S.ui.apSendPathId || (paths.length === 1 ? paths[0].id : "");
+  return `
+  <div class="card" style="margin-top:16px;border:1.5px solid ${ROSE};">
+    <div style="font-size:13px;font-weight:800;margin-bottom:10px;">إرسال التقرير — إلى من؟</div>
+    <select class="input" id="ap-send-path" style="width:100%;margin-bottom:10px;">
+      <option value="">اختاري الجهة...</option>
+      ${paths.map((p) => `<option value="${esc(p.id)}" ${picked === p.id ? "selected" : ""}>${esc(p.name || apOwnerName(p.ownerKind, p.ownerId))} — ${esc(apStageList(p).map((st) => st.name).join(" ← "))}</option>`).join("")}
+    </select>
+    <textarea id="ap-send-notes" class="input" style="width:100%;min-height:56px;margin-bottom:10px;" placeholder="ملاحظات (اختياري)..."></textarea>
+    <div style="display:flex;gap:8px;">
+      ${pillBtn("تأكيد الإرسال", { icon: iconCheckCircle(14, "#fff"), action: "ap-send-confirm" })}
+      ${pillBtn("إلغاء", { variant: "ghost", action: "ap-send-cancel" })}
+    </div>
+  </div>`;
+}
+function apInboxCardHtml(item) {
+  const { unit, report, stage, path } = item;
+  const key = unit.id + ":" + report.id;
+  const idx = path.findIndex((s) => s.key === stage.key);
+  const next = path[idx + 1];
+  const log = (report.customLog || []).slice(-3);
+  const advLabel = stage.canApprove ? (next ? "اعتماد وإرسال إلى " + next.name : "اعتماد نهائي") : (next ? "إرسال إلى " + next.name : "إنهاء المرحلة");
+  return `
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+      <div style="font-size:13.5px;font-weight:800;">${esc(unit.name)} — ${esc(report.label)}</div>
+      ${badgeHtml("مرحلتك: " + stage.name, GOLD, GOLD_BG)}
+    </div>
+    ${log.length ? `<div style="font-size:11px;color:${SUBTLE};margin-bottom:8px;line-height:1.8;">${log.map((l) => esc(l.text || "")).join("<br>")}</div>` : ""}
+    <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
+      ${pillBtn("عرض التقرير", { variant: "ghost", action: "view-report-pdf", data: { unitId: unit.id, reportId: report.id } })}
+      ${stage.canEdit ? pillBtn("فتح للتعديل", { variant: "ghost", action: "ap-open-edit", data: { unitId: unit.id, reportId: report.id } }) : ""}
+    </div>
+    <textarea id="cp-notes-${esc(key)}" class="input" style="width:100%;min-height:56px;margin-bottom:10px;" placeholder="ملاحظات عامة (${stage.noteRequired ? "إلزامية عند الاعتماد" : "اختياري"}${stage.canReturn ? "، وتلزم عند الإعادة إن لم تكتبي ملاحظة على قسم" : ""})...">${esc(apDraftGet(key, "__gen"))}</textarea>
+    ${stage.canReturn ? `<details style="margin-bottom:10px;"><summary style="font-size:12px;font-weight:700;color:${ROSE};cursor:pointer;">ملاحظات على أقسام محددة (تظهر داخل القسم نفسه عند الإعادة)</summary>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">${SECTIONS.map((sc) => `<textarea id="cp-sec-${esc(key)}-${esc(sc.id)}" class="input" style="width:100%;min-height:40px;" placeholder="ملاحظة على: ${esc(sc.label)}">${esc(apDraftGet(key, sc.id))}</textarea>`).join("")}</div></details>
+    <select class="input" id="cp-rtype-${esc(key)}" style="width:100%;margin-bottom:10px;"><option value="returned">عند الإعادة: بحاجة إلى تعديل</option><option value="needs_completion">عند الإعادة: بحاجة إلى استكمال</option></select>` : ""}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${pillBtn(advLabel, { icon: iconCheckCircle(14, "#fff"), action: "ap-advance", data: { unitId: unit.id, reportId: report.id } })}
+      ${stage.canReturn ? pillBtn("إعادة للتعديل", { variant: "ghost", icon: iconX(14, INK), action: "ap-return", data: { unitId: unit.id, reportId: report.id } }) : ""}
+    </div>
+  </div>`;
+}
+function apOrCustomStageName(unit, report) {
+  const ref = apRefOf(report && report.customStageId);
+  if (ref) { const p = apPathById(ref.pathId); const st = p && (p.stages || []).find((x) => x.id === ref.stageId); return st ? st.name : "مرحلة"; }
+  return customStageName(unitCustomPath(unit).find((st) => st.id === (report && report.customStageId)));
+}
+function renderCustomPathInbox() {
+  const items = apPendingForMe();
+  return `
+  <div class="page-wrap"><div class="page-inner narrow">
+    ${topBarHtml({ title: "بانتظار مراجعتي", subtitle: "تقارير وصلت لمرحلتك — اطّلعي عليها ثم اعتمديها وأرسليها أو أعيديها للتعديل" })}
+    ${items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;border-style:dashed;">لا توجد تقارير بانتظارك حاليًا.</div>` : `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      ${items.map((item) => apInboxCardHtml(item)).join("")}
+    </div>`}
+  </div></div>`;
+}
+
+function unitHasHead(unit) {
+  if (!unit) return false;
+  return unit.hasHead !== undefined && unit.hasHead !== null ? !!unit.hasHead : unit.role !== "center";
+}
+// هل لهذي الوحدة مستوى مراجعة داخلي إضافي (مسمّى تحدده مديرة النظام، مثل
+// "مديرة تعليمية") بين رئيسة الوحدة (أو الإدارية مباشرة لو بدون رئيسة) والقسم؟
+function unitHasExtraReview(unit) {
+  return !!(unit && unit.extraReviewerTitle && unit.extraReviewerTitle.trim());
+}
+
+/* ===================== صفحة تتبع "مسار الاعتماد" التفاعلية =====================
+   تبني، لكل تقرير، قائمة مراحل مسار اعتماده الفعلي (حسب إعداد الوحدة: رئيسة
+   وحدة؟ مستوى مراجعة إضافي بمسمى حر؟) وتحدد حالة كل مرحلة (تمّت / جارية /
+   أعادت التقرير / بالانتظار) بالاعتماد فقط على status الحالي للتقرير والحقول
+   الزمنية المحفوظة أصلاً — بدون أي حقول أو جداول جديدة غير التي أُضيفت للمرحلة
+   الإضافية (extra_reviewed_at/extra_approval_decision) أعلاه. */
+function approvalPathDateStr(ts) {
+  return ts ? new Date(ts).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+}
+function computeApprovalPathStages(unit) {
+  const stages = [{ key: "admin", label: "الإدارية" }];
+  if (unitHasHead(unit)) stages.push({ key: "head", label: "رئيسة الوحدة" });
+  if (unitHasExtraReview(unit)) stages.push({ key: "extra", label: unit.extraReviewerTitle.trim() });
+  stages.push({ key: "dept", label: "القسم" });
+  return stages;
+}
+function computeApprovalPathState(unit, entry) {
+  let apId = reportApPathId(entry);
+  if (!apId && entry.status === "draft") { const m = matchApprovalPath(unit, entry); apId = m ? m.id : null; }
+  const apPath = apId ? apPathById(apId) : null;
+  if (apPath) {
+    const log = entry.customLog || [];
+    return apStageList(apPath).map((st) => {
+      const acted = log.filter((l) => l.from === st.key);
+      const last = acted[acted.length - 1];
+      let state = "pending";
+      if (entry.status === "custom_pending" && entry.customStageId === st.key) state = "current";
+      else if (last) state = (last.kind === "return") ? "returned" : "done";
+      return { key: st.key, label: st.name, state, dateStr: last ? approvalPathDateStr(last.at) : "", note: last ? (last.text || "") : "" };
+    });
+  }
+  if (unitHasCustomPath(unit)) {
+    const log = entry.customLog || [];
+    return unitCustomPath(unit).map((st) => {
+      const acted = log.filter((l) => l.from === st.id);
+      const last = acted[acted.length - 1];
+      let state = "pending";
+      if (entry.status === "custom_pending" && entry.customStageId === st.id) state = "current";
+      else if (last) state = (last.kind === "return") ? "returned" : "done";
+      return { key: st.id, label: customStageName(st), state, dateStr: last ? approvalPathDateStr(last.at) : "", note: last ? (last.text || "") : "" };
+    });
+  }
+  const stages = computeApprovalPathStages(unit).map((s) => ({ ...s, state: "pending", dateStr: "", note: "" }));
+  const get = (k) => stages.find((s) => s.key === k);
+  const admin = get("admin"), head = get("head"), extra = get("extra"), dept = get("dept");
+  const status = entry.status;
+  const managerNotes = entry.sections?.review?.data?.managerNotesText || "";
+
+  function markHeadDone() {
+    if (head) { head.state = "done"; head.dateStr = approvalPathDateStr(entry.headReviewedAt); head.note = entry.headApprovalDecision || "اعتمدته"; }
+  }
+  function markExtraDone() {
+    if (extra) { extra.state = "done"; extra.dateStr = approvalPathDateStr(entry.extraReviewedAt); extra.note = entry.extraApprovalDecision || "اعتمدته"; }
+  }
+
+  if (status === "head_returned_edit" || status === "head_returned_completion") {
+    admin.state = "current"; admin.dateStr = approvalPathDateStr(entry.internalReturnedAt);
+    admin.note = "أعادته رئيسة الوحدة — " + (status === "head_returned_completion" ? "بحاجة إلى استكمال" : "بحاجة إلى تعديل") + (entry.internalReviewNotes ? `: ${entry.internalReviewNotes}` : "");
+    if (head) { head.state = "returned"; head.dateStr = approvalPathDateStr(entry.internalReturnedAt); head.note = "أعادت التقرير"; }
+  } else if (status === "extra_returned_edit" || status === "extra_returned_completion") {
+    markHeadDone();
+    admin.state = "current"; admin.dateStr = approvalPathDateStr(entry.internalReturnedAt);
+    admin.note = "أعادت " + (extra ? extra.label : "المراجعة الإضافية") + " التقرير — " + (status === "extra_returned_completion" ? "بحاجة إلى استكمال" : "بحاجة إلى تعديل") + (entry.internalReviewNotes ? `: ${entry.internalReviewNotes}` : "");
+    if (extra) { extra.state = "returned"; extra.dateStr = approvalPathDateStr(entry.internalReturnedAt); extra.note = "أعادت التقرير"; }
+  } else if (status === "returned" || status === "needs_completion") {
+    markHeadDone(); markExtraDone();
+    admin.state = "current"; admin.dateStr = approvalPathDateStr(entry.updatedAt);
+    admin.note = "أعادته القسم — " + (status === "needs_completion" ? "بحاجة إلى استكمال" : "بحاجة إلى تعديل") + (managerNotes ? `: ${managerNotes}` : "");
+    dept.state = "returned"; dept.dateStr = approvalPathDateStr(entry.updatedAt); dept.note = "أعادت القسم التقرير";
+  } else if (status === "pending_head_review") {
+    admin.state = "done"; admin.dateStr = approvalPathDateStr(entry.internalSentAt);
+    if (head) { head.state = "current"; head.note = "بانتظار المراجعة"; }
+  } else if (status === "pending_extra_review") {
+    admin.state = "done"; admin.dateStr = approvalPathDateStr(entry.internalSentAt);
+    markHeadDone();
+    if (extra) { extra.state = "current"; extra.note = "بانتظار المراجعة"; }
+  } else if (status === "under_review" || status === "completed") {
+    admin.state = "done"; admin.dateStr = approvalPathDateStr(entry.internalSentAt || entry.sentAt);
+    markHeadDone(); markExtraDone();
+    dept.state = "current"; dept.dateStr = approvalPathDateStr(entry.sentAt); dept.note = status === "completed" ? "مكتمل — بانتظار الاعتماد النهائي" : "بانتظار المراجعة";
+  } else if (status === "approved") {
+    admin.state = "done"; admin.dateStr = approvalPathDateStr(entry.internalSentAt || entry.sentAt);
+    markHeadDone(); markExtraDone();
+    dept.state = "done"; dept.dateStr = approvalPathDateStr(entry.updatedAt); dept.note = entry.sections?.review?.data?.reviewDecisionLabel || "معتمد";
+  } else {
+    // draft أو أي حالة أخرى غير متوقعة: التقرير لسا عند الإدارية.
+    admin.state = "current"; admin.note = "جارٍ تحضير التقرير";
+  }
+  return stages;
+}
+function approvalPathStageVisual(state) {
+  if (state === "done") return { circleBg: GREEN, circleFg: "#fff", lineColor: GREEN, textColor: INK, icon: iconCheck(13, "#fff") };
+  if (state === "current") return { circleBg: GOLD, circleFg: "#fff", lineColor: BORDER, textColor: INK, icon: `<div style="width:8px;height:8px;border-radius:999px;background:#fff;"></div>` };
+  if (state === "returned") return { circleBg: DANGER, circleFg: "#fff", lineColor: BORDER, textColor: INK, icon: iconX(11, "#fff") };
+  return { circleBg: "#fff", circleFg: SUBTLE, lineColor: BORDER, textColor: SUBTLE, icon: "" };
+}
+function renderApprovalPathTracking() {
+  const unit = S.units.find((u) => u.id === S.currentUnitId);
+  if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
+  const entry = getCurrentReportEntry();
+  if (!entry) return `<div class="page-wrap">تعذر إيجاد هذا التقرير.</div>`;
+  const meta = reportStatusMeta(entry.status);
+  const stages = computeApprovalPathState(unit, entry);
+  const isTerminal = entry.status === "approved";
+
+  const stepsHtml = stages.map((s, i) => {
+    const v = approvalPathStageVisual(s.state);
+    const isLast = i === stages.length - 1;
+    return `
+    <div style="display:flex;gap:14px;">
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="width:30px;height:30px;border-radius:999px;background:${v.circleBg};border:1.5px solid ${s.state === "pending" ? BORDER : v.circleBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${v.icon}</div>
+        ${!isLast ? `<div style="width:2px;flex:1;min-height:34px;background:${v.lineColor};margin:2px 0;"></div>` : ""}
+      </div>
+      <div style="padding-bottom:${isLast ? "0" : "28px"};flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13.5px;font-weight:800;color:${v.textColor}">${esc(s.label)}</span>
+          ${s.state === "current" ? badgeHtml("جارية الآن", GOLD, GOLD_BG) : ""}
+          ${s.state === "returned" ? badgeHtml("أعادت التقرير", DANGER, DANGER_BG) : ""}
+        </div>
+        ${s.dateStr ? `<div style="font-size:11px;color:${SUBTLE};margin-top:3px;">${esc(s.dateStr)}</div>` : ""}
+        ${s.note ? `<div style="font-size:12px;color:${s.state === "returned" ? DANGER : INK};margin-top:4px;line-height:1.6;">${esc(s.note)}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="page-wrap" style="max-width:640px;">
+    ${topBarHtml({ title: "مسار الاعتماد", subtitle: `${unit.name} — ${esc(entry.label)}`, backAction: "nav-back-to-report",
+      right: badgeHtml(meta.label, meta.color, meta.bg) })}
+    <div class="card card-lg">
+      <div style="font-size:12.5px;color:${SUBTLE};margin-bottom:20px;">
+        ${isTerminal ? "اكتمل هذا التقرير مسار اعتماده بالكامل." : "خطوات مسار اعتماد هذا التقرير حسب إعداد الوحدة الحالي — كل مرحلة توضّح حالتها وتاريخها."}
+      </div>
+      ${stepsHtml}
+    </div>
+  </div>`;
+}
+
 const REPORT_TYPES = [
   { id: "general", label: "عام", icon: "document" },
   { id: "volunteer", label: "تطوع", icon: "heart" },
@@ -536,6 +1895,20 @@ const S = {
   currentOfficeId: null,
   cameFromAllReports: false,
   adminPreviewOrigin: null,
+  // "حسابات إضافية" (platform_users): لما الحساب الحالي مسمّى وظيفي مخصّص، هذي
+  // القيمة تحمل قائمة الصفحات المسموحة له تحديدًا (تتجاوز فلترة الأدوار
+  // العادية بـ computeVisibleSidebarPages)؛ null = حساب عادي (المنطق الأصلي).
+  platformUserAllowedPages: null,
+  // نفس فكرة الصفحات، لكن على مستوى "الإجراءات" (أزرار الاعتماد/الإرسال/الحذف
+  // بمسار التقرير) — null = بلا قيود إضافية (الأدوار العادية والحسابات
+  // الإضافية بدون تحديد إجراءات تعمل بكل الإجراءات المتاحة لها أصلًا).
+  platformUserAllowedActions: null,
+  currentPlatformUserJobTitle: null,
+  pendingPlatformUserMatches: null,
+  // قائمة كل "الحسابات الإضافية" (platform_users) — تُحمَّل عند فتح صفحة
+  // إدارتها فقط (مو عند كل تسجيل دخول)، لأنها صفحة نادرة الفتح.
+  platformUsers: [],
+  jobTitleTemplates: [],
   sidebarOpen: true,
   mobileSidebarOpen: false,
   // report editor state
@@ -557,23 +1930,28 @@ function isMobileViewport() { return window.innerWidth < 860; }
 const appEl = document.getElementById("app");
 
 function render() {
+  syncReportTabCatalog();
   let html = "";
   if (S.view === "login" || !S.currentUser) {
     html = renderLogin();
+  } else if (!S.isAdmin && !S.isExecutive && !S.platformUserAllowedPages && S.view !== "unit-role-select" && S.view !== "platform-user-role-select" && !(userInAnyApStage() && ["custom-path-inbox", "full-report", "unit-report"].includes(S.view))) {
+    html = shellWrap(`<div class="page-wrap"><div class="page-inner narrow"><div class="card" style="text-align:center;color:${SUBTLE};padding:44px 20px;">
+      <div style="font-size:15px;font-weight:800;color:${INK};margin-bottom:8px;">لم تُحدَّد صلاحيات لهذا الحساب بعد</div>
+      <div style="font-size:12.5px;">تواصلي مع مديرة النظام لتفعيل الصفحات المناسبة لك.</div></div></div></div>`);
   } else if (S.view === "dashboard") {
     html = shellWrap(renderDashboard());
   } else if (S.view === "admin-reports") {
     html = shellWrap(renderUnitsOverview());
   } else if (S.view === "site-settings") {
     html = shellWrap(renderSiteSettings());
+  } else if (S.view === "browse-structure") {
+    html = shellWrap(renderBrowseStructure());
   } else if (S.view === "departments-list") {
     html = shellWrap(renderDepartmentsPage());
-  } else if (S.view === "units-list") {
-    html = shellWrap(renderEntityPickerPage("units"));
-  } else if (S.view === "centers-list") {
-    html = shellWrap(renderEntityPickerPage("centers"));
-  } else if (S.view === "department-overview") {
-    html = shellWrap(renderDepartmentOverview());
+  } else if (S.view === "org-chart") {
+    html = shellWrap(renderOrgChartPage());
+  } else if (S.view === "department-curation") {
+    html = shellWrap(renderCurationUnified());
   } else if (S.view === "executive-dashboard") {
     html = shellWrap(renderExecutiveDashboard());
   } else if (S.view === "executive-summary") {
@@ -590,12 +1968,17 @@ function render() {
     html = shellWrap(renderGoalsManage());
   } else if (S.view === "sections-manage") {
     html = shellWrap(renderSectionsManage());
+  } else if (S.view === "field-schemas-manage") {
+    html = shellWrap(renderFieldSchemasManage());
   } else if (S.view === "unit-dashboard") {
     html = shellWrap(renderUnitDashboard());
   } else if (S.view === "unit-settings") {
     html = shellWrap(renderUnitSettings());
   } else if (S.view === "unit-reports") {
     html = shellWrap(renderUnitReportsHub());
+  } else if (S.view === "unit-report" && adminReportsReadOnly()) {
+    if (S.currentReportId) { S.view = "full-report"; S.cameFromAllReports = true; html = shellWrap(renderFullReport()); }
+    else { S.view = "unit-reports"; html = shellWrap(renderUnitReportsHub()); }
   } else if (S.view === "unit-report") {
     html = shellWrap(renderUnitReport());
   } else if (S.view === "unit-notifications") {
@@ -606,15 +1989,33 @@ function render() {
     html = shellWrap(renderFullReport());
   } else if (S.view === "report-preview") {
     html = shellWrap(renderReportPreview());
-  } else if (S.view === "offices-manage") {
-    html = shellWrap(renderOfficesManagePage());
+  } else if (S.view === "custom-path-inbox") {
+    html = shellWrap(renderCustomPathInbox());
+  } else if (S.view === "approval-path-tracking") {
+    html = shellWrap(renderApprovalPathTracking());
+  } else if (S.view === "office-dashboard") {
+    html = shellWrap(renderOfficeDashboard());
+  } else if (S.view === "office-archive") {
+    html = shellWrap(renderOfficeArchive());
+  } else if (S.view === "office-summary") {
+    html = shellWrap(renderOfficeSummary());
+  } else if (S.view === "office-curation") {
+    html = shellWrap(renderOfficeCuration());
   } else if (S.view === "unit-role-select") {
     html = renderUnitRoleSelect();
+  } else if (S.view === "platform-user-role-select") {
+    html = renderPlatformUserRoleSelect();
+  } else if (S.view === "report-tabs-manage") {
+    html = shellWrap(renderReportTabsManage());
   } else {
     html = renderLogin();
   }
+  // نحافظ على مكان تمرير الشريط الجانبي: إعادة الرسم كانت ترجعه لأول القائمة بعد كل ضغطة.
+  const sbOld = appEl.querySelector(".sidebar");
+  const sbTop = sbOld ? sbOld.scrollTop : 0;
   appEl.innerHTML = html;
   afterRender();
+  if (sbTop) { const sbNew = appEl.querySelector(".sidebar"); if (sbNew) sbNew.scrollTop = sbTop; }
 }
 
 /* App shell: persistent sidebar wrapper used by every logged-in page ---------- */
@@ -636,57 +2037,258 @@ const HOME_GROUP_ORDER = ["dashboard", "admin-reports"];
 const SIDEBAR_PAGES = [
   { id: "dashboard", label: "لوحة المعلومات", group: "الرئيسية", icon: "home" },
   { id: "admin-reports", label: "الأقسام والوحدات", group: "الرئيسية", icon: "building" },
+  { id: "custom-path-inbox", label: "بانتظار مراجعتي", group: "الرئيسية", icon: "document" },
   { id: "site-settings", label: "إعدادات الموقع", group: "الرئيسية", icon: "gauge" },
+  // "حسابات إضافية" و"صلاحيات الحسابات" و"المسميات الوظيفية (القوالب)" صارت
+  // تبويبات داخل صفحة "المستخدمون" نفسها (accountsHubTabBarHtml) بدل روابط
+  // منفصلة بالقائمة الجانبية — طلب نجود الصريح بدمجها. الصفحات الثلاث نفسها
+  // (views) باقية تمامًا بدون أي تغيير بمنطقها، بس ما تُسرد هنا كروابط مستقلة.
   { id: "all-reports", label: "جميع التقارير", group: "standalone", icon: "document" },
   { id: "indicators-manage", label: "إدارة مؤشرات الأداء", group: "إدارة التقارير", icon: "gauge" },
   { id: "goals-manage", label: "إدارة الأهداف والمستهدفات", group: "إدارة التقارير", icon: "target" },
   { id: "sections-manage", label: "إدارة أقسام التقرير", group: "إدارة التقارير", icon: "layers" },
+  { id: "report-tabs-manage", label: "إدارة أزرار التقارير", group: "إدارة التقارير", icon: "layers" },
+  { id: "field-schemas-manage", label: "إدارة حقول الأقسام", group: "إدارة التقارير", icon: "layers" },
   { id: "units-manage", label: "المستخدمون", group: "standalone", icon: "building" },
-  { id: "offices-manage", label: "مكاتب الإشراف", group: "الهيكل التنظيمي", icon: "layers" },
   { id: "departments-list", label: "الأقسام", group: "الهيكل التنظيمي", icon: "building" },
-  { id: "units-list", label: "الوحدات", group: "الهيكل التنظيمي", icon: "document" },
-  { id: "centers-list", label: "المراكز", group: "الهيكل التنظيمي", icon: "document" },
-  { id: "department-overview", label: "قسمي", group: "الرئيسية", icon: "building" },
+  // صفحة مستقلة تمامًا عن الأربعة أعلاه: مخطط مسميات وظيفية حرّ للتخطيط فقط
+  // (بدون حسابات تسجيل دخول أو ربط بمسار اعتماد التقارير) — الصفحات الأربع
+  // الأصلية تبقى كما هي تمامًا، هذي إضافة فقط (راجع renderOrgChartPage).
+  { id: "org-chart", label: "مخطط الهيكل التنظيمي", group: "الهيكل التنظيمي", icon: "layers" },
+  { id: "browse-structure", label: "تصفّح الهيكل", group: "standalone", icon: "layers" },
+  // صفحة مستقلة قائمة بذاتها (نفس نمط "office-curation" للمكتب) — بدل ما تكون
+  // قسمًا مدمجًا داخل صفحة أخرى، حسب طلب نجود الصريح.
+  { id: "department-curation", label: "اعتماد أبرز النتائج والتوصيات", group: "الرئيسية", icon: "target" },
+  // رابط ثابت لمديرة النظام فقط: بوّابة دخول لصفحات "unit-home" (نفس أفكار
+  // "قسمي")، يختار أول وحدة/مركز نشط تلقائيًا ثم يحوّل فعليًا لعرض "تقارير"
+  // (راجع case "nav-to" ومعالجته الخاصة لـ"unit-overview").
   { id: "executive-dashboard", label: "لوحة المعلومات", group: "الإدارة العليا", icon: "home" },
-  { id: "executive-summary", label: "الملخص التنفيذي", group: "الإدارة العليا", icon: "document" },
-  { id: "executive-final-report", label: "التقرير الإداري النهائي", group: "الإدارة العليا", icon: "layers" },
+  { id: "executive-summary", label: "الملخص التنفيذي", group: "standalone", icon: "document" },
+  { id: "executive-final-report", label: "التقرير الإداري النهائي", group: "standalone", icon: "layers" },
+  { id: "office-dashboard", label: "لوحة المعلومات", group: "مكتب الإشراف", icon: "home" },
+  { id: "office-archive", label: "الأرشفة", group: "standalone", icon: "layers" },
+  { id: "office-summary", label: "ملخص الوحدات", group: "standalone", icon: "document" },
+  { id: "office-curation", label: "اعتماد أبرز النتائج والتوصيات", group: "مكتب الإشراف", icon: "target" },
   { id: "unit-dashboard", label: "لوحة المعلومات", group: "unit-home", scope: "unit", icon: "home" },
   { id: "unit-reports", label: "تقارير", group: "unit-home", scope: "unit", icon: "document" },
   { id: "unit-report", label: "إنشاء تقرير", group: "unit-home", icon: "pencil" },
   { id: "unit-settings", label: "الإعدادات", group: "unit-home", scope: "unit", icon: "gauge" },
+  // صفحات كانت بالأشرطة الثابتة القديمة (رئيسة/إدارية) فقط — صارت تُمنح بالصلاحيات.
+  // لا تظهر لمديرة النظام/القسم/المكتب (تُستثنى أدناه) ولا تتغير أشرطتهم الحالية.
+  { id: "unit-notifications", label: "التنبيهات", group: "unit-extra", scope: "unit", icon: "bell" },
+  { id: "unit-all-reports", label: "جميع تقارير الوحدة", group: "unit-extra", scope: "unit", icon: "layers" },
 ];
-const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "__standalone__all-reports", "__standalone__units-manage", "الإدارة العليا", "الهيكل التنظيمي", "unit-home"];
+// صفحات "unit-home" الأربع (لوحة الوحدة/تقارير/إنشاء تقرير/الإعدادات) كانت
+// مجموعة واحدة قابلة للطي ("unit-home")، فأصبحت الآن أربعة روابط رئيسية
+// مستقلة بالشريط الجانبي — بلا طي وبلا اشتراط مسبق بوحدة/قسم محدّد، تمامًا
+// بنفس أسلوب "جميع التقارير" — حسب طلب نجود الصريح.
+const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "__standalone__all-reports", "__standalone__units-manage", "__standalone__browse-structure", "__standalone__office-archive", "__standalone__office-summary", "__standalone__executive-summary", "__standalone__executive-final-report", "الإدارة العليا", "مكتب الإشراف", "الهيكل التنظيمي", "__standalone__unit-dashboard", "__standalone__unit-reports", "__standalone__unit-report", "__standalone__unit-settings", "__standalone__unit-notifications", "__standalone__unit-all-reports"];
 const SIDEBAR_GROUP_LABELS = { "unit-home": "الرئيسية" };
+
+// كتالوج "إجراءات" مسار اعتماد التقرير — يُستخدم لصلاحيات الأزرار لكل مسمى
+// وظيفي بصفحة "حسابات إضافية" (فوق صلاحية الصفحات، الموجودة أصلًا). كل id هنا
+// يطابق حرفيًا قيمة data-action المستخدمة بالفعل بالأزرار/بمُعالج النقر —
+// نفس المفتاح يُستخدم للتحقق بالطرفين (إخفاء الزر + رفض الإجراء بالمُعالج).
+const ACTION_CATALOG = [
+  { id: "submit-report-to-head", label: "إرسال التقرير للمراجعة الداخلية (كإدارية)" },
+  { id: "start-send-report", label: "إرسال التقرير مباشرة للقسم" },
+  { id: "approve-report-by-head", label: "اعتماد التقرير (كمراجِعة داخلية — رئيسة الوحدة/المراجعة الإضافية)" },
+  { id: "start-head-return", label: "إعادة التقرير للتعديل/الاستكمال (كمراجِعة داخلية)" },
+  { id: "submit-department-review-decision", label: "اتخاذ قرار مراجعة القسم (اعتماد/إعادة)" },
+  { id: "delete-report", label: "حذف تقرير (مسودة)" },
+  { id: "section-save-draft", label: "حفظ القسم كمسودة أثناء التعبئة" },
+  { id: "toggle-section-completed", label: "تحديد القسم كمكتمل (أو الرجوع لمسودة)" },
+  { id: "open-or-create-report", label: "إنشاء تقرير جديد" },
+];
+// ---- التحكم بالأزرار (المرحلة 2ب): قائمة الأزرار القابلة للمنح/المنع، بحسب اختيار مديرة النظام ----
+// الصلاحية = قائمة معرّفات أزرار مسموحة (roles.permissions.buttons / persons.perms_override.buttons).
+// فاضية = كل الأزرار تظهر كما هي. غير الفاضية = يظهر فقط ما فيها من الأزرار المذكورة هنا.
+const BUTTON_CATALOG = [
+  { id: "chip:all", g: "قائمة التقارير", label: "زر «الكل»", sel: '[data-action="set-unit-reports-filter"][data-filter="all"]' },
+  { id: "chip:draft", g: "قائمة التقارير", label: "زر «مسوداتي»", sel: '[data-action="set-unit-reports-filter"][data-filter="draft"]' },
+  { id: "chip:returned", g: "قائمة التقارير", label: "زر «بحاجة إلى تعديل»", sel: '[data-action="set-unit-reports-filter"][data-filter="returned"]' },
+  { id: "chip:needs_completion", g: "قائمة التقارير", label: "زر «بحاجة إلى استكمال»", sel: '[data-action="set-unit-reports-filter"][data-filter="needs_completion"]' },
+  { id: "chip:under_review", g: "قائمة التقارير", label: "زر «التقارير المرسلة»", sel: '[data-action="set-unit-reports-filter"][data-filter="under_review"]' },
+  { id: "chip:custom_pending", g: "قائمة التقارير", label: "زر «قيد المراجعة»", sel: '[data-action="set-unit-reports-filter"][data-filter="custom_pending"]' },
+  { id: "chip:completed", g: "قائمة التقارير", label: "زر «التقارير الكاملة»", sel: '[data-action="set-unit-reports-filter"][data-filter="completed"]' },
+  { id: "chip:approved", g: "قائمة التقارير", label: "زر «معتمد»", sel: '[data-action="set-unit-reports-filter"][data-filter="approved"]' },
+  { id: "chip:archived", g: "قائمة التقارير", label: "زر «أرشيف التقارير»", sel: '[data-action="set-unit-reports-filter"][data-filter="archived"]' },
+  { id: "open-or-create-report", g: "بطاقة التقرير", label: "إنشاء تقرير (يكمل آخر مفتوح أو ينشئ جديدًا)", sel: '[data-action="open-or-create-report"]' },
+  { id: "create-new-report", g: "بطاقة التقرير", label: "تقرير جديد (إضافي حتى مع وجود مسودة)", sel: '[data-action="create-new-report"]' },
+  { id: "card-preview", g: "بطاقة التقرير", label: "معاينة التقرير", sel: '[data-btn="card-preview"]' },
+  { id: "card-view", g: "بطاقة التقرير", label: "عرض التقرير", sel: '[data-btn="card-view"]' },
+  { id: "card-download", g: "بطاقة التقرير", label: "تنزيل PDF / طباعة", sel: '[data-btn="card-download"],[data-action="print-page"]' },
+  { id: "card-reedit", g: "بطاقة التقرير", label: "إعادة التعديل", sel: '[data-btn="card-reedit"]' },
+  { id: "delete-report", g: "بطاقة التقرير", label: "حذف تقرير (مسودة)", sel: '[data-action="confirm-delete-report"],[data-action="delete-report"]' },
+  { id: "toggle-report-notes", g: "بطاقة التقرير", label: "عرض ملاحظات التقرير", sel: '[data-action="toggle-report-notes"]' },
+  { id: "section-save-draft", g: "داخل التقرير", label: "حفظ القسم كمسودة", sel: '[data-action="section-save-draft"]' },
+  { id: "toggle-section-completed", g: "داخل التقرير", label: "تحديد القسم كمكتمل", sel: '[data-action="toggle-section-completed"]' },
+  { id: "submit-report-to-head", g: "إرسال التقرير", label: "إرسال للمراجعة الداخلية (كإدارية)", sel: '[data-action="submit-report-to-head"]' },
+  { id: "start-send-report", g: "إرسال التقرير", label: "إرسال مباشرة للقسم", sel: '[data-action="start-send-report"],[data-action="confirm-send-report"]' },
+  { id: "request-report-completion", g: "إرسال التقرير", label: "طلب استكمال التقرير", sel: '[data-action="request-report-completion"]' },
+  { id: "mark-report-completed", g: "إرسال التقرير", label: "تحديد التقرير كمكتمل", sel: '[data-action="mark-report-completed"]' },
+  { id: "send-report", g: "إرسال التقرير", label: "إرسال التقرير (من مسارات الاعتماد)", sel: '[data-action="ap-send"],[data-action="ap-send-confirm"]' },
+  { id: "ap-advance", g: "المراجعة والاعتماد", label: "اعتماد / إرسال للمرحلة التالية (مسار الاعتماد)", sel: '[data-action="ap-advance"]' },
+  { id: "ap-return", g: "المراجعة والاعتماد", label: "إعادة التقرير للتعديل (مسار الاعتماد)", sel: '[data-action="ap-return"]' },
+  { id: "start-head-return", g: "المراجعة والاعتماد", label: "إعادة التقرير للتعديل (رئيسة / مراجعة إضافية)", sel: '[data-action="start-head-return"],[data-action="confirm-head-return"]' },
+  { id: "submit-department-review-decision", g: "المراجعة والاعتماد", label: "قرار مراجعة القسم (اعتماد / إعادة)", sel: '[data-action="submit-department-review-decision"]' },
+  { id: "approve-report", g: "المراجعة والاعتماد", label: "اعتماد التقرير (القسم)", sel: '[data-action="approve-report"]' },
+  { id: "return-report-for-revision", g: "المراجعة والاعتماد", label: "إعادة التقرير للمراجعة", sel: '[data-action="return-report-for-revision"]' },
+];
+// أزرار المسار الجديد ترث صلاحية الأزرار القديمة المقابلة لها: من كانت مختارة عندها لا يختفي عنها شيء.
+const BUTTON_ALIASES = {
+  "send-report": ["custom-path-send", "submit-report-to-head", "start-send-report"],
+  "create-new-report": ["open-or-create-report"],
+  "ap-advance": ["custom-path-send"],
+  "ap-return": ["custom-path-return", "start-head-return"],
+};
+// أزرار أساسية تظهر تلقائيًا لكل دور عنده صفحة «إنشاء تقرير» بلا حاجة لتأشيرها.
+const CORE_REPORT_BUTTONS = ["section-save-draft", "toggle-section-completed", "card-preview", "card-view", "card-download", "delete-report"];
+// أزرار المسار القديم: تختفي من قوائم التأشير، ولا يبقى منها إلا ما هو مؤشَّر أصلًا عند الدور (ليتمكن من إزالته).
+// الأزرار نفسها ومعالجاتها لم تُحذف، فلا يتأثر أي دور مؤشَّر عليها.
+const LEGACY_PATH_BUTTONS = ["submit-report-to-head", "start-send-report", "start-head-return", "submit-department-review-decision", "approve-report", "return-report-for-revision", "approve-report-by-head"];
+function coreReportButtonOpen(id) {
+  return CORE_REPORT_BUTTONS.includes(id) && Array.isArray(S.platformUserAllowedPages) && S.platformUserAllowedPages.includes("unit-report");
+}
+function buttonAllowed(id) {
+  if (!S.platformUserAllowedButtons) return true;
+  if (coreReportButtonOpen(id)) return true;
+  if (id === "chip:" + MINE_TAB_ID && userInAnyApStage()) return true;
+  if (S.platformUserAllowedButtons.includes(id)) return true;
+  return (BUTTON_ALIASES[id] || []).some((a) => S.platformUserAllowedButtons.includes(a));
+}
+function buttonBlockedEl(el) {
+  if (!S.platformUserAllowedButtons) return false;
+  return BUTTON_CATALOG.some((b) => !buttonAllowed(b.id) && el.matches(b.sel));
+}
+function applyButtonPermissions() {
+  // أزرار المسار القديم المُلغاة تُخفى دائمًا مهما كان الحساب (بما فيها ما لا يمرّ بفحص الصلاحية).
+  BUTTON_CATALOG.forEach((b) => {
+    if (!LEGACY_PATH_BUTTONS.includes(b.id)) return;
+    document.querySelectorAll(b.sel).forEach((el) => el.style.setProperty("display", "none", "important"));
+  });
+  if (!S.platformUserAllowedButtons) return;
+  BUTTON_CATALOG.forEach((b) => {
+    if (buttonAllowed(b.id)) return;
+    document.querySelectorAll(b.sel).forEach((el) => el.style.setProperty("display", "none", "important"));
+  });
+}
+// true = مسموح بهذا الإجراء. null/undefined بـ S.platformUserAllowedActions يعني
+// حساب بلا قيود إجراءات إضافية (كل الحسابات العادية، وحسابات platform_users
+// اللي ما حُدّد لها إجراءات صراحة) — يعمل بكل شي مسموح له أصلًا بالأدوار.
+function platformActionAllowed(actionId) {
+  // أزرار المسار القديم أُلغيت بقرار نجود (الاعتماد عبر مسارات الاعتماد فقط): لا تعمل لأي حساب.
+  if (LEGACY_PATH_BUTTONS.includes(actionId)) return false;
+  if (S.platformUserAllowedButtons && BUTTON_CATALOG.some((b) => b.id === actionId) && !buttonAllowed(actionId)) return false;
+  if (coreReportButtonOpen(actionId)) return true;
+  if (!S.platformUserAllowedActions) return true;
+  // «تقرير جديد» يرث صلاحية «إنشاء تقرير» القديمة
+  return S.platformUserAllowedActions.includes(actionId === "create-new-report" ? "open-or-create-report" : actionId);
+}
+// يرجع قالب المسمى الوظيفي المطابق (أو null). نقرأ من S.jobTitleTemplates لو
+// معبّاة، وإلا من التخزين مباشرة — لازم يعمل حتى أثناء تسجيل الدخول نفسه قبل
+// ما تُحمَّل S.jobTitleTemplates (نفس أسلوب dataStore.getPlatformUsers() أثناء
+// مطابقة بيانات الدخول).
+function resolveJobTitleTemplate(templateId) {
+  if (!templateId) return null;
+  const list = (S.jobTitleTemplates && S.jobTitleTemplates.length) ? S.jobTitleTemplates : dataStore.getJobTitleTemplates();
+  return list.find((t) => t.id === templateId) || null;
+}
+// الصفحات/الإجراءات "الفعلية" لحساب إضافي: لو مربوط بقالب (templateId)، تُقرأ
+// من القالب نفسه حيّة دائمًا — أي تعديل على القالب ينعكس فورًا بدون أي خطوة
+// إضافية. لو بلا قالب (حساب قديم أو مُنشأ بصلاحيات خاصة صراحة)، نرجع لصلاحياته
+// الخاصة المحفوظة على الحساب كما كانت تعمل قبل وجود القوالب — بدون أي تغيير.
+function effectivePuAllowedPages(pu) {
+  const tpl = resolveJobTitleTemplate(pu && pu.templateId);
+  return tpl ? effectiveTemplatePermissions(tpl.id).allowedPages : ((pu && pu.allowedPages) || []);
+}
+function effectivePuAllowedActions(pu) {
+  const tpl = resolveJobTitleTemplate(pu && pu.templateId);
+  return tpl ? effectiveTemplatePermissions(tpl.id).allowedActions : ((pu && pu.allowedActions) || []);
+}
 function sidebarNavIcon(key, size, color) {
-  const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter, plus: iconPlus, bell: iconBell };
+  const map = { home: iconHome, document: iconDocument, building: iconBuilding, gauge: iconGauge, target: iconTarget, pencil: iconPencil, layers: iconLayers, printer: iconPrinter, plus: iconPlus, bell: iconBell, key: iconKey };
   const fn = map[key] || iconDocument;
   return key === "building" || key === "gauge" ? fn(color, size) : fn(size, color);
 }
 
+// "لوحة المعلومات" صفحة واحدة تتكيّف تلقائيًا مع نطاق الحساب (وحدة/قسم/مكتب/إدارة
+// عليا/مديرة النظام). المعرّفات القديمة تُعتبر نفس الصفحة: تُدمج بـ"dashboard".
+const MERGED_PAGE_MAP = { "unit-dashboard": "dashboard", "office-dashboard": "dashboard", "executive-dashboard": "dashboard", "office-curation": "department-curation", "unit-overview": "dashboard", "department-overview": "dashboard", "admin-reports": "browse-structure" };
+const MERGED_DASHBOARD_IDS = Object.keys(MERGED_PAGE_MAP);
+// "اعتماد أبرز النتائج والتوصيات" كذلك صفحة واحدة: القسم يشوف نتائج قسمه، والمكتب
+// نتائج وحداته، ومديرة النظام تبدّل بين قسم/مكتب من أعلى الصفحة.
+function normalizeDashboardPages(arr) {
+  if (!Array.isArray(arr)) return arr;
+  const out = [];
+  arr.forEach((id) => { const t = MERGED_PAGE_MAP[id] || id; if (out.indexOf(t) === -1) out.push(t); });
+  const i = out.indexOf("dashboard");
+  if (i > 0) { out.splice(i, 1); out.unshift("dashboard"); }
+  return out;
+}
+function sidebarPageActive(p) {
+  return S.view === p.id || MERGED_PAGE_MAP[S.view] === p.id;
+}
+function inboxViaReportsHub(visibleIds) {
+  if (S.isAdmin || S.isDepartmentUser || S.isOfficeUser || !S.currentUnitId) return false;
+  const ids = visibleIds || new Set(computeVisibleSidebarPagesRaw().map((p) => MERGED_PAGE_MAP[p.id] || p.id));
+  return ids.has("unit-reports");
+}
 function computeVisibleSidebarPages() {
-  // مجموعة "unit-home" (تُعرض باسم "الرئيسية" لموظفة الوحدة/المركز) خاصة بعمل
-  // الوحدة نفسها، مو إدارة الموقع — مديرة النظام والقسم يشوفونها بس وهم فعليًا
-  // داخل صفحات وحدة معيّنة، مو بصفحتهم الرئيسية.
-  const UNIT_SCOPED_VIEWS = ["unit-dashboard", "unit-settings", "unit-reports", "unit-report", "full-report", "report-preview"];
-  if (S.isAdmin) {
-    // مديرة النظام تشوف كل شي بالموقع — بما فيها صفحات الإدارة العليا للاطلاع.
-    return SIDEBAR_PAGES.filter((p) => p.id !== "department-overview" && (p.group !== "unit-home" || UNIT_SCOPED_VIEWS.includes(S.view)));
-  } else if (S.isDepartmentUser) {
-    return SIDEBAR_PAGES.filter((p) => p.id === "department-overview" || p.id === "all-reports" || (p.group === "unit-home" && UNIT_SCOPED_VIEWS.includes(S.view)));
-  } else if (S.isExecutive) {
-    return SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا" || p.id === "all-reports");
-  } else if (S.isOfficeUser) {
-    return SIDEBAR_PAGES.filter((p) => p.id === "departments-list");
+  const raw = computeVisibleSidebarPagesRaw();
+  const ids = new Set(raw.map((p) => MERGED_PAGE_MAP[p.id] || p.id));
+  // «بانتظار مراجعتي» صار زرًّا داخل صفحة التقارير؛ لا يبقى رابطًا مستقلًّا إلا لمن لا يملك صفحة التقارير (حساب قسم/مكتب مثلًا).
+  if (inboxViaReportsHub(ids)) ids.delete("custom-path-inbox");
+  // "مخطط الهيكل التنظيمي" صار تبويبًا داخل المستخدمون (لا رابط مستقل بالشريط).
+  return SIDEBAR_PAGES.filter((p) => ids.has(p.id) && p.id !== "org-chart" && !(p.id === "unit-report" && adminReportsReadOnly()));
+}
+function computeVisibleSidebarPagesRaw() {
+  // مجموعة "unit-home" (تُعرض الآن كروابط رئيسية مستقلة بالشريط الجانبي —
+  // زي "جميع التقارير" تمامًا، بلا طي وبلا اشتراط مسبق بوحدة/قسم محدّد، حسب
+  // طلب نجود الصريح) خاصة بعمل الوحدة نفسها، مو إدارة الموقع.
+  // حساب "مسمى وظيفي" من صفحة "حسابات إضافية" له قائمة صفحات محدّدة بالضبط —
+  // هذي تتجاوز كل منطق الأدوار العادي أدناه (لا تُقيَّد بأي فلترة أخرى).
+  if (S.platformUserAllowedPages) {
+    // صفحات "unit-home" (لوحة الوحدة/تقارير/إنشاء تقرير/الإعدادات) تظهر هنا
+    // دائمًا طالما ممنوحة صراحة لهذا الحساب — بدون اشتراط إضافي بكون الصفحة
+    // الحالية داخل وحدة أصلًا. سابقًا كان الشرط الإضافي يُخفيها كلما كانت أول
+    // صفحة مسموحة (حسب ترتيبها بـ SIDEBAR_PAGES) صفحة غير "unit-home" (مثل
+    // "جميع التقارير") — فتختفي بقية الصفحات الممنوحة فعليًا من الشريط الجانبي
+    // بالكامل. الدخول إليها بنفسه يتكفّل الآن بضبط الوحدة المناسبة تلقائيًا
+    // (راجع ensureUnitContextForNav) بدل الاعتماد على وجودها مسبقًا.
+    return SIDEBAR_PAGES.filter((p) => (S.platformUserAllowedPages.includes(p.id) || (p.id === "custom-path-inbox" && userInAnyCustomPath())));
   }
-  // موظفة الوحدة أو المركز: تشوف "تقاريري" + "جميع التقارير" — بدون
-  // "الأقسام والوحدات" (ذاك رابط إشرافي خاص بمديرة النظام).
-  return SIDEBAR_PAGES.filter((p) => p.id === "all-reports" || (p.group === "unit-home" && UNIT_SCOPED_VIEWS.includes(S.view)));
+  // قرار نجود: أي حساب (غير مديرة النظام والإدارة العليا) ما حُددت له صفحات = ما يظهر له شيء.
+  if (!S.isAdmin && !S.isExecutive) return userInAnyApStage() ? SIDEBAR_PAGES.filter((p) => p.id === "custom-path-inbox") : [];
+  if (S.isAdmin) {
+    // مديرة النظام تشوف كل صفحات الموقع بلا استثناء — بما فيها "قسمي" وصفحات
+    // "مكتب الإشراف" الأربع، رغم إنها أصلًا مرتبطة بـ currentDepartmentId/
+    // currentOfficeId (قيمة واحدة فقط). عند الدخول لهذي الصفحات من الشريط
+    // الجانبي مباشرة (بدل المرور بـ"الأقسام"/"مكاتب الإشراف")، تُفعَّل تلقائيًا
+    // لأول قسم/مكتب نشط، وتظهر بداخل الصفحة نفسها قائمة تبديل تسمح لمديرة
+    // النظام تختار أي قسم أو مكتب تبي تشوفه وتضبطه (راجع adminScopeSwitcherHtml).
+    // صفحات "unit-home" ظاهرة دائمًا الآن (بلا شرط UNIT_SCOPED_VIEWS) — نفس
+    // طلب نجود الصريح: تكون رئيسية بالشريط الجانبي زي "جميع التقارير"، بلا أي
+    // اشتراط مسبق بوحدة/قسم محدّد (ensureUnitContextForNav يتكفّل بضبط الوحدة
+    // تلقائيًا عند الدخول المباشر — راجع case "nav-to").
+    // "تصفّح الهيكل" يحل محل الصفحات الأربع (مكاتب الإشراف/الأقسام/الوحدات/المراكز) بالشريط — الصفحات نفسها باقية.
+    return SIDEBAR_PAGES.filter((p) => p.group !== "unit-extra" && !["departments-list", "admin-reports"].includes(p.id));
+  } else if (S.isExecutive) {
+    return SIDEBAR_PAGES.filter((p) => p.group === "الإدارة العليا" || p.id === "executive-summary" || p.id === "executive-final-report" || p.id === "all-reports");
+  }
+  // لا توجد قوائم صفحات افتراضية ثابتة لأي حساب: الصفحات تأتي من الدور فقط (قرار نجود).
+  return [];
 }
 
 // عدد التنبيهات: محسوب مباشرة من حالة التقارير — بدون أي تخزين إضافي.
 // مديرة القسم/النظام: عدد التقارير بانتظار مراجعتها. الوحدة/المركز: عدد
 // تقاريرها المحتاجة إجراء منها (بحاجة لتعديل أو استكمال).
-function computeNotificationCount() {
+function computeNotificationCountBase() {
+  const cfgC = effectiveReportTabsConfig();
+  if (cfgC && cfgC.notify.length && S.currentUnitId) {
+    const lst = ensureUnitReportsLoaded(S.currentUnitId);
+    return lst.filter((r) => cfgC.notify.some((id) => reportMatchesCatalogTab(r, id))).length;
+  }
   if (S.isDepartmentUser) {
     const units = S.units.filter((u) => u.departmentId === S.currentDepartmentId && u.status === "active");
     return units.reduce((sum, u) => sum + ensureUnitReportsLoaded(u.id).filter((r) => r.status === "under_review").length, 0);
@@ -694,10 +2296,24 @@ function computeNotificationCount() {
   if (S.isAdmin) {
     return S.units.reduce((sum, u) => sum + ensureUnitReportsLoaded(u.id).filter((r) => r.status === "under_review").length, 0);
   }
+  if (!S.isExecutive && S.currentUnitId && (S.currentUnitEntryMode === "head" || S.currentUnitEntryMode === "extra")) {
+    return unitPendingHeadReviewReports(S.currentUnitId, S.currentUnitEntryMode === "extra" ? "pending_extra_review" : "pending_head_review").length;
+  }
   if (!S.isExecutive && S.currentUnitId) {
     return ensureUnitReportsLoaded(S.currentUnitId).filter((r) => r.status === "returned" || r.status === "needs_completion").length;
   }
   return 0;
+}
+function computeNotificationCount() { return computeNotificationCountBase() + apPendingForMe().length; }
+function apNotifCardsHtml() {
+  const n = apPendingForMe().length;
+  if (!n) return "";
+  const viaHub = inboxViaReportsHub();
+  return `<button class="card" ${viaHub ? `data-action="goto-report-tab" data-filter="${MINE_TAB_ID}"` : `data-action="nav-to" data-view="custom-path-inbox"`} style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;cursor:pointer;margin-bottom:10px;border:1.5px solid ${ROSE};">
+    <div style="width:38px;height:38px;border-radius:11px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBell(17, ROSE)}</div>
+    <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">${n} تقرير بانتظار مرحلتك في مسار الاعتماد</div></div>
+    ${iconChevronLeft(14, SUBTLE)}
+  </button>`;
 }
 // قائمة "إلى من يُرسل" — تُبنى من حسابات القسم/مديرة النظام الموجودة فعليًا
 // بالنظام، وليست قائمة منفصلة تُدار يدويًا.
@@ -711,12 +2327,6 @@ function computeReportRecipients(unit) {
   return list;
 }
 function renderMainSidebar(mobile) {
-  if (S.currentUnitEntryMode === "admin" && !S.isAdmin && !S.isDepartmentUser && !S.isExecutive && !S.isOfficeUser) {
-    return renderUnitAdminSidebar(mobile);
-  }
-  if (S.currentUnitEntryMode === "head" && !S.isAdmin && !S.isDepartmentUser && !S.isExecutive && !S.isOfficeUser) {
-    return renderUnitHeadSidebar(mobile);
-  }
   const visible = computeVisibleSidebarPages();
   const notifCount = computeNotificationCount();
   const groupsHtml = SIDEBAR_GROUPS.map((g) => {
@@ -726,12 +2336,17 @@ function renderMainSidebar(mobile) {
       const soloId = g.slice("__standalone__".length);
       const page = visible.find((p) => p.id === soloId);
       if (!page) return "";
-      const active = S.view === page.id;
-      const iconColor = active ? "#6b2337" : INK;
+      // "إنشاء تقرير" (unit-report) حالة خاصة: تعمل بزر إجراء (open-or-create-report)
+      // لا بتنقّل عادي مباشر — تكمل آخر تقرير مفتوح أو تنشئ واحدًا جديدًا فورًا،
+      // نفس سلوكها السابق تمامًا داخل مجموعة "unit-home" القديمة.
+      const isCreateEntry = page.id === "unit-report";
+      if (isCreateEntry && !platformActionAllowed("open-or-create-report")) return "";
+      const active = sidebarPageActive(page);
+      const iconColor = active ? ROSE : INK;
       return `
         <div class="nav-group open">
           <div class="nav-list" style="padding-right:0;width:100%;">
-            <button class="nav-item ${active ? "active" : ""}" data-action="nav-to" data-view="${page.id}">${sidebarNavIcon(page.icon, 15, iconColor)}<span>${esc(page.label)}</span></button>
+            <button class="nav-item ${active ? "active" : ""}" data-action="${isCreateEntry ? "open-or-create-report" : "nav-to"}" ${isCreateEntry ? "" : `data-view="${page.id}"`}>${sidebarNavIcon(page.icon, 15, iconColor)}<span>${esc(page.label)}</span>${page.id === "unit-notifications" && notifCount > 0 ? `<span style="margin-inline-start:auto;background:#d65b57;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
           </div>
         </div>`;
     }
@@ -740,10 +2355,13 @@ function renderMainSidebar(mobile) {
     // أكورديون: يفيد فقط لما القائمة كاملة تكون طويلة (عدة مجموعات بعناصر كثيرة،
     // زي مديرة النظام). لو كل قائمة المستخدمة قصيرة أصلًا (وحدة، مركز، قسم، إدارة
     // عليا)، نخلي كل المجموعات مفتوحة دائمًا بدون طي، لأن الطي هنا يزيد خطوة بلا فائدة.
+    // مديرة النظام تحديدًا: كل المجموعات مفتوحة افتراضيًا (كل الصفحات ظاهرة مباشرة
+    // بدون ما تحتاج تضغط كل عنوان مجموعة لتوسيعها) — تقدر طبعًا تطوي أي مجموعة
+    // يدويًا لو حبت، وهذا الطي اليدوي (manualState) يبقى له الأولوية دائمًا.
     const shortSidebar = visible.length <= 6;
     const containsActive = items.some((p) => p.id === S.view);
     const manualState = (S.ui.sidebarGroupState || {})[g];
-    const isOpen = manualState !== undefined ? manualState : (shortSidebar || containsActive);
+    const isOpen = manualState !== undefined ? manualState : (shortSidebar || containsActive || S.isAdmin);
     return `
       <div class="nav-group ${isOpen ? "open" : ""}">
         <button class="nav-group-label" data-action="toggle-sidebar-group" data-group="${esc(g)}" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;padding:4px 12px 8px;">
@@ -752,43 +2370,51 @@ function renderMainSidebar(mobile) {
         </button>
         ${isOpen ? `<div class="nav-list">
           ${items.map((p) => {
-            const disabled = (p.scope === "unit" && !S.currentUnitId) || (p.scope === "unitreport" && !(S.currentUnitId && S.currentReportId));
-            const active = S.view === p.id;
-            const iconColor = disabled ? "#cfc3c8" : active ? "#6b2337" : INK;
             const isCreateEntry = p.id === "unit-report";
-            return `<button class="nav-item ${active ? "active" : ""}" ${disabled ? "disabled" : ""} data-action="${isCreateEntry ? "open-or-create-report" : "nav-to"}" ${isCreateEntry ? "" : `data-view="${p.id}"`}>${sidebarNavIcon(p.icon, 15, iconColor)}<span>${esc(p.label)}</span></button>`;
+            if (isCreateEntry && !platformActionAllowed("open-or-create-report")) return "";
+            const disabled = (p.scope === "unit" && !S.currentUnitId) || (p.scope === "unitreport" && !(S.currentUnitId && S.currentReportId));
+            const active = sidebarPageActive(p);
+            const iconColor = disabled ? "#cfc3c8" : active ? ROSE : INK;
+            return `<button class="nav-item ${active ? "active" : ""}" ${disabled ? "disabled" : ""} data-action="${isCreateEntry ? "open-or-create-report" : "nav-to"}" ${isCreateEntry ? "" : `data-view="${p.id}"`}>${sidebarNavIcon(p.icon, 15, iconColor)}<span>${esc(p.label)}</span>${p.id === "unit-notifications" && notifCount > 0 ? `<span style="margin-inline-start:auto;background:#d65b57;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>`;
           }).join("")}
         </div>` : ""}
       </div>`;
   }).join("");
 
-  const initial = (S.currentUser && S.currentUser.name ? S.currentUser.name.trim()[0] : "؟");
-  const roleLabel = S.isAdmin ? "مديرة النظام" : "مسؤولة الوحدة";
+  // لو دخل شخص (من شاشة «كيف تريدين الدخول؟») نعرض اسمه ودوره، واسم الحساب (الوحدة/القسم/المكتب) سطرًا صغيرًا تحته.
+  const sbPerson = S.currentPersonId ? personsList().find((p) => p.id === S.currentPersonId) : null;
+  const sbPersonRole = sbPerson ? rolesList().find((r) => r.id === sbPerson.roleId) : null;
+  const sbName = sbPerson ? sbPerson.name : (S.currentUser ? S.currentUser.name : "");
+  const initial = (sbName ? String(sbName).trim()[0] : "؟");
+  const roleLabel = S.isAdmin ? "مديرة النظام" : S.isDepartmentUser ? "مديرة قسم" : S.isExecutive ? "الإدارة العليا" : S.isOfficeUser ? "مكتب إشراف" : S.currentUnitEntryMode === "head" ? "رئيسة الوحدة" : S.currentUnitEntryMode === "extra" ? (((S.units.find((u) => u.id === S.currentUnitId) || {}).extraReviewerTitle) || "مراجعة إضافية") : "مسؤولة الوحدة";
+  const site = currentSiteSettings();
+  const taglineHtml = S.isAdmin ? "" : sidebarTaglineBlockHtml(site);
 
   const inner = `
     <div class="sidebar-head">
       <div class="sidebar-head-icons-row">
-        <div class="icon-badge">${iconGauge("#6b2337")}</div>
+        <div class="icon-badge">${iconGauge(ROSE)}</div>
         <div style="display:flex;gap:6px;">
           <button class="sidebar-bell" title="الإشعارات">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
           <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
         </div>
       </div>
-      <img src="${ASSOCIATION_LOGO}" class="sidebar-logo" alt="جمعية فرقان" />
-      <div class="prs-title sidebar-title">منصة التقارير</div>
+      <img src="${esc(siteLogoSrc(site))}" class="sidebar-logo" style="width:${Number(site.logoSize) || 30}px;height:${Number(site.logoSize) || 30}px;" alt="جمعية فرقان" />
+      <div class="prs-title sidebar-title">${esc(site.platformName || "منصة التقارير")}</div>
     </div>
     <div class="sidebar-user-block">
       <div class="sidebar-user-avatar">${esc(initial)}</div>
       <div style="min-width:0;">
-        <div class="sidebar-user-hello">أهلًا وسهلًا</div>
-        <div class="sidebar-user-name">${esc(S.currentUser ? S.currentUser.name : "")}</div>
+        <div class="sidebar-user-name">${esc(sbName)}</div>
+        <div class="sidebar-role-badge">${esc(sbPerson && sbPersonRole ? sbPersonRole.name : (S.currentEntryRoleName || roleLabel))}</div>
+        ${sbPerson && S.currentUser && S.currentUser.name ? `<div style="font-size:10.5px;color:${SUBTLE};margin-top:3px;">${esc(S.currentUser.name)}</div>` : ""}
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">${groupsHtml}</div>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-sep"></div>
-    ${S.isAdmin ? "" : `<div class="sidebar-tagline">تقارير دقيقة.. لأثر أكبر</div>`}
-    <button class="logout-btn" data-action="logout">${iconLogout(16, "#6b2337")} تسجيل الخروج</button>
+    ${taglineHtml}
+    <button class="logout-btn" data-action="logout">${iconLogout(16, ROSE)} تسجيل الخروج</button>
   `;
 
   if (!mobile) return `<div class="sidebar">${inner}</div>`;
@@ -799,8 +2425,10 @@ function renderMainSidebar(mobile) {
 }
 
 /* =============================== Minimal inline icon set ===================== */
+let ICON_OVERRIDE = "";
 function svgIcon(paths, size, color, strokeWidth) {
-  size = size || 16; color = color || "currentColor"; strokeWidth = strokeWidth || 1.9;
+  size = size || 16; color = color || "currentColor";
+  if (ICON_OVERRIDE && (color === INK || color === SUBTLE || color === ROSE || color === ROSE_DARK)) color = ICON_OVERRIDE; strokeWidth = strokeWidth || 1.9;
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:middle">${paths}</svg>`;
 }
 const iconMenu = (c) => svgIcon(`<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>`, 17, c);
@@ -868,14 +2496,14 @@ function pillBtn(label, opts) {
   const attrs = Object.entries(opts.data || {}).map(([k, v]) => `data-${k.replace(/([A-Z])/g, "-$1").toLowerCase()}="${esc(v)}"`).join(" ");
   return `<button type="${opts.type || "button"}" class="pill-btn ${cls}" ${opts.disabled ? "disabled" : ""} data-action="${esc(opts.action || "")}" ${attrs}>${icon}${esc(label)}</button>`;
 }
-function topBarHtml({ title, subtitle, backAction, backData, right }) {
+function topBarHtml({ title, subtitle, backAction, backData, right, icon }) {
   const backAttrs = backData ? Object.entries(backData).map(([k, v]) => `data-${k.replace(/([A-Z])/g, "-$1").toLowerCase()}="${esc(v)}"`).join(" ") : "";
   return `
     <div class="topbar">
       <div class="topbar-left">
         ${backAction ? `<button class="back-btn" data-action="${backAction}" ${backAttrs}>${iconArrowRight()}</button>` : ""}
         <div>
-          <div class="prs-title topbar-title">${esc(title)}</div>
+          <div class="prs-title topbar-title"${icon ? ` style="display:flex;align-items:center;gap:10px;"` : ""}>${icon ? `<span style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${icon}</span>` : ""}${esc(title)}</div>
           ${subtitle ? `<div class="topbar-subtitle">${esc(subtitle)}</div>` : ""}
         </div>
       </div>
@@ -893,32 +2521,208 @@ function badgeHtml(label, color, bg) {
 // شاشة اختيار صفة الدخول لموظفة الوحدة (وليست مركزًا) — نفس اسم الوحدة ونفس كلمة
 // المرور بالضبط؛ الاختيار هنا يحدد فقط أي واجهة تُفتح (الإدارية أو رئيسة الوحدة)
 // لنفس الحساب، بدون إنشاء أي حساب أو كلمة مرور جديدة وبدون أي بيانات تجريبية.
-function renderUnitRoleSelect() {
-  const unit = (S.units || []).find((u) => u.id === S.pendingUnitLoginId);
+// أشخاص (platform_users) يشاركون نفس اسم الدخول والرقم السري للوحدة — يظهرون في
+// شاشة "كيف تريدين الدخول؟" ويدخل كل واحد بصلاحياته الخاصة.
+function unitSharedPlatformUsers(unit) {
+  if (!unit || !unit.password) return [];
+  const list = (S.platformUsers && S.platformUsers.length) ? S.platformUsers : (dataStore.getPlatformUsers() || []);
+  const norm = (x) => String(x || "").replace(/\s+/g, " ").trim();
+  return list.filter((pu) => pu.status !== "disabled" && norm(pu.password) === norm(unit.password) && pu.loginId && (norm(pu.loginId) === norm(unit.name) || (unit.email && norm(pu.loginId) === norm(unit.email))));
+}
+function rolesList() { return S.roles || (S.roles = dataStore.getRoles()); }
+function personsList() { return S.persons || (S.persons = dataStore.getPersons()); }
+// أدوار الدخول المباشر للجهة: تُخزَّن في نفس عمود base_role_id كمعرّفات مفصولة بفاصلة
+// ("r1,r2"). معرّف واحد = السلوك القديم تمامًا؛ اثنان فأكثر = تظهر بطاقة لكل دور في شاشة
+// «كيف تريدين الدخول؟» ويدخل كل دور بصفحاته هو فقط (بلا جمع صلاحيات).
+function baseRoleIdsRaw(e) { return e && e.baseRoleId ? String(e.baseRoleId).split(",").map((x) => x.trim()).filter(Boolean) : []; }
+function baseRoleIdsOf(e) { const roles = rolesList(); return baseRoleIdsRaw(e).filter((id) => roles.some((r) => r.id === id && r.status !== "disabled")); }
+function baseRoleChoiceCardsHtml(ids) {
+  return ids.map((id) => {
+    const r = rolesList().find((x) => x.id === id);
+    if (!r) return "";
+    return `<button type="button" class="card" data-action="choose-base-role" data-role="${esc(r.id)}" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+            <div><div style="font-size:14px;font-weight:800;">${esc(r.name)}</div><div style="font-size:11px;color:${SUBTLE};margin-top:2px;">${esc(structSimpleRoleCountsText(r))}</div></div>
+          </button>`;
+  }).join("");
+}
+function ownerActivePersons(kind, id) {
+  if (!id) return [];
+  const roles = rolesList();
+  return personsList().filter((p) => p.status !== "disabled" && (p.ownerKind || "unit") === kind && p.ownerId === id && roles.some((r) => r.id === p.roleId && r.status !== "disabled"));
+}
+function unitActivePersons(unitId) { return ownerActivePersons("unit", unitId); }
+function personCardsHtml(list) {
+  return list.map((p) => {
+    const role = rolesList().find((r) => r.id === p.roleId);
+    const asking = S.ui.pinPersonId === p.id;
+    return `
+          <div class="card" style="border:1px solid ${asking ? ROSE : BORDER};background:#fff;width:100%;">
+            <button type="button" data-action="choose-person" data-id="${esc(p.id)}" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;background:none;border:none;width:100%;padding:0;font-family:inherit;">
+              <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+              <div>
+                <div style="font-size:14px;font-weight:800;">${esc(p.name)}</div>
+                <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">${esc(role ? role.name : "")}${personEffectivePin(p) ? " • برمز" : ""}</div>
+              </div>
+            </button>
+            ${asking ? `<div style="display:flex;gap:6px;margin-top:10px;align-items:center;">
+              <input class="input" id="person-pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="الرمز (PIN)" style="flex:1;" />
+              ${pillBtn("دخول", { action: "confirm-person-pin", data: { id: p.id } })}
+              ${pillBtn("إلغاء", { variant: "ghost", action: "cancel-person-pin" })}
+            </div>${S.ui.pinError ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:6px;">${esc(S.ui.pinError)}</div>` : ""}` : ""}
+          </div>`;
+  }).join("");
+}
+function entityLoginSelectHtml() {
+  const pe = S.pendingEntityLogin;
+  const ent = pe.kind === "department" ? (S.departments || []).find((d) => d.id === pe.id) : (S.offices || []).find((o) => o.id === pe.id);
   return `
   <div class="login-wrap">
     <div class="login-box" style="max-width:440px;">
       <div class="login-card">
         <div style="text-align:center;margin-bottom:22px;">
-          <img class="login-logo" src="${ASSOCIATION_LOGO}" alt="جمعية فرقان" />
+          <img class="login-logo" src="${esc(siteLogoSrc(currentSiteSettings()))}" alt="جمعية فرقان" />
+          <div class="prs-title" style="font-size:19px;font-weight:900;color:#000">كيف تريدين الدخول؟</div>
+          ${ent ? `<div style="font-size:11.5px;color:${SUBTLE};margin-top:4px;">${esc(ent.name)}</div>` : ""}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${ownerActivePersons(pe.kind, pe.id).length ? "" : baseRoleIdsOf(ent).length >= 2 ? baseRoleChoiceCardsHtml(baseRoleIdsOf(ent)) : `<button type="button" class="card" data-action="choose-entity-account" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+            <div><div style="font-size:14px;font-weight:800;">${pe.kind === "department" ? "مديرة القسم" : "مكتب الإشراف"}</div><div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول بحساب ${pe.kind === "department" ? "القسم" : "المكتب"} مباشرة</div></div>
+          </button>`}
+          ${personCardsHtml(ownerActivePersons(pe.kind, pe.id))}
+        </div>
+      </div>
+      <button type="button" data-action="logout" style="display:block;margin:16px auto 0;background:none;border:none;color:${SUBTLE};font-size:11.5px;cursor:pointer;text-decoration:underline;">ليست أنتِ؟ تسجيل الخروج</button>
+    </div>
+  </div>`;
+}
+function personEffectivePin(p) {
+  const r = rolesList().find((x) => x.id === p.roleId);
+  return String(p.pin || (r && r.pin) || "").trim();
+}
+function applyPersonPerms(p) {
+  const eff = personEffectivePerms(p);
+  // دور بلا صفحات = لا صفحات (لا يرث صفحات حساب الجهة) — قرار نجود: الفارغ لا يعني الوراثة.
+  S.platformUserAllowedPages = eff.pages.length ? normalizeDashboardPages(eff.pages) : [];
+  if (eff.actions.length) S.platformUserAllowedActions = [...eff.actions];
+  const bs = eff.buttons || [];
+  const chips = bs.filter((b) => b.indexOf("notify:") !== 0);
+  S.platformUserAllowedButtons = chips.length ? [...chips] : null;
+  // «ينبّه» = إدخال بصيغة notify:chip:<tab> داخل نفس قائمة الأزرار (بدون تغيير بنية الصلاحيات)
+  S.personNotifyTabs = bs.filter((b) => b.indexOf("notify:chip:") === 0).map((b) => b.slice("notify:chip:".length));
+}
+function enterEntityAsPerson(p, role) {
+  const pe = S.pendingEntityLogin;
+  S.currentPersonId = p ? p.id : null;
+  S.currentPersonName = p ? p.name : "";
+  S.currentEntryRoleName = !p && role ? role.name : "";
+  if (p) applyPersonPerms(p);
+  else if (role) applyPersonPerms({ roleId: role.id, permsOverride: null });
+  S.view = pe.view;
+  S.pendingEntityLogin = null;
+  S.ui.pinPersonId = null; S.ui.pinError = "";
+  if (S.platformUserAllowedPages && S.platformUserAllowedPages.length && !S.platformUserAllowedPages.includes(S.view)) {
+    const t = SIDEBAR_PAGES.find((x) => S.platformUserAllowedPages.includes(x.id));
+    if (t) S.view = t.id;
+  }
+  render();
+}
+function enterUnitAsPerson(p) {
+  if (S.pendingEntityLogin) return enterEntityAsPerson(p);
+  const role = rolesList().find((r) => r.id === p.roleId);
+  const unitId = S.pendingUnitLoginId;
+  S.currentUnitEntryMode = role && (role.mode === "head" || role.mode === "extra") ? role.mode : "admin";
+  S.currentPersonId = p.id;
+  S.currentPersonName = p.name;
+  // صلاحيات الشخص (الدور + الاستثناء): لو محددة تحل محل صلاحيات حساب الجهة، وإلا يبقى الإرث كما هو
+  applyPersonPerms(p);
+  S.reports[unitId] = dataStore.getReports(unitId);
+  S.currentUnitId = unitId;
+  S.currentReportId = null;
+  S.pendingUnitLoginId = null;
+  S.ui.pinPersonId = null; S.ui.pinError = "";
+  S.view = "unit-dashboard";
+  render();
+  if (sheetsConfigured()) { refreshReportsFromSheet(unitId).then(() => { if (S.currentUser) render(); }); }
+}
+function renderUnitRoleSelect() {
+  if (S.pendingEntityLogin) return entityLoginSelectHtml();
+  const unit = (S.units || []).find((u) => u.id === S.pendingUnitLoginId);
+  const hasHead = unitHasHead(unit);
+  const extraTitle = (unit && unit.extraReviewerTitle) || "";
+  return `
+  <div class="login-wrap">
+    <div class="login-box" style="max-width:440px;">
+      <div class="login-card">
+        <div style="text-align:center;margin-bottom:22px;">
+          <img class="login-logo" src="${esc(siteLogoSrc(currentSiteSettings()))}" alt="جمعية فرقان" />
           <div class="prs-title" style="font-size:19px;font-weight:900;color:#000">كيف تريدين الدخول؟</div>
           ${unit ? `<div style="font-size:11.5px;color:${SUBTLE};margin-top:4px;">${esc(unit.name)}</div>` : ""}
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
-          <button type="button" class="card" data-action="choose-unit-entry-mode" data-mode="admin" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+          ${unitActivePersons(S.pendingUnitLoginId).length ? "" : baseRoleIdsOf(unit).length >= 2 ? baseRoleChoiceCardsHtml(baseRoleIdsOf(unit)) : `          <button type="button" class="card" data-action="choose-unit-entry-mode" data-mode="admin" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
             <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconDocument(19, ROSE)}</div>
             <div>
               <div style="font-size:14px;font-weight:800;">الإدارية</div>
               <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول إلى واجهة الإدارية الخاصة بالوحدة</div>
             </div>
           </button>
+          ${hasHead ? `
           <button type="button" class="card" data-action="choose-unit-entry-mode" data-mode="head" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
             <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
             <div>
               <div style="font-size:14px;font-weight:800;">رئيسة الوحدة</div>
               <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول إلى واجهة رئيسة الوحدة الخاصة بالوحدة</div>
             </div>
-          </button>
+          </button>` : ""}
+          ${extraTitle ? `
+          <button type="button" class="card" data-action="choose-unit-entry-mode" data-mode="extra" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">${esc(extraTitle)}</div>
+              <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول إلى واجهة المراجعة الإضافية الخاصة بالوحدة</div>
+            </div>
+          </button>` : ""}`}
+          ${personCardsHtml(unitActivePersons(S.pendingUnitLoginId))}
+          ${(S.pendingPlatformUserMatches || []).map((pu) => `
+          <button type="button" class="card" data-action="choose-platform-user" data-id="${esc(pu.id)}" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">${esc(pu.jobTitle)}</div>
+              <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول بصفة ${esc(pu.jobTitle)}</div>
+            </div>
+          </button>`).join("")}
+        </div>
+      </div>
+      <button type="button" data-action="logout" style="display:block;margin:16px auto 0;background:none;border:none;color:${SUBTLE};font-size:11.5px;cursor:pointer;text-decoration:underline;">ليست أنتِ؟ تسجيل الخروج</button>
+    </div>
+  </div>`;
+}
+
+// شاشة اختيار المسمّى الوظيفي — تظهر فقط لما بيانات دخول واحدة (مسمى وظيفي أو
+// إيميل + رقم سري) تكون مشتركة بين أكثر من "حساب إضافي" (من صفحة "حسابات
+// إضافية")، تمامًا نفس فكرة اختيار الإدارية/رئيسة الوحدة بالأعلى لكن معمّمة
+// لأي عدد من المسمّيات.
+function renderPlatformUserRoleSelect() {
+  const matches = S.pendingPlatformUserMatches || [];
+  return `
+  <div class="login-wrap">
+    <div class="login-box" style="max-width:440px;">
+      <div class="login-card">
+        <div style="text-align:center;margin-bottom:22px;">
+          <img class="login-logo" src="${esc(siteLogoSrc(currentSiteSettings()))}" alt="جمعية فرقان" />
+          <div class="prs-title" style="font-size:19px;font-weight:900;color:#000">كيف تريدين الدخول؟</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${matches.map((pu) => `
+          <button type="button" class="card" data-action="choose-platform-user" data-id="${esc(pu.id)}" style="display:flex;align-items:center;gap:12px;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;width:100%;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(19, ROSE)}</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">${esc(pu.jobTitle)}</div>
+              <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">الدخول بصفة ${esc(pu.jobTitle)}</div>
+            </div>
+          </button>`).join("")}
         </div>
       </div>
       <button type="button" data-action="logout" style="display:block;margin:16px auto 0;background:none;border:none;color:${SUBTLE};font-size:11.5px;cursor:pointer;text-decoration:underline;">ليست أنتِ؟ تسجيل الخروج</button>
@@ -935,7 +2739,7 @@ function renderLogin() {
     <div class="login-box">
       <div class="login-card">
         <div style="text-align:center;margin-bottom:26px;">
-          <img class="login-logo" src="${ASSOCIATION_LOGO}" alt="جمعية فرقان" />
+          <img class="login-logo" src="${esc(siteLogoSrc(currentSiteSettings()))}" alt="جمعية فرقان" />
           <div class="prs-title" style="font-size:21px;font-weight:900;color:#000">نظام توثيق الأداء</div>
           <div style="font-size:11.5px;color:${SUBTLE};margin-top:4px;">جمعية فرقان لتحفيظ القرآن الكريم بالطائف</div>
         </div>
@@ -956,7 +2760,7 @@ function renderLogin() {
       </div>
       ${sheetsConfigured()
         ? `<div class="login-hint" style="color:${GREEN}">مربوط بقاعدة البيانات ✓ — سجّلي بالاسم وكلمة المرور المسجّلة بها</div>`
-        : `<div class="login-hint">بيانات تجريبية للاختبار — مديرة النظام: admin / admin123 — موظفة وحدة: unit1 / 1234</div>`}
+        : `<div class="login-hint">تعذّر الاتصال بقاعدة البيانات — تحققي من الإنترنت ثم أعيدي المحاولة</div>`}
     </div>
   </div>`;
 }
@@ -968,23 +2772,45 @@ async function handleLoginSubmit() {
   if (sheetsConfigured()) {
     S.ui.loginBusy = true; render();
     const result = await supabaseLogin(username, password);
-    if (!result.ok) { S.ui.loginBusy = false; S.ui.loginError = result.error || "تعذر تسجيل الدخول"; render(); return; }
-    await refreshUnitsAndDepartmentsFromSheet();
+    if (result.ok) {
+      await refreshUnitsAndDepartmentsFromSheet();
+      if (result.user && (result.user.role === "department" || result.user.role === "office")) {
+        try { await refreshRolesPersonsFromSheet(); } catch (e) { /* نكمل بالنسخة المحلية */ }
+      }
+      try { await refreshReportTabsFromSheet(); } catch (e) { /* نكمل بالنسخة المحلية */ }
+      if (result.user && result.user.role !== "admin" && result.user.unitId) {
+        // نحتاج الأشخاص (platform_users) والقوالب قبل شاشة "كيف تريدين الدخول؟"
+        try { await refreshPlatformUsersFromSheet(); await refreshJobTitleTemplatesFromSheet(); await refreshRolesPersonsFromSheet(); } catch (e) { /* نكمل بالنسخة المحلية */ }
+      }
+      S.ui.loginBusy = false;
+      S.ui.loginError = "";
+      doLogin(result.user);
+      return;
+    }
+    // لا حساب أصلي مطابق — نجرّب "حسابات إضافية" (platform_users) قبل الفشل النهائي.
+    const puRes = await supabaseRequest(`platform_users?login_id=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&status=eq.active&select=*`);
     S.ui.loginBusy = false;
-    S.ui.loginError = "";
-    doLogin(result.user);
+    if (puRes.ok && Array.isArray(puRes.data) && puRes.data.length) {
+      S.ui.loginError = "";
+      startPlatformUserLogin(puRes.data.map(rowToPlatformUser));
+      return;
+    }
+    S.ui.loginError = result.error || "تعذر تسجيل الدخول";
+    render();
     return;
   }
 
   // Fallback: no database connected yet — use the built-in demo accounts.
   const match = MOCK_USERS.find((u) => u.username === username && u.password === password);
-  if (!match) { S.ui.loginError = "اسم المستخدم أو كلمة السر غير صحيحة"; render(); return; }
-  S.ui.loginError = "";
-  doLogin(match);
+  if (match) { S.ui.loginError = ""; doLogin(match); return; }
+  const localMatches = dataStore.getPlatformUsers().filter((u) => u.loginId === username && u.password === password && u.status !== "disabled");
+  if (localMatches.length) { S.ui.loginError = ""; startPlatformUserLogin(localMatches); return; }
+  S.ui.loginError = "اسم المستخدم أو كلمة السر غير صحيحة"; render();
 }
 
 async function refreshUnitsAndDepartmentsFromSheet() {
   if (!sheetsConfigured()) return;
+  await Promise.all([pendingSupabaseWrite("units"), pendingSupabaseWrite("departments"), pendingSupabaseWrite("offices")]);
   const [unitsRes, deptRes, officesRes] = await Promise.all([
     supabaseRequest("units?select=*"),
     supabaseRequest("departments?select=*"),
@@ -1009,6 +2835,7 @@ async function refreshUnitsAndDepartmentsFromSheet() {
 
 async function refreshIndicatorDefinitionsFromSheet() {
   if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("indicator_definitions");
   const res = await supabaseRequest("indicator_definitions?select=*");
   if (res.ok && Array.isArray(res.data)) {
     S.indicatorDefinitions = res.data.map(rowToIndDef);
@@ -1018,6 +2845,7 @@ async function refreshIndicatorDefinitionsFromSheet() {
 
 async function refreshGoalsDefinitionsFromSheet() {
   if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("goals_definitions");
   const res = await supabaseRequest("goals_definitions?select=*");
   if (res.ok && Array.isArray(res.data)) {
     S.goalsDefinitions = {
@@ -1025,6 +2853,32 @@ async function refreshGoalsDefinitionsFromSheet() {
       operational: res.data.filter((r) => r.kind === "operational").map(rowToGoal),
     };
     dataStore.cacheGoalsDefinitionsLocally(S.goalsDefinitions);
+  }
+}
+
+async function refreshPlatformUsersFromSheet() {
+  if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("platform_users");
+  const res = await supabaseRequest("platform_users?select=*");
+  if (res.ok && Array.isArray(res.data)) {
+    S.platformUsers = res.data.map(rowToPlatformUser);
+    dataStore.cachePlatformUsersLocally(S.platformUsers);
+  }
+}
+async function refreshRolesPersonsFromSheet() {
+  if (!sheetsConfigured()) return;
+  await Promise.all([pendingSupabaseWrite("roles"), pendingSupabaseWrite("persons")]);
+  const [r1, r2] = await Promise.all([supabaseRequest("roles?select=*"), supabaseRequest("persons?select=*")]);
+  if (r1.ok && Array.isArray(r1.data)) { S.roles = r1.data.map(rowToRole); lsSet(ROLES_KEY, JSON.stringify(S.roles)); }
+  if (r2.ok && Array.isArray(r2.data)) { S.persons = r2.data.map(rowToPerson); lsSet(PERSONS_KEY, JSON.stringify(S.persons)); }
+}
+async function refreshJobTitleTemplatesFromSheet() {
+  if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("job_title_templates");
+  const res = await supabaseRequest("job_title_templates?select=*");
+  if (res.ok && Array.isArray(res.data)) {
+    S.jobTitleTemplates = res.data.map(rowToJobTitleTemplate);
+    dataStore.cacheJobTitleTemplatesLocally(S.jobTitleTemplates);
   }
 }
 
@@ -1039,6 +2893,7 @@ function applyReportSectionDefs(list) {
 
 async function refreshReportSectionsFromSheet() {
   if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("report_sections");
   const res = await supabaseRequest("report_sections?select=*");
   if (res.ok && Array.isArray(res.data)) {
     if (res.data.length) {
@@ -1054,6 +2909,50 @@ async function refreshReportSectionsFromSheet() {
   }
 }
 
+// يحدّث SECTION_FIELD_SCHEMAS[sectionId] فورًا (يُستخدم من صفحة إدارة الحقول نفسها
+// وأيضًا عند تحميل تخصيصات محفوظة) ويسجّل أي حقل "قائمة قابلة للتوسعة" جديد في
+// CUSTOM_OPTION_FIELD_MAP عشان يشتغل زر "أخرى" فيه تلقائيًا بدون كود إضافي.
+function setSectionFieldsLive(sectionId, fields) {
+  const existing = SECTION_FIELD_SCHEMAS[sectionId];
+  const itemLabel = (existing && existing.itemLabel) || (SECTIONS.find((s) => s.id === sectionId) || {}).label || sectionId;
+  // نحافظ على arrayKey الأصلي (اسم الحقل اللي تُخزَّن فيه البيانات فعليًا، مثال: قسم
+  // "improvement" يخزّن بياناته تحت d.opportunities) — بعض الأقسام معرّفها arrayKey
+  // مختلف عن sectionId، وأي كتابة فوقه بالغلط بـ sectionId تفصل الحقول عن بياناتها
+  // المحفوظة فعليًا (تظهر فارغة). نستخدم sectionId فقط لو ما فيه تعريف افتراضي أصلاً.
+  const arrayKey = (existing && existing.arrayKey) || sectionId;
+  // نحافظ على كل تعريفات القسم الإضافية (hint/minItems/maxItems/itemLabelPlural/
+  // sectionLabel...) بنشرها من التعريف الحالي أولًا — بدل ما تُفقد بمجرد تعديل حقل
+  // واحد من لوحة الإدارة (كانت هذي مشكلة حقيقية بأقسام فيها حد أقصى/أدنى أو نص تنبيهي).
+  SECTION_FIELD_SCHEMAS[sectionId] = { ...(existing || {}), arrayKey, itemLabel, fields };
+  fields.forEach((f) => {
+    // المفتاح لازم يكون arrayKey (نفس المفتاح اللي يبحث فيه dispatch الحقيقي عند
+    // إضافة قيمة "أخرى" مخصصة: data-arr بالنموذج هو arrayKey دايمًا، وليس sectionId).
+    if (f.type === "expandableSelect" && f.customKey) CUSTOM_OPTION_FIELD_MAP[`${arrayKey}|${f.id}`] = f.customKey;
+  });
+}
+// يطبّق تخصيصات حقول محفوظة (من القاعدة أو من التخزين المحلي) فوق SECTION_FIELD_SCHEMAS
+// الافتراضي المكتوب بالكود — قسم بدون تخصيص محفوظ (أو بتخصيص فارغ لم يُحفظ فعليًا
+// بعد) يبقى بتعريفه الافتراضي كما هو تمامًا.
+function applyFieldSchemaOverrides(map) {
+  Object.keys(map || {}).forEach((sectionId) => {
+    const fields = map[sectionId];
+    if (!Array.isArray(fields) || !fields.length) return;
+    setSectionFieldsLive(sectionId, fields);
+  });
+}
+
+async function refreshSectionFieldSchemasFromSheet() {
+  if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("section_field_schemas");
+  const res = await supabaseRequest("section_field_schemas?select=*");
+  if (res.ok && Array.isArray(res.data) && res.data.length) {
+    const map = {};
+    res.data.map(rowToFieldSchemaEntry).forEach((e) => { map[e.sectionId] = e.fields; });
+    applyFieldSchemaOverrides(map);
+    dataStore.cacheSectionFieldSchemasLocally(map);
+  }
+}
+
 async function refreshSiteSettingsFromSheet() {
   if (!sheetsConfigured()) return;
   const res = await supabaseRequest("site_settings?id=eq.main&select=*");
@@ -1061,6 +2960,23 @@ async function refreshSiteSettingsFromSheet() {
     S.siteSettings = rowToSiteSettings(res.data[0]);
     lsSet(SITE_SETTINGS_KEY, JSON.stringify(S.siteSettings));
     applySiteColors(S.siteSettings);
+  }
+}
+
+async function refreshDashboardConfigFromSheet() {
+  if (!sheetsConfigured()) return;
+  const res = await supabaseRequest("dashboard_config?id=eq.main&select=*");
+  if (res.ok && Array.isArray(res.data) && res.data.length) {
+    S.dashboardConfig = rowToDashboardConfig(res.data[0]);
+    lsSet(DASHBOARD_CONFIG_KEY, JSON.stringify(S.dashboardConfig));
+  }
+}
+async function refreshOrgChartFromSheet() {
+  if (!sheetsConfigured()) return;
+  const res = await supabaseRequest("org_chart?id=eq.main&select=*");
+  if (res.ok && Array.isArray(res.data) && res.data.length) {
+    S.orgChart = rowToOrgChart(res.data[0]);
+    lsSet(ORG_CHART_KEY, JSON.stringify(S.orgChart));
   }
 }
 
@@ -1073,7 +2989,113 @@ async function refreshReportsFromSheet(unitId) {
   }
 }
 
+// نقطة الدخول لأي "حساب إضافي" (platform_users) بعد مطابقة بيانات الدخول —
+// matches قد تكون صفًا واحدًا (دخول مباشر بدون شاشة اختيار) أو أكثر (بيانات
+// دخول مشتركة بين عدة مسمّيات، مثل الإدارية ورئيسة الوحدة، فتظهر شاشة اختيار).
+function startPlatformUserLogin(matches) {
+  if (matches.length === 1) { doLoginPlatformUser(matches[0]); return; }
+  S.currentUser = { id: "pending", name: "", role: "platform-pending" };
+  S.pendingPlatformUserMatches = matches;
+  S.view = "platform-user-role-select";
+  render();
+}
+function doLoginPlatformUser(pu) {
+  const effPages = effectivePuAllowedPages(pu);
+  const effActions = effectivePuAllowedActions(pu);
+  S.platformUserAllowedPages = effPages.length ? normalizeDashboardPages(effPages) : null;
+  S.platformUserAllowedActions = effActions.length ? effActions : null;
+  S.currentPlatformUserJobTitle = pu.jobTitle;
+  S.currentPlatformUserTemplateId = pu.templateId || "";
+  S.pendingPlatformUserMatches = null;
+  if (pu.scopeKind === "none") {
+    // بدون نطاق بيانات محدد: حساب اطّلاع عام بصفحات مخصّصة فقط، بدون أي ربط
+    // بوحدة/قسم/مكتب معيّن.
+    S.currentUser = { id: pu.id, name: pu.jobTitle, role: "platform" };
+    S.cameFromAllReports = false; S.adminPreviewOrigin = null;
+    S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false;
+    S.currentDepartmentId = null; S.currentOfficeId = null; S.currentUnitId = null;
+    S.units = dataStore.getUnits(); S.departments = dataStore.getDepartments(); S.offices = dataStore.getOffices();
+    S.indicatorDefinitions = dataStore.getIndicatorDefinitions(); S.goalsDefinitions = dataStore.getGoalsDefinitions();
+    applyReportSectionDefs(dataStore.getReportSectionDefs()); applyFieldSchemaOverrides(dataStore.getSectionFieldSchemas());
+    S.sidebarOpen = !isMobileViewport();
+    // نفس ملاحظة الفرع الآخر أسفل: لا نستخدم computeVisibleSidebarPages()
+    // لاختيار الصفحة الهدف مباشرة، لأنها تُقيّد صفحات "unit-home" بشرط S.view
+    // الحالي (مشكلة دائرية). لو الصفحة الهدف من "unit-home" (مثل "إنشاء
+    // تقرير")، ننشئ تلقائيًا "وحدة" تقرير مستقلة خاصة بهذا المسمى الوظيفي
+    // نفسه (بلا أي ربط بقسم/مكتب) — هذا ما يتيح لأي مسمى وظيفي "بدون نطاق"
+    // إنشاء تقريره الخاص، يظهر فقط لمديرة النظام والإدارة العليا.
+    const target = SIDEBAR_PAGES.find((p) => S.platformUserAllowedPages && S.platformUserAllowedPages.includes(p.id));
+    if (target) {
+      if (target.group === "unit-home") {
+        const selfUnit = ensureSelfReportUnit("own", pu.id);
+        if (selfUnit) S.currentUnitId = selfUnit.id;
+      }
+      S.view = target.id;
+    } else {
+      S.view = "login";
+    }
+    render();
+    return;
+  }
+  // نطاق مرتبط بحساب/بيانات موجودة أصلًا (إدارة عليا/قسم/مكتب/وحدة) — نعيد
+  // استخدام منطق doLogin الأصلي المُختبر بالكامل لتحميل البيانات والصلاحيات
+  // الصحيحة لهذا النطاق، ثم فقط نتجاوز الصفحة الافتراضية بأول صفحة من قائمة
+  // الصفحات المسموحة تحديدًا لهذا المسمى الوظيفي.
+  const roleMap = { admin: "admin", department: "department", office: "office", executive: "executive", unit: "center" };
+  doLogin({
+    id: pu.id, name: pu.jobTitle, role: roleMap[pu.scopeKind] || "admin",
+    departmentId: pu.scopeKind === "department" ? pu.scopeId : undefined,
+    officeId: pu.scopeKind === "office" ? pu.scopeId : undefined,
+    unitId: pu.scopeKind === "unit" ? pu.scopeId : undefined,
+  });
+  // لو ما حددنا لها صفحات معيّنة، نسيب doLogin تفتح صفحتها الافتراضية العادية
+  // لهذا النطاق (لوحة معلومات الوحدة/القسم/...) بدون أي تغيير. لو حددنا لها
+  // صفحات، نتأكد إن الصفحة الحالية من ضمنها، وإلا ننتقل لأول صفحة مسموحة.
+  //
+  // ملاحظة مهمة: لا نستخدم computeVisibleSidebarPages() هنا لاختيار الصفحة
+  // الهدف، لأنها تُقيّد صفحات مجموعة "unit-home" (مثل "إنشاء تقرير"/"تقارير")
+  // بشرط S.view الحالي (UNIT_SCOPED_VIEWS.includes(S.view)) — وبما إن S.view
+  // هنا لسه القيمة الافتراضية القديمة لنطاق القسم/المكتب (مثل
+  // "department-overview")، هذا الشرط يفشل دائمًا فتبقى الصفحة أبدًا ما
+  // تتغيّر. نبحث بالصفحة المسموحة الأولى مباشرة من SIDEBAR_PAGES بدل ذلك.
+  if (S.platformUserAllowedPages && !S.platformUserAllowedPages.includes(S.view)) {
+    const target = SIDEBAR_PAGES.find((p) => S.platformUserAllowedPages.includes(p.id));
+    if (target) {
+      // صفحات "unit-home" (لوحة معلومات الوحدة/تقارير/إنشاء تقرير/الإعدادات)
+      // تحتاج وحدة واحدة محدّدة (S.currentUnitId) لتعمل — نفوّض هذا بالكامل
+      // لـ ensureUnitContextForNav (نفس الدالة المستخدمة بالدخول المباشر من
+      // الشريط الجانبي لاحقًا)، فتضمن نفس القاعدة الموحّدة: الافتراضي تقرير
+      // القسم/المكتب الذاتي، مو أي وحدة تابعة حقيقية بالغلط.
+      ensureUnitContextForNav(target.id);
+      S.view = target.id;
+    }
+    render();
+  }
+}
+
+// دمج حقيقي لنظام الصلاحيات: أي حساب أساسي (وحدة/مركز/قسم/مكتب) يقدر يُقيَّد
+// بنفس آلية الصفحات/الإجراءات المستخدمة أصلاً لـ"حسابات إضافية" — ببساطة عبر
+// حقلي allowedPages/allowedActions المحفوظين على سجل الوحدة/القسم/المكتب نفسه.
+// تُطبَّق فقط لو ما كان فيه تقييد أسبق مضبوط صراحة (مثلاً من حساب "مسمى وظيفي"
+// عبر doLoginPlatformUser) — تقييد الحساب الإضافي نفسه له الأولوية دائمًا؛ ولو
+// ما فيه، يرث القيود المضبوطة على الحساب الأساسي نفسه. أي حساب لم تُخصَّص له
+// صلاحيات بعد (القيمة الافتراضية: مصفوفة فاضية) يبقى بلا أي قيد تمامًا كالسابق.
+function applyScopedAccountPermissions(entity) {
+  if (!entity) return;
+  // دور الحساب الأساسي (يُضبط من «الهيكل والأشخاص») له الأولوية على حقول الصفحات القديمة.
+  const baseIds = baseRoleIdsOf(entity);
+  if (baseIds.length >= 2) return; // أكثر من دور: يُطبَّق دور واحد فقط بعد أن تختاره من شاشة «كيف تريدين الدخول؟»
+  if (baseIds.length === 1) { applyPersonPerms({ roleId: baseIds[0], permsOverride: null }); return; }
+  if (S.platformUserAllowedPages === null && entity.allowedPages && entity.allowedPages.length) {
+    S.platformUserAllowedPages = normalizeDashboardPages(entity.allowedPages);
+  }
+  if (S.platformUserAllowedActions === null && entity.allowedActions && entity.allowedActions.length) {
+    S.platformUserAllowedActions = entity.allowedActions;
+  }
+}
+
 function doLogin(user) {
+  S.currentPersonId = null; S.currentPersonName = ""; S.currentEntryRoleName = "";
   S.currentUser = user;
   S.cameFromAllReports = false;
   S.adminPreviewOrigin = null;
@@ -1088,6 +3110,7 @@ function doLogin(user) {
   S.indicatorDefinitions = dataStore.getIndicatorDefinitions();
   S.goalsDefinitions = dataStore.getGoalsDefinitions();
   applyReportSectionDefs(dataStore.getReportSectionDefs());
+  applyFieldSchemaOverrides(dataStore.getSectionFieldSchemas());
   S.sidebarOpen = !isMobileViewport();
   if (S.isAdmin) {
     const reports = {};
@@ -1096,35 +3119,58 @@ function doLogin(user) {
     S.view = "dashboard";
   } else if (S.isDepartmentUser) {
     S.currentDepartmentId = user.departmentId;
+    applyScopedAccountPermissions(S.departments.find((d) => d.id === S.currentDepartmentId));
     const reports = {};
     S.units.filter((u) => u.departmentId === S.currentDepartmentId).forEach((u) => { reports[u.id] = dataStore.getReports(u.id); });
     S.reports = reports;
-    S.view = "department-overview";
+    // الصفحة الافتراضية صارت "لوحة المعلومات" الموحدة بدل "قسمي" القديمة —
+    // "قسمي" تبقى متاحة بالشريط الجانبي بجانبها (بدون حذف) لحد ما نتأكد إن
+    // الجديدة تغطي كل شيء.
+    S.view = "dashboard";
   } else if (S.isExecutive) {
     // اطلاع إشرافي شامل فقط — بدون أي دخول لنموذج كتابة التقارير أو تعديلها.
+    // (حساب الإدارة العليا خارج نطاق نظام الصلاحيات المخصّصة هذا عمدًا)
     const reports = {};
     S.units.forEach((u) => { reports[u.id] = dataStore.getReports(u.id); });
     S.reports = reports;
     S.view = "executive-dashboard";
+    // إضافة: لو مديرة النظام حدّدت صفحات لحساب الإدارة العليا تُطبَّق عليه (مثل بقية
+    // الحسابات)؛ ولو ما حدّدت شيئًا يبقى على الوضع السابق تمامًا.
+    applyScopedAccountPermissions(S.units.find((u) => u.id === user.unitId));
+    if (S.platformUserAllowedPages && !S.platformUserAllowedPages.includes("dashboard")) S.view = S.platformUserAllowedPages[0];
   } else if (S.isOfficeUser) {
-    // اطلاع مكتب الإشراف: يشوف فقط الأقسام التابعة له، وعند اختيار قسم يشوف
-    // وحداته — بدون أي دخول لتقارير الوحدات أو تعديلها (خارج نطاق هذي الخطوة).
+    // اطلاع مكتب الإشراف: لوحة معلومات + أرشفة + تقارير + ملخص + اعتماد أبرز
+    // النتائج، كلها مقتصرة على وحدات أقسامه التابعة فقط — بدون أي دخول لتقارير
+    // الوحدات أو تعديلها.
     S.currentOfficeId = user.officeId || "";
+    applyScopedAccountPermissions(S.offices.find((o) => o.id === S.currentOfficeId));
     S.ui.departmentsPageSelectedId = null;
-    S.view = "departments-list";
-  } else if (user.role === "center") {
+    S.view = "office-dashboard";
+  } else if (!unitSharedPlatformUsers(S.units.find((u) => u.id === user.unitId)).length && !unitActivePersons(user.unitId).length && baseRoleIdsOf(S.units.find((u) => u.id === user.unitId)).length < 2 && (user.role === "center" || (!unitHasHead(S.units.find((u) => u.id === user.unitId)) && !unitHasExtraReview(S.units.find((u) => u.id === user.unitId))))) {
+    // مركز، أو وحدة مُهيّأة صراحة بدون أي مستوى مراجعة داخلي (لا رئيسة ولا
+    // مستوى إضافي) — تدخل مباشرة بدون شاشة اختيار صفة، بالضبط كسلوك المركز.
     const unitId = user.unitId;
+    applyScopedAccountPermissions(S.units.find((u) => u.id === unitId));
     S.reports[unitId] = dataStore.getReports(unitId);
     S.currentUnitId = unitId;
     S.currentReportId = null;
     S.view = "unit-dashboard";
   } else {
-    // موظفة الوحدة (وليست مركزًا): تختار أولًا كيف تريد الدخول — الإدارية أو رئيسة
-    // الوحدة — قبل الدخول لصفحات الوحدة نفسها. نفس الحساب ونفس كلمة المرور بالضبط،
-    // بدون أي حساب أو صلاحية جديدة؛ الاختيار مجرد واجهة عرض تُحدَّد بعد الدخول.
+    applyScopedAccountPermissions(S.units.find((u) => u.id === user.unitId));
+    // موظفة الوحدة: تختار أولًا كيف تريد الدخول — الإدارية، أو رئيسة الوحدة
+    // (إن وُجدت)، أو مستوى المراجعة الإضافي (إن وُجد) — قبل الدخول لصفحات
+    // الوحدة نفسها. نفس الحساب ونفس كلمة المرور بالضبط، بدون أي حساب أو
+    // صلاحية جديدة؛ الاختيار مجرد واجهة عرض تُحدَّد بعد الدخول.
+    S.pendingPlatformUserMatches = unitSharedPlatformUsers(S.units.find((u) => u.id === user.unitId));
     S.pendingUnitLoginId = user.unitId;
     S.currentUnitEntryMode = null;
     S.view = "unit-role-select";
+  }
+  if (S.isDepartmentUser || S.isOfficeUser) {
+    const pk = S.isDepartmentUser ? "department" : "office";
+    const pid = S.isDepartmentUser ? S.currentDepartmentId : S.currentOfficeId;
+    const pEnt = S.isDepartmentUser ? S.departments.find((d) => d.id === pid) : S.offices.find((o) => o.id === pid);
+    if (ownerActivePersons(pk, pid).length || baseRoleIdsOf(pEnt).length >= 2) { S.pendingEntityLogin = { kind: pk, id: pid, view: S.view }; S.view = "unit-role-select"; }
   }
   render();
   if (sheetsConfigured()) {
@@ -1132,6 +3178,8 @@ function doLogin(user) {
       Promise.all(S.units.map((u) => refreshReportsFromSheet(u.id))).then(() => { if (S.currentUser) render(); });
     } else if (S.isDepartmentUser) {
       Promise.all(S.units.filter((u) => u.departmentId === S.currentDepartmentId).map((u) => refreshReportsFromSheet(u.id))).then(() => { if (S.currentUser) render(); });
+    } else if (S.isOfficeUser) {
+      Promise.all(officeUnits(S.currentOfficeId).map((u) => refreshReportsFromSheet(u.id))).then(() => { if (S.currentUser) render(); });
     } else if (S.currentUnitId) {
       refreshReportsFromSheet(S.currentUnitId).then(() => { if (S.currentUser) render(); });
     }
@@ -1139,12 +3187,26 @@ function doLogin(user) {
 }
 
 function doLogout() {
-  S.currentUser = null; S.currentUnitId = null; S.currentDepartmentId = null; S.currentOfficeId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.pendingUnitLoginId = null; S.currentUnitEntryMode = null; S.view = "login"; S.ui = {};
+  S.currentUser = null; S.currentPersonId = null; S.currentPersonName = ""; S.currentEntryRoleName = ""; S.currentUnitId = null; S.currentDepartmentId = null; S.currentOfficeId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.pendingUnitLoginId = null; S.pendingEntityLogin = null; S.currentUnitEntryMode = null; S.platformUserAllowedPages = null; S.platformUserAllowedActions = null; S.platformUserAllowedButtons = null; S.personNotifyTabs = null; S.currentPlatformUserTemplateId = ""; S.currentPlatformUserJobTitle = null; S.pendingPlatformUserMatches = null; S.view = "login"; S.ui = {};
   render();
 }
 
 /* =============================== Dashboard (admin) =========================== */
 /* =============================== Inline SVG charts (no libraries needed) ===== */
+// قائمة تقدّم بأشرطة أفقية: كل وحدة بسطر واحد (اسمها كاملًا + شريط + نسبة) — الشريط
+// الرمادي (المسار) يظهر حتى لو النسبة صفر، فلا تبدو القائمة فارغة، وتُرتَّب من
+// الأعلى إنجازًا للأقل.
+function progressListHtml(items) {
+  const rows = items.slice().sort((a, b) => b.value - a.value).map((it) => {
+    const v = Math.max(0, Math.min(100, Number(it.value) || 0));
+    return `<div style="display:flex;align-items:center;gap:12px;">
+      <div style="flex:0 0 38%;min-width:110px;font-size:12.5px;font-weight:700;color:${INK};line-height:1.4;">${esc(it.label)}</div>
+      <div style="flex:1;height:12px;border-radius:999px;background:${GRAY_BG};overflow:hidden;"><div style="width:${v}%;height:100%;border-radius:999px;background:linear-gradient(90deg,${mixHex(ROSE, "#ffffff", 0.35)},${ROSE});"></div></div>
+      <div style="flex:0 0 44px;text-align:left;font-size:12px;font-weight:800;color:${v ? ROSE : SUBTLE};">${v}٪</div>
+    </div>`;
+  }).join("");
+  return `<div style="display:flex;flex-direction:column;gap:12px;max-height:420px;overflow-y:auto;padding:2px 2px 2px 6px;">${rows}</div>`;
+}
 function svgBarChart(items, opts) {
   // items: [{label, value}], value in 0..100 (percent)
   opts = opts || {};
@@ -1228,8 +3290,116 @@ function statIconCardHtml(label, value, iconHtml, iconBg) {
   </div>`;
 }
 
+/* ---- إعدادات ما يظهر في لوحة المعلومات (حسب نوع الجهة) ---- */
+const DASH_KINDS = [
+  { id: "admin", label: "مديرة النظام" }, { id: "executive", label: "الإدارة العليا" },
+  { id: "office", label: "المكتب" }, { id: "dept", label: "القسم" }, { id: "unit", label: "الوحدة" },
+];
+// اللوحة العامة (مديرة النظام / المكتب / القسم / الوحدة)
+const DASH_STD_BLOCKS = [
+  { key: "banner", label: "البانر والبحث" }, { key: "stats", label: "بطاقات الأرقام الأربع" },
+  { key: "recent", label: "أحدث التقارير" }, { key: "totalPie", label: "رسم إجمالي التقارير" },
+  { key: "bars", label: "نسبة الإنجاز حسب الوحدة", not: ["unit"] },
+  { key: "indPie", label: "توزيع حالات المؤشرات" }, { key: "goalPie", label: "توزيع مستويات تحقق الأهداف" },
+  { key: "indicators", label: "جدول مؤشرات الأداء" }, { key: "goals", label: "جدول الأهداف التشغيلية" },
+];
+const DASH_STD_KINDS = ["admin", "office", "dept", "unit"];
+// لوحة الإشراف (الإدارة العليا، وصفحة لوحة المكتب القديمة)
+const DASH_EX_BLOCKS = [
+  { key: "exStats", label: "بطاقات الأرقام الأربع" }, { key: "exCompletion", label: "نسبة إنجاز التقارير إجمالًا" },
+  { key: "exDeptPerf", label: "ملخص أداء الأقسام" }, { key: "exStatus", label: "توزيع حالات التقارير" },
+  { key: "exUnitPerf", label: "نسبة الإنجاز حسب الوحدة" }, { key: "exPeriod", label: "مقارنة عدد التقارير حسب الفترة" },
+];
+const DASH_EX_KINDS = ["executive", "office"];
+function dashConfig() { return S.dashboardConfig || (S.dashboardConfig = dataStore.getDashboardConfig()); }
+function dashHidden(kind, key) { const c = dashConfig()[kind]; return !!(c && Array.isArray(c.hidden) && c.hidden.indexOf(key) !== -1); }
+function dashBlock(kind, key, html) { return dashHidden(kind, key) ? "" : html; }
+function dashRecentGrid(kind, recentHtml, totalHtml) {
+  const a = dashBlock(kind, "recent", recentHtml), b = dashBlock(kind, "totalPie", totalHtml);
+  if (!a && !b) return "";
+  return `<div style="display:grid;grid-template-columns:${a && b ? "2fr 1fr" : "1fr"};gap:14px;margin-bottom:18px;" class="dash-recent-grid">${a}${b}</div>`;
+}
+function dashExGrid(kind, deptHtml, statusHtml) {
+  const a = dashBlock(kind, "exDeptPerf", deptHtml), b = dashBlock(kind, "exStatus", statusHtml);
+  if (!a && !b) return "";
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">${a}${b}</div>`;
+}
+function dashPieGrid(kind, indHtml, goalHtml) {
+  const a = dashBlock(kind, "indPie", indHtml), b = dashBlock(kind, "goalPie", goalHtml);
+  if (!a && !b) return "";
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">${a}${b}</div>`;
+}
+
 function renderDashboard() {
-  const activeUnits = S.units.filter((u) => u.status === "active");
+  // "لوحة المعلومات" صارت صفحة واحدة ذكية — تبقى بنفس شكلها الكامل المعتاد
+  // (البانر + بطاقات الإحصاءات + الرسوم البيانية + جداول المؤشرات/الأهداف)
+  // دائمًا، لكن البيانات المعروضة تُقتصر تلقائيًا حسب نطاق الحساب (قسم/مكتب
+  // إشراف/وحدة)، بدل عرض كل وحدات النظام. دون أي تغيير على مديرة النظام
+  // (تشوف كل شيء كما كان تمامًا) ولا على "الإدارة العليا" (خارج نطاق هذا
+  // التبديل عمدًا). الأزرار الفعلية (كاتخاذ قرار مراجعة القسم) تظهر ضمن نفس
+  // الصفحة فقط لو الحساب عنده صلاحية الإجراء المطابق (platformActionAllowed)
+  // — مستقل تمامًا عن اسم الصفحة. هذا فقط لحساب نطاق "لوحة المعلومات"
+  // الموحّدة؛ الصفحات المخصّصة الأصلية (قسمي/مكتب الإشراف/لوحة معلومات
+  // الوحدة) تبقى موجودة تمامًا بدون أي حذف أو تغيير.
+  if (S.isExecutive) return renderExecutiveDashboard();
+  const adminDeptPreview = S.isAdmin && S.ui.previewDeptId && (S.departments || []).some((d) => d.id === S.ui.previewDeptId);
+  if ((S.isDepartmentUser && S.currentDepartmentId) || adminDeptPreview) {
+    const dept = S.departments.find((d) => d.id === (adminDeptPreview ? S.ui.previewDeptId : S.currentDepartmentId));
+    if (!dept) return `<div class="page-wrap"><div class="page-inner"><div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا يوجد قسم مرتبط بهذا الحساب.</div></div></div>`;
+    // "وحدة" تقرير القسم الذاتي (role: self_report) لا تُحتسب ضمن وحدات
+    // القسم التابعة هنا (ما تظهر ببطاقات الإحصاءات/الرسوم، ولا يُطلب من
+    // القسم مراجعة تقريرها الخاص) — تقريرها يظهر فقط عبر "جميع التقارير"
+    // لمن هو أعلى من القسم (مكتب الإشراف/الإدارة العليا/مديرة النظام).
+    const units = S.units.filter((u) => u.departmentId === dept.id && u.status === "active" && u.role !== "self_report");
+    const pendingReports = [];
+    units.forEach((u) => {
+      ensureUnitReportsLoaded(u.id).filter((r) => r.status === "under_review").forEach((r) => pendingReports.push({ unit: u, report: r }));
+    });
+    return renderDashboardBody(units, {
+      kind: "dept",
+      title: dept.name,
+      subtitle: `مرحبًا — نظرة شاملة على ${units.length} وحدة تابعة لهذا القسم`,
+      topBarRight: adminDeptPreview && S.adminPreviewOrigin
+        ? pillBtn("رجوع", { variant: "ghost", icon: iconChevronRight(15, INK), action: "nav-to", data: { view: S.adminPreviewOrigin } })
+        : pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }),
+      extraTop: reviewDecisionsSectionHtml(pendingReports),
+    });
+  }
+  if (S.isOfficeUser && S.currentOfficeId) {
+    const office = currentOffice();
+    if (!office) return renderOfficeDashboard();
+    // نفس استثناء "وحدة" تقرير القسم/المكتب الذاتي من بطاقات إحصاءات المكتب —
+    // تظهر فقط ضمن "جميع التقارير" لمن أعلى من المكتب.
+    const units = officeUnits(office.id).filter((u) => u.role !== "self_report");
+    return renderDashboardBody(units, {
+      kind: "office",
+      title: office.name,
+      subtitle: `نظرة شاملة على ${units.length} وحدة تابعة لهذا المكتب`,
+      topBarRight: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }),
+    });
+  }
+  if (!S.isAdmin && !S.isExecutive && !S.isDepartmentUser && !S.isOfficeUser && !S.currentUnitId) ensureUnitContextForNav("unit-dashboard");
+  if (!S.isAdmin && !S.isExecutive && !S.isDepartmentUser && !S.isOfficeUser && S.currentUnitId) {
+    // حساب بنطاق وحدة: نفس بالضبط "لوحة معلومات الوحدة" الحقيقية (renderUnitDashboard)
+    // — هي أصلًا مصمَّمة بنفس روح لوحة المعلومات (بانر + بطاقات إحصاءات + رسوم
+    // بيانية) لكن بمقاييس خاصة بوحدة واحدة (تقارير هذي الوحدة فقط)، فلا داعي
+    // لإعادة بنائها بشكل عام كالقسم/المكتب.
+    return renderUnitDashboard();
+  }
+  // الحالة الافتراضية (مديرة النظام، أو أي حساب بلا نطاق محدّد، أو الإدارة
+  // العليا إن وصلت هنا) — نفس السلوك الكامل غير المُقيَّد تمامًا كما كان،
+  // باستثناء "وحدات" التقارير الذاتية (self_report) حتى يبقى "عدد الوحدات"
+  // صحيحًا ولا تُحتسب هذي التقارير كوحدات فعلية.
+  return renderDashboardBody(S.units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive"), {});
+}
+
+// جسم "لوحة المعلومات" الكامل (البانر + بطاقات الإحصاءات + الرسوم البيانية +
+// جداول المؤشرات/الأهداف) — مُعمَّم ليأخذ أي قائمة وحدات، كي يُعاد استخدامه
+// بالضبط بنفس الشكل لكل نطاق (مديرة النظام: كل الوحدات، أو قسم/مكتب/وحدة
+// محدّدة)، بدل تكرار نفس الكود. opts: { title, subtitle, topBarRight, extraTop }.
+function renderDashboardBody(activeUnits, opts) {
+  opts = opts || {};
+  const dkind = opts.kind || "admin";
   let totalCompleted = 0, totalSections = 0;
   const allIndicators = [], allGoals = [];
   const allReportsFlat = [];
@@ -1249,7 +3419,7 @@ function renderDashboard() {
   const unitBarData = activeUnits.map((u) => ({ label: u.name, value: computeProgress(latestReportForUnit(u.id)).percent, color: ROSE }));
   const barsHtml = unitBarData.length === 0
     ? `<div style="font-size:12.5px;color:${SUBTLE}">لا توجد وحدات بعد.</div>`
-    : svgBarChart(unitBarData, { height: 200 });
+    : progressListHtml(unitBarData);
 
   // Reports-wide counts (for the weekly stat and the "إجمالي التقارير" donut)
   const nowTs = Date.now(), weekMs = 7 * 24 * 60 * 60 * 1000;
@@ -1311,31 +3481,33 @@ function renderDashboard() {
     </tr>`;
   }).join("");
 
+  const site = currentSiteSettings();
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "لوحة المعلومات", subtitle: `مرحبًا ${esc(S.currentUser.name)} — نظرة شاملة على كل الوحدات` })}
+    ${topBarHtml({ title: opts.title || "لوحة المعلومات", subtitle: opts.subtitle || `مرحبًا ${esc(S.currentUser.name)} — نظرة شاملة على كل الوحدات`, right: opts.topBarRight })}
+    ${opts.extraTop || ""}
 
-    <div class="hero-banner">
-      <img class="hero-banner-bg" src="hero-bg.jpg" alt="" />
+    ${dashBlock(dkind, "banner", `<div class="hero-banner">
+      <img class="hero-banner-bg" src="${esc(siteBannerSrc(site))}" alt="" />
       <div class="hero-banner-text">
         <div class="hero-banner-eyebrow">مرحبًا بك في</div>
-        <div class="prs-title hero-banner-title">منصة التقارير</div>
-        <div class="hero-banner-sub">نحو تقارير أكثر دقة وتنظيمًا</div>
+        <div class="prs-title hero-banner-title">${esc(site.bannerTitle || "منصة التقارير")}</div>
+        <div class="hero-banner-sub">${esc(site.bannerSub || "نحو تقارير أكثر دقة وتنظيمًا")}</div>
       </div>
       <div class="search-bar">
         ${iconSearch(16, SUBTLE)}
         <input id="dashboard-search" class="search-input" placeholder="ابحث عن تقرير، قسم أو موظف..." />
       </div>
-    </div>
+    </div>`)}
 
-    <div class="stat-grid">
+    ${dashBlock(dkind, "stats", `<div class="stat-grid">
       ${statIconCardHtml("تقارير هذا الأسبوع", reportsThisWeek, iconCalendarSmall(18, ROSE), GREEN_BG)}
       ${statIconCardHtml("تقرير مكتمل", completedReportsCount, iconCheckCircle(18, GREEN), GREEN_BG)}
       ${statIconCardHtml("تقرير قيد المراجعة", underReviewReportsCount, iconDocument(18, GOLD), GOLD_BG)}
       ${statIconCardHtml("عدد الوحدات", activeUnits.length, iconBuilding(ROSE, 18), BLUE_BG)}
-    </div>
+    </div>`)}
 
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px;" class="dash-recent-grid">
+    ${dashRecentGrid(dkind, `
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div class="prs-title" style="font-size:14px;font-weight:800;">أحدث التقارير</div>
@@ -1345,29 +3517,25 @@ function renderDashboard() {
           `<div class="table-wrap"><table class="prs-table" id="recent-reports-table"><thead><tr style="background:${GRAY_BG}">
             <th>الحالة</th><th>تاريخ الإعداد</th><th>القسم</th><th>اسم التقرير</th>
           </tr></thead><tbody>${recentRows}</tbody></table></div>`}
-      </div>
+      </div>`, `
       <div class="card">
         <div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">إجمالي التقارير</div>
         ${totalReportsPieHtml}
-      </div>
-    </div>
+      </div>`)}
 
-    <div class="card" style="margin-bottom:18px;">
+    ${dashBlock(dkind, "bars", `<div class="card" style="margin-bottom:18px;">
       <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">نسبة الإنجاز حسب الوحدة</div>
       ${barsHtml}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">
-      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات المؤشرات</div>${indicatorPieHtml}</div>
-      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع مستويات تحقق الأهداف</div>${goalPieHtml}</div>
-    </div>
-    <div class="card" style="margin-bottom:18px;">
+    </div>`)}
+    ${dashPieGrid(dkind, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات المؤشرات</div>${indicatorPieHtml}</div>`, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع مستويات تحقق الأهداف</div>${goalPieHtml}</div>`)}
+    ${dashBlock(dkind, "indicators", `<div class="card" style="margin-bottom:18px;">
       <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">مؤشرات الأداء — كل الوحدات</div>
       ${allIndicators.length === 0 ? `<div style="font-size:12.5px;color:${SUBTLE}">لا توجد مؤشرات مُدخلة بعد.</div>` : `
       <div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GOLD_BG}">
         <th style="color:#8a6a35">الوحدة</th><th style="color:#8a6a35">المؤشر</th><th style="text-align:center;color:#8a6a35">المستهدف</th><th style="text-align:center;color:#8a6a35">المتحقق</th><th style="text-align:center;color:#8a6a35">النسبة</th>
       </tr></thead><tbody>${indicatorsRows}</tbody></table></div>`}
-    </div>
-    <div class="card">
+    </div>`)}
+    ${dashBlock(dkind, "goals", `<div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div class="prs-title" style="font-size:14px;font-weight:800;">الأهداف التشغيلية — كل الوحدات</div>
         <span style="font-size:11px;color:${SUBTLE}">متوسط النسبة: ${avgGoalPct}٪</span>
@@ -1376,14 +3544,19 @@ function renderDashboard() {
       <div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GREEN_BG}">
         <th style="color:${ROSE}">الوحدة</th><th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
-    </div>
+    </div>`)}
+    ${opts.extraBottom || ""}
   </div></div>`;
 }
 
 /* =============================== Units overview (admin) ====================== */
 /* =============================== Unit dashboard (لوحة معلومات الوحدة) ========= */
+function unitNotFoundPageHtml() {
+  return `<div class="page-wrap"><div class="page-inner">${adminUnitSwitcherHtml()}<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">${(S.units || []).some((u) => u.role === "unit" || u.role === "center") ? "اختاري وحدة أو مركزًا من القائمة أعلاه." : "لا توجد وحدات أو مراكز بعد."}</div></div></div>`;
+}
 function renderUnitDashboard() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
+  if (!unit && S.isAdmin) return unitNotFoundPageHtml();
   const dept = S.departments.find((d) => d.id === unit?.departmentId);
   const reports = ensureUnitReportsLoaded(S.currentUnitId);
   const report = latestReportForUnit(S.currentUnitId);
@@ -1450,31 +3623,33 @@ function renderUnitDashboard() {
     </tr>`;
   }).join("");
 
+  const site = currentSiteSettings();
   return `
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "لوحة المعلومات", subtitle: `مرحبًا ${esc(S.currentUser.name)} — نظرة عامة على تقارير ${esc(unit.name)}` })}
+    ${scopedUnitSwitcherHtml()}
 
-    <div class="hero-banner">
-      <img class="hero-banner-bg" src="hero-bg.jpg" alt="" />
+    ${dashBlock("unit", "banner", `<div class="hero-banner">
+      <img class="hero-banner-bg" src="${esc(siteBannerSrc(site))}" alt="" />
       <div class="hero-banner-text">
         <div class="hero-banner-eyebrow">مرحبًا بك في</div>
-        <div class="prs-title hero-banner-title">منصة التقارير</div>
-        <div class="hero-banner-sub">نحو تقارير أكثر دقة وتنظيمًا</div>
+        <div class="prs-title hero-banner-title">${esc(site.bannerTitle || "منصة التقارير")}</div>
+        <div class="hero-banner-sub">${esc(site.bannerSub || "نحو تقارير أكثر دقة وتنظيمًا")}</div>
       </div>
       <div class="search-bar">
         ${iconSearch(16, SUBTLE)}
         <input id="dashboard-search" class="search-input" placeholder="ابحثي عن تقرير..." />
       </div>
-    </div>
+    </div>`)}
 
-    <div class="stat-grid">
+    ${dashBlock("unit", "stats", `<div class="stat-grid">
       ${statIconCardHtml("تقارير هذا الأسبوع", reportsThisWeek, iconCalendarSmall(18, ROSE), GREEN_BG)}
       ${statIconCardHtml("تقرير مكتمل", completedReportsCount, iconCheckCircle(18, GREEN), GREEN_BG)}
       ${statIconCardHtml("تقرير قيد المراجعة", underReviewReportsCount, iconDocument(18, GOLD), GOLD_BG)}
       ${statIconCardHtml("إجمالي التقارير", reports.length, iconBuilding(ROSE, 18), BLUE_BG)}
-    </div>
+    </div>`)}
 
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px;" class="dash-recent-grid">
+    ${dashRecentGrid("unit", `
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div class="prs-title" style="font-size:14px;font-weight:800;">أحدث التقارير</div>
@@ -1484,25 +3659,21 @@ function renderUnitDashboard() {
           `<div class="table-wrap"><table class="prs-table" id="recent-reports-table"><thead><tr style="background:${GRAY_BG}">
             <th>الحالة</th><th>تاريخ الإعداد</th><th>اسم التقرير</th>
           </tr></thead><tbody>${recentRows}</tbody></table></div>`}
-      </div>
+      </div>`, `
       <div class="card">
         <div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">إجمالي التقارير</div>
         ${totalReportsPieHtml}
-      </div>
-    </div>
+      </div>`)}
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">
-      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات المؤشرات</div>${indicatorPieHtml}</div>
-      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع مستويات تحقق الأهداف</div>${goalPieHtml}</div>
-    </div>
-    <div class="card" style="margin-bottom:18px;">
+    ${dashPieGrid("unit", `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات المؤشرات</div>${indicatorPieHtml}</div>`, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع مستويات تحقق الأهداف</div>${goalPieHtml}</div>`)}
+    ${dashBlock("unit", "indicators", `<div class="card" style="margin-bottom:18px;">
       <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">مؤشرات الأداء</div>
       ${allIndicators.length === 0 ? `<div style="font-size:12.5px;color:${SUBTLE}">لا توجد مؤشرات مُدخلة بعد.</div>` : `
       <div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GOLD_BG}">
         <th style="color:#8a6a35">المؤشر</th><th style="text-align:center;color:#8a6a35">المستهدف</th><th style="text-align:center;color:#8a6a35">المتحقق</th><th style="text-align:center;color:#8a6a35">النسبة</th>
       </tr></thead><tbody>${indicatorsRows}</tbody></table></div>`}
-    </div>
-    <div class="card">
+    </div>`)}
+    ${dashBlock("unit", "goals", `<div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div class="prs-title" style="font-size:14px;font-weight:800;">الأهداف التشغيلية</div>
         <span style="font-size:11px;color:${SUBTLE}">متوسط النسبة: ${avgGoalPct}٪</span>
@@ -1511,7 +3682,7 @@ function renderUnitDashboard() {
       <div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GREEN_BG}">
         <th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
-    </div>
+    </div>`)}
   </div></div>`;
 }
 
@@ -1520,6 +3691,7 @@ function renderUnitSettings() {
   return `
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "الإعدادات" })}
+    ${scopedUnitSwitcherHtml()}
     <div class="card" style="text-align:center;color:${SUBTLE};padding:48px 20px;">
       ${iconGauge(SUBTLE, 32)}
       <div style="font-size:14px;font-weight:700;margin-top:12px;color:${INK}">قريبًا</div>
@@ -1552,7 +3724,7 @@ function unitCardHtml(unit, department, report) {
 // الأقسام المرتبطة به (عبر officeId) — بنفس العلاقة الموجودة فعليًا، بدون أي
 // بيانات مكررة. الضغط على قسم يعرض الوحدات التابعة له فقط (اطلاع، بدون تقارير).
 function renderDepartmentsPage() {
-  const scopedDepartments = S.isOfficeUser ? S.departments.filter((d) => d.officeId === S.currentOfficeId) : S.departments;
+  const scopedDepartments = S.isOfficeUser ? S.departments.filter((d) => officeScopeIds(S.currentOfficeId).includes(d.officeId)) : S.departments;
   const selectedDept = S.ui.departmentsPageSelectedId ? scopedDepartments.find((d) => d.id === S.ui.departmentsPageSelectedId) : null;
 
   if (selectedDept) {
@@ -1587,183 +3759,496 @@ function renderDepartmentsPage() {
 
 // صفحة اختيار مبسّطة لمديرة النظام — تفتح نفس واجهة "قسمي" أو "تقاريري" الحقيقية
 // حسب النوع، بدون أي صفحة مكررة، وبصلاحية اطلاع فقط.
-function renderEntityPickerPage(kind) {
-  const config = {
-    departments: { title: "الأقسام", items: S.departments.filter((d) => d.status === "active"), action: "open-department-preview", sub: (d) => `${S.units.filter((u) => u.departmentId === d.id).length} وحدة/مركز` },
-    units: { title: "الوحدات", items: S.units.filter((u) => u.role !== "center" && u.role !== "admin" && u.role !== "executive" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
-    centers: { title: "المراكز", items: S.units.filter((u) => u.role === "center" && u.status === "active"), action: "open-unit-preview", sub: (u) => S.departments.find((d) => d.id === u.departmentId)?.name || "بدون قسم" },
-  }[kind];
+
+/* ===================== تصفّح الهيكل (browse-structure) =====================
+   صفحة اطلاع بشكل مجلدات: المكتب ← (مكاتب فرعية + أقسام) ← وحدات ← تقارير الوحدة.
+   تقرأ الهيكل الحي (S.offices/S.departments/S.units) كل مرة تُرسم فيها — بلا أي
+   نسخة خاصة، فأي تعديل بالهيكل يظهر فورًا. بدون أي كتابة على البيانات. */
+const BS_COLORS = [
+  { bg: "linear-gradient(135deg,#fcf0f3,#f5dbe2)", tab: "#f1d0d9" },
+  { bg: "linear-gradient(135deg,#faeaf0,#edcdd9)", tab: "#e6c1cf" },
+  { bg: "linear-gradient(135deg,#f7e8ef,#e2c3d3)", tab: "#d9b6c9" },
+  { bg: "linear-gradient(135deg,#fcf2e5,#f4dfc1)", tab: "#eed3ab" },
+  { bg: "linear-gradient(135deg,#f5edf0,#e4d0d9)", tab: "#dac3cf" },
+];
+const BS_PENDING = ["under_review", "custom_pending", "pending_head_review", "pending_extra_review"];
+function bsData() {
+  const allOffices = S.offices || [];
+  const noSelf = (u) => u.role !== "self_report" && u.role !== "admin" && u.role !== "executive" && u.status === "active";
+  let offices, depts, units, execs = [];
+  if (S.isAdmin || S.isExecutive || (!S.isDepartmentUser && !S.isOfficeUser && !S.currentUnitId)) {
+    offices = allOffices.filter((o) => o.status !== "disabled");
+    execs = S.units.filter((u) => u.role === "executive" && u.status === "active");
+    depts = S.departments.filter((d) => d.status === "active");
+    units = S.units.filter(noSelf);
+  } else if (S.isOfficeUser && S.currentOfficeId) {
+    const ids = officeScopeIds(S.currentOfficeId);
+    offices = allOffices.filter((o) => ids.includes(o.id));
+    depts = S.departments.filter((d) => d.status === "active" && ids.includes(d.officeId));
+    units = officeUnits(S.currentOfficeId).filter(noSelf);
+  } else {
+    const sc = scopedAccessUnitsAndDepts();
+    offices = []; depts = sc.depts; units = sc.units.filter(noSelf);
+  }
+  return { offices, depts, units, execs };
+}
+function bsOfficeScope(D, officeId) {
+  const ids = officeScopeIds(officeId);
+  const depts = D.depts.filter((d) => ids.includes(d.officeId));
+  const dIds = depts.map((d) => d.id);
+  const units = D.units.filter((u) => dIds.includes(u.departmentId) || ids.includes(u.officeId));
+  return { depts, units };
+}
+function bsNodeScope(D, node) {
+  if (!node) return { depts: D.depts, units: D.units };
+  if (node.k === "exec") {
+    const offs = D.offices.filter((o) => o.parentOfficeId === node.id);
+    const depts = [], units = [];
+    offs.forEach((o) => { const sc = bsOfficeScope(D, o.id); sc.depts.forEach((d) => { if (!depts.includes(d)) depts.push(d); }); sc.units.forEach((u) => { if (!units.includes(u)) units.push(u); }); });
+    return { depts, units };
+  }
+  if (node.k === "office") return bsOfficeScope(D, node.id);
+  if (node.k === "alldepts") return node.id ? bsOfficeScope(D, node.id) : { depts: D.depts, units: D.units };
+  if (node.k === "dept") return { depts: D.depts.filter((d) => d.id === node.id), units: D.units.filter((u) => u.departmentId === node.id) };
+  if (node.k === "unit") return { depts: [], units: D.units.filter((u) => u.id === node.id) };
+  return { depts: D.depts, units: D.units };
+}
+function bsCounts(sc) {
+  let reports = 0, pending = 0;
+  sc.units.forEach((u) => { const rs = ensureUnitReportsLoaded(u.id); reports += rs.length; pending += rs.filter((r) => BS_PENDING.includes(r.status)).length; });
+  return { depts: sc.depts.length, units: sc.units.length, reports, pending };
+}
+function bsPalette() {
+  const th = themeOf(S.siteSettings || dataStore.getSiteSettings());
+  return BS_COLORS.map((d, i) => th.bs[i] === DEFAULT_THEME.bs[i] ? d : { tab: th.bs[i], bg: `linear-gradient(135deg,${mixHex(th.bs[i], "#ffffff", 0.6)},${mixHex(th.bs[i], "#ffffff", 0.15)})` });
+}
+function bsFolderHtml(o) {
+  const PAL = bsPalette();
+  const c = PAL[(o.i || 0) % PAL.length];
+  const data = Object.entries(o.data || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
+  const chips = (o.chips || []).map((t) => `<span style="font-size:10.5px;font-weight:700;color:${INK};background:rgba(255,255,255,0.7);padding:3px 9px;border-radius:999px;">${esc(t)}</span>`).join("");
+  return `<button type="button" class="bs-folder" data-search="${esc(o.title)}" data-action="${o.action}" ${data} style="position:relative;display:block;text-align:right;border:none;background:none;padding:16px 0 0;cursor:pointer;font-family:inherit;width:100%;">
+    ${o.dashed ? "" : `<span style="position:absolute;top:2px;right:20px;width:86px;height:20px;border-radius:12px 12px 0 0;background:${c.tab};"></span>`}
+    <span style="display:flex;flex-direction:column;gap:6px;min-height:118px;border-radius:20px;padding:16px 16px 14px;${o.dashed ? `border:2px dashed ${BORDER};background:transparent;` : `background:${c.bg};box-shadow:0 8px 20px rgba(80,40,60,0.07);`}">
+      <span style="font-size:15px;font-weight:800;color:${INK};line-height:1.4;">${esc(o.title)}</span>
+      ${o.sub ? `<span style="font-size:11px;color:${SUBTLE};">${esc(o.sub)}</span>` : ""}
+      <span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;">${chips}</span>
+    </span>
+  </button>`;
+}
+function bsStatTile(label, value, i) {
+  const PAL = bsPalette();
+  const c = PAL[i % PAL.length];
+  return `<div style="background:${c.bg};border-radius:16px;padding:12px 16px;min-width:110px;flex:1;"><div style="font-size:22px;font-weight:900;color:${INK};">${value}</div><div style="font-size:11px;color:${SUBTLE};font-weight:700;">${esc(label)}</div></div>`;
+}
+function renderBrowseStructure() {
+  const D = bsData();
+  const officeIds = new Set(D.offices.map((o) => o.id)), execIds = new Set(D.execs.map((e) => e.id));
+  // تنقية المسار من أي عنصر انحذف من الهيكل
+  const exists = (n) => n.k === "exec" ? execIds.has(n.id) : n.k === "office" ? officeIds.has(n.id) : n.k === "dept" ? D.depts.some((d) => d.id === n.id) : n.k === "unit" ? D.units.some((u) => u.id === n.id) : n.k === "alldepts" ? (!n.id || officeIds.has(n.id)) : false;
+  let path = (S.ui.bsPath || []).slice(); const valid = [];
+  for (const n of path) { if (!exists(n)) break; valid.push(n); }
+  S.ui.bsPath = path = valid;
+  const node = path.length ? path[path.length - 1] : null;
+  const nameOf = (n) => n.k === "exec" ? (D.execs.find((e) => e.id === n.id) || {}).name : n.k === "office" ? (D.offices.find((o) => o.id === n.id) || {}).name : n.k === "dept" ? (D.depts.find((d) => d.id === n.id) || {}).name : n.k === "unit" ? (D.units.find((u) => u.id === n.id) || {}).name : (n.id ? "كل أقسام " + ((D.offices.find((o) => o.id === n.id) || {}).name || "") : "كل الأقسام");
+
+  const crumbs = [`<button type="button" class="pill-btn ${path.length ? "pill-ghost" : "pill-primary"}" data-action="bs-up" data-index="-1">${iconLayers(13, path.length ? ROSE : "#fff")} الهيكل</button>`]
+    .concat(path.map((n, i) => `<span style="color:${SUBTLE};">‹</span><button type="button" class="pill-btn ${i === path.length - 1 ? "pill-primary" : "pill-ghost"}" data-action="bs-up" data-index="${i}">${esc(nameOf(n))}</button>`)).join("");
+
+  const deptFolder = (d, i) => { const sc = bsNodeScope(D, { k: "dept", id: d.id }); const c = bsCounts(sc); return bsFolderHtml({ i, title: d.name, sub: (D.offices.find((o) => o.id === d.officeId) || {}).name || "", chips: [c.units + " وحدة/مركز", c.reports + " تقرير"], action: "bs-open", data: { kind: "dept", id: d.id } }); };
+  const unitFolder = (u, i) => { const rs = ensureUnitReportsLoaded(u.id); const pend = rs.filter((r) => BS_PENDING.includes(r.status)).length; return bsFolderHtml({ i, title: u.name, sub: u.role === "center" ? "مركز" : "وحدة", chips: [rs.length + " تقرير"].concat(pend ? [pend + " بانتظار المراجعة"] : []), action: "bs-open", data: { kind: "unit", id: u.id } }); };
+  const officeFolder = (o, i) => { const sc = bsOfficeScope(D, o.id); const c = bsCounts(sc); const subs = D.offices.filter((x) => x.parentOfficeId === o.id).length; return bsFolderHtml({ i, title: o.name, sub: subs ? subs + " مكتب فرعي" : "مكتب إشراف", chips: [c.depts + " قسم", c.units + " وحدة", c.reports + " تقرير"], action: "bs-open", data: { kind: "office", id: o.id } }); };
+  const allDeptsCard = (officeId, n) => bsFolderHtml({ i: 5, dashed: true, title: officeId ? "كل الأقسام" : "كل الأقسام", sub: "عرض كل الأقسام التابعة دفعة واحدة", chips: [n + " قسم"], action: "bs-open", data: { kind: "alldepts", id: officeId || "" } });
+
+  let body = "", title = "تصفّح الهيكل", subtitle = "اختاري جهة للنزول لما تحتها";
+  const sc = bsNodeScope(D, node); const cnt = bsCounts(sc);
+  let folders = [];
+  if (!node) {
+    const rootOffices = D.offices.filter((o) => !o.parentOfficeId || (!officeIds.has(o.parentOfficeId) && !execIds.has(o.parentOfficeId)));
+    D.execs.forEach((e) => { const s2 = bsNodeScope(D, { k: "exec", id: e.id }); const c2 = bsCounts(s2); folders.push((i) => bsFolderHtml({ i, title: e.name, sub: "إدارة عليا", chips: [c2.units + " وحدة", c2.reports + " تقرير"], action: "bs-open", data: { kind: "exec", id: e.id } })); });
+    rootOffices.forEach((o) => folders.push((i) => officeFolder(o, i)));
+    if (!D.offices.length) D.depts.forEach((d) => folders.push((i) => deptFolder(d, i)));
+    else if (D.depts.length) folders.push(() => allDeptsCard("", D.depts.length));
+    if (!D.offices.length) D.units.filter((u) => !D.depts.some((d) => d.id === u.departmentId)).forEach((u) => folders.push((i) => unitFolder(u, i)));
+  } else if (node.k === "exec") {
+    title = nameOf(node); subtitle = "المكاتب التابعة للإدارة العليا";
+    D.offices.filter((o) => o.parentOfficeId === node.id).forEach((o) => folders.push((i) => officeFolder(o, i)));
+  } else if (node.k === "office") {
+    title = nameOf(node); subtitle = "المكاتب الفرعية والأقسام";
+    D.offices.filter((o) => o.parentOfficeId === node.id).forEach((o) => folders.push((i) => officeFolder(o, i)));
+    D.depts.filter((d) => d.officeId === node.id).forEach((d) => folders.push((i) => deptFolder(d, i)));
+    if (sc.depts.length) folders.push(() => allDeptsCard(node.id, sc.depts.length));
+  } else if (node.k === "alldepts") {
+    title = nameOf(node); subtitle = "كل الأقسام بما فيها التابعة للمكاتب الفرعية";
+    sc.depts.forEach((d) => folders.push((i) => deptFolder(d, i)));
+    if (!node.id) D.units.filter((u) => !D.depts.some((d) => d.id === u.departmentId)).forEach((u) => folders.push((i) => unitFolder(u, i)));
+  } else if (node.k === "dept") {
+    title = nameOf(node); subtitle = "الوحدات والمراكز التابعة للقسم";
+    sc.units.forEach((u) => folders.push((i) => unitFolder(u, i)));
+  }
+  if (node && node.k === "unit") {
+    const unit = D.units.find((u) => u.id === node.id);
+    title = unit.name; subtitle = unit.role === "center" ? "مركز — قائمة التقارير" : "وحدة — قائمة التقارير";
+    const rows = ensureUnitReportsLoaded(unit.id).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map((r) => {
+      const meta = reportStatusMeta(r.status);
+      const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+      return [esc(r.label || "تقرير"), badgeHtml(meta.label, meta.color, meta.bg), esc(dateStr),
+        `<button class="pill-btn pill-ghost" style="padding:5px 10px;" data-action="view-report-pdf" data-unit-id="${esc(unit.id)}" data-report-id="${esc(r.id)}">${iconDocument(13, ROSE)} عرض PDF</button>`];
+    });
+    body = `${S.isAdmin ? `<div style="margin-bottom:12px;">${pillBtn("فتح واجهة الوحدة", { variant: "ghost", icon: iconBuilding(ROSE, 14), action: "bs-open-unit-ui", data: { id: unit.id } })}</div>` : ""}
+      ${rows.length ? reportTable(["التقرير", "الحالة", "تاريخ الإنشاء", ""], rows) : `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير لهذي الوحدة بعد.</div>`}`;
+  } else {
+    body = folders.length === 0
+      ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;border-style:dashed;">لا يوجد شيء هنا بعد.</div>`
+      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;" id="bs-grid">${folders.map((f, i) => f(i)).join("")}</div>`;
+  }
+  const uiBtns = (S.isAdmin && node && node.k === "dept") ? pillBtn("فتح واجهة القسم", { variant: "ghost", icon: iconBuilding(ROSE, 14), action: "bs-open-dept-ui", data: { id: node.id } })
+    : (S.isAdmin && node && node.k === "office") ? pillBtn("ملخص المكتب", { variant: "ghost", icon: iconDocument(14, ROSE), action: "bs-open-office-ui", data: { id: node.id, view: "office-summary" } }) + pillBtn("أرشيف المكتب", { variant: "ghost", icon: iconLayers(14, ROSE), action: "bs-open-office-ui", data: { id: node.id, view: "office-archive" } })
+    : "";
+  const tiles = (node && node.k === "unit") ? "" : `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">${bsStatTile("الأقسام", cnt.depts, 0)}${bsStatTile("الوحدات والمراكز", cnt.units, 1)}${bsStatTile("التقارير", cnt.reports, 2)}${bsStatTile("بانتظار المراجعة", cnt.pending, 3)}</div>`;
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: config.title, subtitle: `${config.items.length} — اضغطي لعرض واجهتها الحقيقية للاطلاع` })}
-    ${config.items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد عناصر بعد.</div>` :
-      `<div style="display:flex;flex-direction:column;gap:8px;">${config.items.map((it) => `
-        <button class="card" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:1px solid ${BORDER};cursor:pointer;text-align:right;" data-action="${config.action}" data-id="${esc(it.id)}">
-          <span style="font-size:13.5px;font-weight:700;">${esc(it.name)}</span>
-          <span style="font-size:11px;color:${SUBTLE};display:flex;align-items:center;gap:6px;">${esc(config.sub(it))} ${iconChevronLeft(14, SUBTLE)}</span>
-        </button>`).join("")}</div>`}
+    ${topBarHtml({ title, subtitle, icon: iconLayers(18, ROSE), backAction: path.length ? "bs-up" : "", backData: path.length ? { index: path.length - 2 } : undefined })}
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;">${crumbs}</div>
+    ${uiBtns ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${uiBtns}</div>` : ""}
+    ${tiles}
+    ${(!node || node.k !== "unit") && folders.length > 6 ? `<div style="margin-bottom:14px;"><input class="input" id="bs-search" placeholder="ابحثي بالاسم..." style="width:100%;max-width:320px;" /></div>` : ""}
+    ${body}
   </div></div>`;
 }
 
-/* =============================== Office dashboard (مكتب الإشراف) ============= */
-// اطلاع فقط: مكتب الإشراف يشوف الأقسام التابعة له (عبر officeId)، وعند اختيار
-// قسم يشوف وحداته. بدون أي دخول لتقارير الوحدات أو صلاحياتها في هذي الخطوة.
-function renderOfficeDashboard() {
-  const office = (S.offices || []).find((o) => o.id === S.currentOfficeId);
-  const officeName = office ? office.name : (S.currentUser && S.currentUser.name) || "مكتب الإشراف";
-  const linkedDepartments = S.departments.filter((d) => d.officeId === S.currentOfficeId);
-  const selectedDept = S.ui.officeSelectedDeptId ? linkedDepartments.find((d) => d.id === S.ui.officeSelectedDeptId) : null;
-
-  if (selectedDept) {
-    const units = S.units.filter((u) => u.departmentId === selectedDept.id);
-    return `
-    <div class="page-wrap"><div class="page-inner">
-      ${topBarHtml({ title: selectedDept.name, subtitle: `تابع لـ ${officeName}`, backAction: "office-back-to-departments",
-        right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
-      ${units.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد وحدات في هذا القسم بعد.</div>` :
-        `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${units.map((u) => `
-          <div class="card">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBuilding(ROSE, 16)}</div>
-              <div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:9.5px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:1px 6px;border-radius:999px;">مركز</span>` : ""}</div>
-            </div>
-          </div>`).join("")}</div>`}
-    </div></div>`;
+/* =============================== مخطط الهيكل التنظيمي (تخطيط حر، admin) ======
+   شجرة مسميات وظيفية حرة تبنيها مديرة النظام بنفسها: عنصر جذر، وتحت كل عنصر
+   "إضافة تفرع" بلا حد للعمق. لا علاقة لها بحسابات تسجيل الدخول (الوحدة/القسم/
+   المكتب) ولا بمسار اعتماد التقارير — أداة تخطيط وتصوّر بصري فقط، منفصلة تمامًا
+   عن الصفحات الأربع (مكاتب الإشراف/الأقسام/الوحدات/المراكز) اللي تبقى كما هي. */
+function currentOrgChart() { return S.orgChart || (S.orgChart = dataStore.getOrgChart()); }
+function orgChartFindParentArray(nodes, id, parentArr) {
+  parentArr = parentArr || nodes;
+  for (const n of nodes) {
+    if (n.id === id) return parentArr;
+    const found = orgChartFindParentArray(n.children || [], id, n.children || []);
+    if (found) return found;
   }
-
-  return `
-  <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: officeName, subtitle: "الأقسام التابعة للمكتب",
-      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
-    ${linkedDepartments.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد أقسام مرتبطة بهذا المكتب بعد.</div>` :
-      `<div style="display:flex;flex-direction:column;gap:8px;">${linkedDepartments.map((d) => `
-        <button class="card" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:1px solid ${BORDER};cursor:pointer;text-align:right;" data-action="open-office-department" data-id="${esc(d.id)}">
-          <span style="font-size:13.5px;font-weight:700;">${esc(d.name)}</span>
-          <span style="font-size:11px;color:${SUBTLE};display:flex;align-items:center;gap:6px;">${S.units.filter((u) => u.departmentId === d.id).length} وحدة/مركز ${iconChevronLeft(14, SUBTLE)}</span>
-        </button>`).join("")}</div>`}
-  </div></div>`;
+  return null;
 }
-
-/* ===================== Offices management page (admin, standalone) =========== */
-// صفحة مستقلة بالشريط الجانبي لمديرة النظام: قائمة كل مكاتب الإشراف، وعند فتح
-// مكتب تظهر الأقسام التابعة له، وعند فتح قسم تظهر الوحدات التابعة له — بنفس
-// العلاقة الموجودة فعليًا (office.id <- department.officeId <- department.id <-
-// unit.departmentId)، بدون أي بيانات أو علاقات جديدة.
-function renderOfficesManagePage() {
-  const selectedOffice = S.ui.officesManageOfficeId ? (S.offices || []).find((o) => o.id === S.ui.officesManageOfficeId) : null;
-
-  if (selectedOffice) {
-    const linkedDepartments = S.departments.filter((d) => d.officeId === selectedOffice.id);
-    const selectedDept = S.ui.officesManageDeptId ? linkedDepartments.find((d) => d.id === S.ui.officesManageDeptId) : null;
-
-    if (selectedDept) {
-      const units = S.units.filter((u) => u.departmentId === selectedDept.id);
-      return `
-      <div class="page-wrap"><div class="page-inner">
-        ${topBarHtml({ title: selectedDept.name, subtitle: `تابع لـ ${esc(selectedOffice.name)}`, backAction: "offices-manage-back-to-departments" })}
-        ${units.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد وحدات في هذا القسم بعد.</div>` :
-          `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${units.map((u) => `
-            <div class="card">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBuilding(ROSE, 16)}</div>
-                <div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:9.5px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:1px 6px;border-radius:999px;">مركز</span>` : ""}</div>
-              </div>
-            </div>`).join("")}</div>`}
-      </div></div>`;
-    }
-
-    return `
-    <div class="page-wrap"><div class="page-inner">
-      ${topBarHtml({ title: selectedOffice.name, subtitle: "الأقسام التابعة للمكتب", backAction: "offices-manage-back-to-list" })}
-      ${linkedDepartments.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد أقسام مرتبطة بهذا المكتب بعد.</div>` :
-        `<div style="display:flex;flex-direction:column;gap:8px;">${linkedDepartments.map((d) => `
-          <button class="card" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:1px solid ${BORDER};cursor:pointer;text-align:right;" data-action="offices-manage-open-department" data-id="${esc(d.id)}">
-            <span style="font-size:13.5px;font-weight:700;">${esc(d.name)}</span>
-            <span style="font-size:11px;color:${SUBTLE};display:flex;align-items:center;gap:6px;">${S.units.filter((u) => u.departmentId === d.id).length} وحدة/مركز ${iconChevronLeft(14, SUBTLE)}</span>
-          </button>`).join("")}</div>`}
-    </div></div>`;
+function orgChartFindNode(nodes, id) {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    const found = orgChartFindNode(n.children || [], id);
+    if (found) return found;
   }
-
-  return `
-  <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "مكاتب الإشراف", subtitle: "كل مكاتب الإشراف بالنظام — اضغطي على أي مكتب لعرض الأقسام والوحدات التابعة له" })}
-    ${(S.offices || []).length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد مكاتب إشراف بعد.</div>` :
-      `<div style="display:flex;flex-direction:column;gap:8px;">${(S.offices || []).map((o) => officeManageRowHtml(o)).join("")}</div>`}
-  </div></div>`;
+  return null;
 }
+function orgChartCountDescendants(node) {
+  let count = 0;
+  (node.children || []).forEach((c) => { count += 1 + orgChartCountDescendants(c); });
+  return count;
+}
+function orgChartNodeHtml(node, depth) {
+  const collapsed = !!(S.ui.orgChartCollapsed || {})[node.id];
+  const editing = S.ui.orgChartEditingId === node.id;
+  const confirming = S.ui.orgChartConfirmDeleteId === node.id;
+  const addingChild = S.ui.orgChartAddingParentId === node.id;
+  const hasChildren = (node.children || []).length > 0;
+  const descCount = orgChartCountDescendants(node);
 
-function officeManageRowHtml(o) {
-  const isActive = o.status === "active";
-  const editing = S.ui.editingOfficeId === o.id;
-  const editingPassword = S.ui.editingOfficePasswordId === o.id;
-  const confirming = S.ui.confirmRemoveOfficeId === o.id;
-  const linkedDeptsCount = S.departments.filter((d) => d.officeId === o.id).length;
-  if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(o.name)}" نهائيًا؟ الأقسام التابعة له تصبح بدون مكتب إشراف.</span>
-      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-office", data: { id: o.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-office" })}</div>
-    </div>`;
-  }
-  if (editingPassword) {
-    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
-      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(o.name)} —</span>
-      <input class="input" id="edit-office-password" style="flex:1;" placeholder="كلمة المرور الجديدة" value="${esc(S.ui.editOfficePasswordValue || "")}" />
-      <button data-action="save-office-password" data-id="${esc(o.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-office-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
-  }
+  let rowInner;
   if (editing) {
-    return `<div class="card" style="display:flex;gap:6px;">
-      <input class="input" id="edit-office-name" style="flex:1;" value="${esc(S.ui.editOfficeValue || "")}" />
-      <button data-action="save-office-edit" data-id="${esc(o.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;color:${GREEN}">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-office-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
+    rowInner = `
+      <input class="input" id="org-chart-edit-${esc(node.id)}" style="flex:1;" value="${esc(S.ui.orgChartEditValue || node.title)}" />
+      <button data-action="org-chart-save-edit" data-id="${esc(node.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
+      <button data-action="org-chart-cancel-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>`;
+  } else if (confirming) {
+    rowInner = `
+      <span style="font-size:12px;font-weight:700;flex:1;">حذف "${esc(node.title)}"${descCount ? ` وكل ما تحتها (${descCount})؟` : "؟"}</span>
+      ${pillBtn("حذف", { variant: "danger", action: "org-chart-delete", data: { id: node.id } })}
+      ${pillBtn("تراجع", { variant: "ghost", action: "org-chart-cancel-delete" })}`;
+  } else {
+    rowInner = `
+      <button class="icon-btn" style="width:26px;height:26px;flex-shrink:0;${hasChildren ? "" : "visibility:hidden;"}" data-action="org-chart-toggle-collapse" data-id="${esc(node.id)}" title="${collapsed ? "توسيع" : "طيّ"}">
+        <span style="display:inline-flex;transition:transform 0.15s;transform:rotate(${collapsed ? "-90" : "0"}deg);">${iconChevronDown(12, SUBTLE)}</span>
+      </button>
+      <span style="font-size:13px;font-weight:700;flex:1;">${esc(node.title)}</span>
+      <div style="display:flex;gap:6px;">
+        <button class="icon-btn" style="width:28px;height:28px;border:1px solid ${BORDER}" data-action="org-chart-start-add-child" data-id="${esc(node.id)}" title="إضافة تفرع">${iconPlus(13, INK)}</button>
+        <button class="icon-btn" style="width:28px;height:28px;border:1px solid ${BORDER}" data-action="org-chart-start-edit" data-id="${esc(node.id)}" title="تعديل">${iconPencil(13, INK)}</button>
+        <button class="icon-btn" style="width:28px;height:28px;background:${DANGER_BG}" data-action="org-chart-confirm-delete" data-id="${esc(node.id)}" title="حذف">${iconTrash(13, DANGER)}</button>
+      </div>`;
   }
-  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconLayers(16, ROSE)}</div>
-      <div>
-        <div style="font-size:13.5px;font-weight:700;">${esc(o.name)}${!isActive ? ` <span style="font-size:10.5px;color:${SUBTLE};font-weight:600;">(معطّل)</span>` : ""}</div>
-        <div style="font-size:10.5px;color:${SUBTLE};display:flex;gap:10px;flex-wrap:wrap;margin-top:2px;">
-          <span style="${o.password ? `color:${GREEN};` : ""}">كلمة السر: ${o.password ? "مضبوطة" : "غير محددة"}</span>
-          <span>${linkedDeptsCount} قسم تابع</span>
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;gap:6px;">
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-password" data-id="${esc(o.id)}" title="كلمة مرور المكتب">${iconKey(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-edit" data-id="${esc(o.id)}" data-name="${esc(o.name)}" title="تعديل الاسم">${iconPencil(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;background:${DANGER_BG}" data-action="offices-manage-open-office" data-id="${esc(o.id)}" title="عرض الأقسام التابعة">${iconChevronLeft(14, ROSE)}</button>
-    </div>
+
+  const addChildFormHtml = addingChild ? `
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <input class="input" id="org-chart-new-child-${esc(node.id)}" style="flex:1;" placeholder="المسمى الوظيفي الجديد" />
+      ${pillBtn("إضافة", { icon: iconPlus(14, "#fff"), action: "org-chart-save-add-child", data: { id: node.id } })}
+      ${pillBtn("إلغاء", { variant: "ghost", action: "org-chart-cancel-add-child" })}
+    </div>` : "";
+
+  const childrenHtml = (!collapsed && hasChildren) ? `
+    <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+      ${node.children.map((c) => orgChartNodeHtml(c, depth + 1)).join("")}
+    </div>` : "";
+
+  return `
+  <div style="margin-right:${depth > 0 ? 22 : 0}px;${depth > 0 ? `border-right:2px solid ${BORDER};padding-right:14px;` : ""}">
+    <div class="card" style="display:flex;align-items:center;gap:8px;">${rowInner}</div>
+    ${addChildFormHtml}
+    ${childrenHtml}
   </div>`;
+}
+function renderOrgChartPage() {
+  const nodes = currentOrgChart();
+  const addingRoot = !!S.ui.orgChartAddingRoot;
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "المستخدمون", subtitle: USERS_HUB_SUBTITLE, icon: iconUser(18, ROSE), backAction: "nav-back-admin" })}
+    ${accountsHubTabBarHtml("org-chart")}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;">${iconTarget(18, ROSE)} المخطط الحر <span style="font-size:11px;color:${SUBTLE};font-weight:600;">مسميات وظيفية للتخطيط فقط، بدون حسابات دخول</span></div>
+      ${pillBtn("إضافة", { icon: iconPlus(15, "#fff"), action: "org-chart-start-add-root" })}
+    </div>
+    ${addingRoot ? `
+      <div class="card" style="display:flex;gap:6px;margin-bottom:14px;">
+        <input class="input" id="org-chart-new-root" style="flex:1;" placeholder="المسمى الوظيفي الجديد (عنصر رئيسي)" />
+        ${pillBtn("إضافة", { icon: iconPlus(14, "#fff"), action: "org-chart-save-add-root" })}
+        ${pillBtn("إلغاء", { variant: "ghost", action: "org-chart-cancel-add-root" })}
+      </div>` : ""}
+    ${nodes.length === 0 && !addingRoot ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا يوجد شيء بالمخطط بعد — اضغطي "إضافة" لبدء أول عنصر.</div>` :
+      `<div style="display:flex;flex-direction:column;gap:10px;">${nodes.map((n) => orgChartNodeHtml(n, 0)).join("")}</div>`}
+  </div></div>`;
 }
 
 /* =============================== Site settings (admin) ======================= */
+function dashSettingsCardHtml() {
+  const group = (title, blocks, kindIds) => {
+    const kinds = DASH_KINDS.filter((k) => kindIds.indexOf(k.id) !== -1);
+    const cell = (k, b) => {
+      if (b.not && b.not.indexOf(k.id) !== -1) return `<td style="text-align:center;color:${SUBTLE};">—</td>`;
+      const shown = !dashHidden(k.id, b.key);
+      return `<td style="text-align:center;"><button type="button" data-action="dash-toggle" data-kind="${esc(k.id)}" data-key="${esc(b.key)}" title="${shown ? "ظاهر — اضغطي للإخفاء" : "مخفي — اضغطي للإظهار"}" style="width:34px;height:30px;border-radius:9px;cursor:pointer;font-size:15px;font-weight:800;border:1px solid ${shown ? GREEN : BORDER};background:${shown ? GREEN_BG : "#fff"};color:${shown ? GREEN : DANGER};">${shown ? "✓" : "✗"}</button></td>`;
+    };
+    return `<div style="margin-bottom:18px;">
+      <div style="font-size:13px;font-weight:800;margin-bottom:8px;">${esc(title)}</div>
+      <div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GRAY_BG}"><th>العنصر</th>${kinds.map((k) => `<th style="text-align:center;">${esc(k.label)}</th>`).join("")}</tr></thead>
+      <tbody>${blocks.map((b) => `<tr><td style="font-weight:600;">${esc(b.label)}</td>${kinds.map((k) => cell(k, b)).join("")}</tr>`).join("")}</tbody></table></div>
+    </div>`;
+  };
+  const anyHidden = DASH_KINDS.some((k) => (dashConfig()[k.id] && (dashConfig()[k.id].hidden || []).length));
+  return `<div class="card" style="max-width:760px;margin-bottom:16px;">
+    <div class="subhead" style="margin-top:0;">ما يظهر في لوحة المعلومات</div>
+    <div class="hint" style="margin-bottom:14px;">✓ يظهر · ✗ مخفي. الاختيار لنوع الجهة كله (كل الأقسام ترى الشكل نفسه). يُحفظ فورًا. الأصل أن كل شيء ظاهر.</div>
+    ${group("اللوحة العامة", DASH_STD_BLOCKS, DASH_STD_KINDS)}
+    ${group("لوحة الإشراف (الإدارة العليا، وصفحة لوحة المكتب القديمة)", DASH_EX_BLOCKS, DASH_EX_KINDS)}
+    <div>${pillBtn("إظهار كل العناصر للجميع", { variant: "ghost", icon: iconX(14, INK), action: "dash-reset", disabled: !anyHidden })}</div>
+  </div>`;
+}
 function renderSiteSettings() {
   const current = S.siteSettings || dataStore.getSiteSettings();
-  const isDefault = current.primary === DEFAULT_SITE_COLORS.primary && current.background === DEFAULT_SITE_COLORS.background;
+  const theme = themeOf(current);
+  const isColorDefault = current.primary === DEFAULT_SITE_COLORS.primary && current.background === DEFAULT_SITE_COLORS.background;
+  const isBrandingDefault = !current.logo && (Number(current.logoSize) || DEFAULT_BRANDING.logoSize) === DEFAULT_BRANDING.logoSize && !current.bannerImage &&
+    (current.bannerTitle || DEFAULT_BRANDING.bannerTitle) === DEFAULT_BRANDING.bannerTitle && (current.bannerSub || DEFAULT_BRANDING.bannerSub) === DEFAULT_BRANDING.bannerSub &&
+    (current.platformName || DEFAULT_BRANDING.platformName) === DEFAULT_BRANDING.platformName && (current.sidebarTagline || "") === DEFAULT_BRANDING.sidebarTagline && !current.sidebarTaglineImage &&
+    (current.fontFamily || DEFAULT_BRANDING.fontFamily) === DEFAULT_BRANDING.fontFamily;
+  const fieldLabel = (t) => `<div style="font-size:13px;font-weight:800;margin-bottom:8px;">${esc(t)}</div>`;
+  const textInput = (id, val, placeholder) => `<input type="text" id="${id}" class="input" value="${esc(val || "")}" placeholder="${esc(placeholder || "")}" style="width:100%;" />`;
+  const imgPreviewBlock = (src, alt, previewStyle, fileInputId, removeAction, showRemove) => `
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      ${src
+        ? `<img id="${fileInputId === "site-logo-file" ? "site-logo-preview" : ""}" src="${esc(src)}" alt="${esc(alt)}" style="${previewStyle}background:#fff;border:1px solid ${BORDER};border-radius:8px;object-fit:contain;" />`
+        : `<div style="${previewStyle}background:${GRAY_BG};border:1px dashed ${BORDER};border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:${SUBTLE};text-align:center;">بدون صورة</div>`}
+      <label class="pill-btn pill-ghost" style="margin:0;">
+        ${iconCheckCircle(14, INK)} اختيار صورة
+        <input type="file" accept="image/*" id="${fileInputId}" style="display:none;" />
+      </label>
+      ${showRemove ? pillBtn("إزالة", { variant: "ghost", icon: iconX(14, INK), action: removeAction }) : ""}
+    </div>`;
+
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "إعدادات الموقع", subtitle: "تخصيص ألوان الموقع — التغيير يظهر فورًا هنا، ولازم الضغط على \"حفظ\" ليصير دائمًا" })}
-    <div class="card" style="max-width:480px;">
+    ${topBarHtml({ title: "إعدادات الموقع", subtitle: "تخصيص هوية الموقع — الألوان، الشعار، البانر، والعبارات. التغيير يظهر فورًا هنا، ولازم الضغط على \"حفظ\" ليصير دائمًا" })}
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">الألوان</div>
       <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:800;margin-bottom:8px;">اللون الأساسي (الأزرار، العناوين، التحديد)</div>
+        ${fieldLabel("اللون الأساسي (الأزرار، العناوين، التحديد)")}
         <div style="display:flex;align-items:center;gap:12px;">
           <input type="color" id="site-primary-color" value="${esc(current.primary)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
           <span style="font-size:12.5px;color:${SUBTLE};font-family:monospace;">${esc(current.primary)}</span>
         </div>
       </div>
-      <div style="margin-bottom:24px;">
-        <div style="font-size:13px;font-weight:800;margin-bottom:8px;">لون خلفية الموقع</div>
+      <div style="margin-bottom:16px;">
+        ${fieldLabel("لون خلفية الموقع")}
         <div style="display:flex;align-items:center;gap:12px;">
           <input type="color" id="site-bg-color" value="${esc(current.background)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
           <span style="font-size:12.5px;color:${SUBTLE};font-family:monospace;">${esc(current.background)}</span>
         </div>
       </div>
+      <div>${pillBtn("استعادة الألوان الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-settings-defaults", disabled: isColorDefault })}</div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">ألوان متقدمة (كل ألوان الموقع)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px;">
+        ${THEME_COLOR_FIELDS.map((f) => `<div>${fieldLabel(f.label)}<div style="display:flex;align-items:center;gap:10px;">
+          <input type="color" id="site-x-${f.key}" value="${esc(theme[f.key])}" style="width:46px;height:36px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+          <span id="site-x-${f.key}-hex" style="font-size:12px;color:${SUBTLE};font-family:monospace;">${esc(theme[f.key])}</span></div></div>`).join("")}
+      </div>
+      <div class="subhead">ألوان بطاقات تصفّح الهيكل</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        ${theme.bs.map((c, i) => `<div style="text-align:center;"><input type="color" id="site-bs-${i}" value="${esc(c)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" /><div style="font-size:10.5px;color:${SUBTLE};margin-top:4px;">اللون ${i + 1}</div></div>`).join("")}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${pillBtn("استعادة الألوان المتقدمة الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-theme-defaults" })}
+      </div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">خيارات «الفترة التي يغطيها التقرير»</div>
+      <div class="hint" style="margin-bottom:12px;">تظهر في البيانات الأساسية للتقرير وفي فلتر الفترة. «شهري» و«فصلي» مثبّتتان لأنهما تفتحان حقل الشهر وحقل الفصل. التقارير القديمة تحتفظ بقيمتها حتى لو حذفتِ الخيار أو غيّرتِ اسمه.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+        ${PERIOD_TYPES.map((pt, i) => { const locked = PERIOD_TYPES_LOCKED.includes(pt); return `<div style="display:flex;align-items:center;gap:6px;">
+          <input type="text" class="input" id="site-pt-${i}" value="${esc(pt)}" ${locked ? "disabled" : ""} style="flex:1;" />
+          ${locked ? `<span style="font-size:10.5px;color:${SUBTLE};min-width:56px;text-align:center;">مثبّت</span>` : `<span style="min-width:56px;"></span>`}
+          <button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="move-period-type" data-idx="${i}" data-dir="up" ${i === 0 ? "disabled" : ""}>${iconChevronUp(12, INK)}</button>
+          <button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="move-period-type" data-idx="${i}" data-dir="down" ${i === PERIOD_TYPES.length - 1 ? "disabled" : ""}>${iconChevronDown(12, INK)}</button>
+          ${locked ? `<span style="width:30px;"></span>` : `<button class="icon-btn" style="width:30px;height:30px;background:${DANGER_BG}" data-action="remove-period-type" data-idx="${i}">${iconTrash(13, DANGER)}</button>`}
+        </div>`; }).join("")}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" class="input" id="site-pt-new" placeholder="خيار جديد، مثال: تقرير ملتقى" style="flex:1;min-width:180px;" />
+        ${pillBtn("إضافة", { icon: iconPlus(14, "#fff"), action: "add-period-type" })}
+        ${pillBtn("استعادة الافتراضي", { variant: "ghost", icon: iconX(14, INK), action: "restore-period-types" })}
+      </div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">ألوان الأيقونات</div>
+      ${[["iconColor", "لون كل أيقونات الموقع (القوائم، الأزرار، البطاقات)", current.primary], ["fieldIconColor", "لون أيقونات إدارة حقول الأقسام (تتجاوز اللون العام)", theme.iconColor || current.primary]].map(([k, lb, def]) => `<div style="margin-bottom:14px;">${fieldLabel(lb)}
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><input type="color" id="site-x-${k}" value="${esc(theme[k] || def)}" style="width:46px;height:36px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+        ${theme[k] ? pillBtn("اللون الأصلي", { variant: "ghost", icon: iconX(14, INK), action: "reset-theme-key", data: { key: k } }) : `<span style="font-size:11.5px;color:${SUBTLE};">(الافتراضي)</span>`}</div></div>`).join("")}
+      <div class="hint">ولكل حقل لونه الخاص من نافذة تعديل الحقل بإدارة حقول الأقسام. الأيقونات الحمراء/الخضراء/البيضاء ذات المعنى (حذف، نجاح، على الزر) تبقى كما هي.</div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">النصوص: الألوان والأحجام</div>
+      ${TEXT_STYLE_FIELDS.map((f) => `<div style="margin-bottom:16px;">${fieldLabel(f.label)}
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="color" id="site-ts-${f.k}-color" value="${esc(theme[f.k + "Color"] || (f.k === "nav" ? theme.ink : f.k === "bannerSub" ? "#000000" : current.primary))}" style="width:46px;height:36px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+          <input type="range" id="site-ts-${f.k}-size" min="${f.min}" max="${f.max}" step="1" value="${Number(theme[f.k + "Size"]) || f.def}" style="flex:1;min-width:120px;" />
+          <span id="site-ts-${f.k}-size-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:44px;">${Number(theme[f.k + "Size"]) || f.def}px</span>
+          ${theme[f.k + "Color"] ? pillBtn("اللون الأصلي", { variant: "ghost", icon: iconX(14, INK), action: "reset-text-color", data: { key: f.k } }) : ""}
+        </div></div>`).join("")}
+      <div class="hint">لون ونص عبارة الشريط الجانبي وحجمها في بطاقة «الشريط الجانبي» أدناه.</div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">الخط</div>
+      <div>
+        ${fieldLabel("خط الموقع (يشمل النصوص والعناوين والأزرار بكل الصفحات — عدا التقرير المطبوع نفسه)")}
+        <select class="input" id="site-font-family" style="width:100%;margin-bottom:10px;">
+          ${FONT_OPTIONS.map((f) => `<option value="${esc(f.value)}" style="font-family:'${esc(f.value)}';" ${(current.fontFamily || DEFAULT_BRANDING.fontFamily) === f.value ? "selected" : ""}>${esc(f.label)}</option>`).join("")}
+        </select>
+        <div style="border:1px solid ${BORDER};border-radius:10px;padding:14px 16px;background:${GRAY_BG};font-family:'${esc(current.fontFamily || DEFAULT_BRANDING.fontFamily)}';">
+          <div style="font-size:16px;font-weight:800;margin-bottom:4px;">هذا مثال على شكل الخط المختار</div>
+          <div style="font-size:12.5px;color:${SUBTLE};">تقرير الأداء الدوري — وحدة الاختبارات — جمعية فرقان</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">الشعار</div>
+      <div style="margin-bottom:20px;">
+        ${fieldLabel("صورة الشعار (يظهر بالشريط الجانبي وصفحة الدخول)")}
+        ${imgPreviewBlock(siteLogoSrc(current), "الشعار", `width:${Number(current.logoSize) || DEFAULT_BRANDING.logoSize}px;height:${Number(current.logoSize) || DEFAULT_BRANDING.logoSize}px;`, "site-logo-file", "remove-site-logo", !!current.logo)}
+      </div>
+      <div>
+        ${fieldLabel("حجم الشعار")}
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="site-logo-size" min="20" max="72" step="2" value="${Number(current.logoSize) || DEFAULT_BRANDING.logoSize}" style="flex:1;" />
+          <span id="site-logo-size-label" style="font-size:12.5px;color:${SUBTLE};font-family:monospace;min-width:40px;">${Number(current.logoSize) || DEFAULT_BRANDING.logoSize}px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">بانر لوحة المعلومات</div>
+      <div style="margin-bottom:20px;">
+        ${fieldLabel("صورة البانر")}
+        ${imgPreviewBlock(siteBannerSrc(current), "البانر", `width:120px;height:60px;`, "site-banner-file", "remove-site-banner", !!current.bannerImage)}
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("عنوان البانر")}
+        ${textInput("site-banner-title", current.bannerTitle, DEFAULT_BRANDING.bannerTitle)}
+      </div>
+      <div>
+        ${fieldLabel("وصف البانر")}
+        ${textInput("site-banner-sub", current.bannerSub, DEFAULT_BRANDING.bannerSub)}
+      </div>
+    </div>
+
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">الشريط الجانبي</div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("اسم المنصة (يظهر بعنوان الشريط الجانبي)")}
+        ${textInput("site-platform-name", current.platformName, DEFAULT_BRANDING.platformName)}
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("العبارة أسفل الشريط الجانبي (قبل تسجيل الخروج)")}
+        ${textInput("site-sidebar-tagline", current.sidebarTagline, DEFAULT_BRANDING.sidebarTagline)}
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("خلفية الشريط الجانبي: لون (من «ألوان متقدمة») أو صورة")}
+        ${imgPreviewBlock(theme.sidebarBgImage || "", "خلفية الشريط الجانبي", `width:70px;height:100px;`, "site-sidebar-bg-file", "remove-sidebar-bg-image", !!theme.sidebarBgImage)}
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
+          <span style="font-size:11.5px;color:${SUBTLE};white-space:nowrap;">تفتيح الصورة (لوضوح النص)</span>
+          <input type="range" id="site-sidebar-bg-veil" min="0" max="90" step="5" value="${Number(theme.sidebarBgVeil) || 0}" style="flex:1;" />
+          <span id="site-sidebar-bg-veil-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:44px;">${Number(theme.sidebarBgVeil) || 0}%</span></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("موضع العبارة: رفع / تنزيل")}
+        <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:11px;color:${SUBTLE};">أعلى</span>
+          <input type="range" id="site-tagline-offset" min="-80" max="80" step="2" value="${Number(theme.taglineOffset) || 0}" style="flex:1;" />
+          <span style="font-size:11px;color:${SUBTLE};">أسفل</span>
+          <span id="site-tagline-offset-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:44px;">${Number(theme.taglineOffset) || 0}px</span></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("حجم خط العبارة")}
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="site-tagline-size" min="10" max="26" step="1" value="${Number(theme.taglineSize) || 13}" style="flex:1;" />
+          <span id="site-tagline-size-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:44px;">${Number(theme.taglineSize) || 13}px</span></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("ارتفاع صورة العبارة")}
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="site-tagline-imgh" min="30" max="180" step="5" value="${Number(theme.taglineImgH) || 70}" style="flex:1;" />
+          <span id="site-tagline-imgh-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:44px;">${Number(theme.taglineImgH) || 70}px</span></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        ${fieldLabel("لون العبارة (اتركيه كما هو لاستخدام اللون الأساسي)")}
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="color" id="site-tagline-color" value="${esc(theme.taglineColor || current.primary)}" style="width:46px;height:36px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+          ${theme.taglineColor ? pillBtn("استخدام اللون الأساسي", { variant: "ghost", icon: iconX(14, INK), action: "reset-tagline-color" }) : ""}
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        ${fieldLabel("معاينة (كما تظهر لباقي الحسابات)")}
+        <div id="site-tagline-preview" style="border:1px dashed ${BORDER};border-radius:12px;padding:18px 10px;background:${theme.sidebarBg};min-height:150px;overflow:hidden;">${sidebarTaglineBlockHtml(current)}</div>
+      </div>
+      <div>
+        ${fieldLabel("صورة اختيارية أسفل الشريط الجانبي (قبل تسجيل الخروج)")}
+        ${imgPreviewBlock(current.sidebarTaglineImage || "", "عبارة الشريط الجانبي", `width:90px;height:60px;`, "site-tagline-image-file", "remove-site-tagline-image", !!current.sidebarTaglineImage)}
+      </div>
+    </div>
+
+    ${dashSettingsCardHtml()}
+
+    <div class="card" style="max-width:560px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${pillBtn("حفظ", { icon: iconCheckCircle(15, "#fff"), action: "save-site-settings" })}
-        ${pillBtn("استعادة الألوان الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-settings-defaults", disabled: isDefault })}
+        ${pillBtn("استعادة إعدادات الهوية الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-branding-defaults", disabled: isBrandingDefault })}
       </div>
+      ${S.ui.siteSettingsFileError ? `<div class="error-box" style="margin-top:10px;">${esc(S.ui.siteSettingsFileError)}</div>` : ""}
       ${S.ui.siteSettingsSaved ? `<div class="hint" style="color:${GREEN};margin-top:10px;">تم الحفظ ✓ — التغيير صار دائمًا لكل زوار الموقع.</div>` : ""}
     </div>
   </div></div>`;
@@ -1800,22 +4285,149 @@ function renderUnitsOverview() {
 }
 
 /* =============================== Department overview (department-level login) = */
-function renderDepartmentOverview() {
-  const dept = S.departments.find((d) => d.id === S.currentDepartmentId);
-  if (!dept) return `<div class="page-wrap">تعذر إيجاد القسم.</div>`;
-  const units = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
-  const pendingReports = [];
-  units.forEach((u) => {
-    ensureUnitReportsLoaded(u.id).filter((r) => r.status === "under_review").forEach((r) => pendingReports.push({ unit: u, report: r }));
-  });
-
+// قائمة تبديل تظهر فقط لمديرة النظام بصفحتي "قسمي" ومكتب الإشراف — تتيح لها
+// اختيار أي قسم/مكتب تبي تطّلع عليه وتضبطه، بدل الاقتصار على قيمة واحدة ثابتة.
+function adminScopeSwitcherHtml(kind) {
+  if (!S.isAdmin) return "";
+  const list = kind === "department" ? (S.departments || []) : (S.offices || []);
+  const current = kind === "department" ? S.currentDepartmentId : S.currentOfficeId;
+  const action = kind === "department" ? "admin-switch-department" : "admin-switch-office";
+  const label = kind === "department" ? "عرض وضبط أي قسم:" : "عرض وضبط أي مكتب إشراف:";
+  if (!list.length) return "";
+  return `
+  <div class="card" style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:11.5px;font-weight:700;color:${SUBTLE};white-space:nowrap;">${label}</span>
+    <select class="input" style="flex:1;min-width:200px;" data-action="${action}">
+      ${list.map((x) => `<option value="${esc(x.id)}" ${current === x.id ? "selected" : ""}>${esc(x.name)}${x.status !== "active" ? " (معطّل)" : ""}</option>`).join("")}
+    </select>
+  </div>`;
+}
+// نفس فكرة adminScopeSwitcherHtml، لكن للوحدات/المراكز: قائمة تبديل + مفتاح
+// منظور (الإدارية/رئيسة الوحدة) يضبط S.currentUnitEntryMode لمعاينة مديرة
+// النظام فقط — لا يظهر ولا يؤثر إطلاقًا على حسابات الوحدة/المركز الحقيقية.
+function adminUnitSwitcherHtml() {
+  if (!S.isAdmin) return "";
+  const list = (S.units || []).filter((u) => u.role === "unit" || u.role === "center");
+  if (!list.length) return "";
+  const current = S.currentUnitId;
+  const curUnit = (S.units || []).find((u) => u.id === current);
+  // الأشخاص (platform_users) المرتبطون بهذي الوحدة بنفس اسم الدخول والرقم السري:
+  // "رئيس…" ← منظور رئيسة الوحدة، "مساعد…" ← منظور المراجعة الإضافية.
+  const allPu = (S.platformUsers && S.platformUsers.length) ? S.platformUsers : (dataStore.getPlatformUsers() || []);
+  const persons = curUnit ? [...new Map([...unitSharedPlatformUsers(curUnit), ...allPu.filter((pu) => pu.status !== "disabled" && pu.scopeKind === "unit" && pu.scopeId === curUnit.id)].map((pu) => [pu.id, pu])).values()] : [];
+  const headPerson = persons.find((pu) => /رئيس/.test(pu.jobTitle || ""));
+  const assistPerson = persons.find((pu) => /مساعد/.test(pu.jobTitle || ""));
+  const hasHead = !curUnit || unitHasHead(curUnit) || !!headPerson;
+  const extraLabel = (curUnit && unitHasExtraReview(curUnit)) ? curUnit.extraReviewerTitle.trim() : (assistPerson ? assistPerson.jobTitle : "");
+  const hasExtra = !!extraLabel;
+  // المنظور المعروض يتبع إعداد الوحدة: الإدارية دائمًا، رئيسة الوحدة/المراجعة الإضافية فقط إن أُضيفت للوحدة.
+  const mode = S.currentUnitEntryMode === "extra" && hasExtra ? "extra" : S.currentUnitEntryMode === "head" && hasHead ? "head" : "admin";
+  return `
+  <div class="card" style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:11.5px;font-weight:700;color:${SUBTLE};white-space:nowrap;">عرض وضبط أي وحدة:</span>
+    <select class="input" style="flex:1;min-width:200px;" data-action="admin-switch-unit">
+      ${list.map((u) => `<option value="${esc(u.id)}" ${current === u.id ? "selected" : ""}>${esc(u.name)}${u.role === "center" ? " (مركز)" : ""}${u.status !== "active" ? " (معطّلة)" : ""}</option>`).join("")}
+    </select>
+    <div style="display:flex;gap:6px;">
+      ${pillBtn("الإدارية", { variant: mode === "admin" ? "primary" : "ghost", action: "admin-set-unit-entry-mode", data: { mode: "admin" } })}
+      ${hasHead ? pillBtn("رئيسة الوحدة", { variant: mode === "head" ? "primary" : "ghost", action: "admin-set-unit-entry-mode", data: { mode: "head" } }) : ""}
+      ${hasExtra ? pillBtn(extraLabel, { variant: mode === "extra" ? "primary" : "ghost", action: "admin-set-unit-entry-mode", data: { mode: "extra" } }) : ""}
+    </div>
+  </div>`;
+}
+// قائمة تبديل الوحدة بصفحات "unit-home" (لوحة معلومات الوحدة/تقارير/إنشاء
+// تقرير) — تعمل لثلاث حالات: مديرة النظام (كل الوحدات، نفس adminUnitSwitcherHtml
+// القديمة بكامل خياراتها)، وحساب نطاقه قسم أو مكتب إشراف (وحدات نطاقه فقط،
+// بدون مفتاح منظور "رئيسة الوحدة" الخاص بمديرة النظام). حساب الوحدة نفسها لا
+// يحتاج قائمة تبديل أصلًا (عنده وحدة واحدة فقط).
+function scopedUnitSwitcherHtml() {
+  if (S.isAdmin) return adminUnitSwitcherHtml();
+  if (S.isDepartmentUser || S.isOfficeUser) {
+    const kind = S.isDepartmentUser ? "department" : "office";
+    const scopeId = S.isDepartmentUser ? S.currentDepartmentId : S.currentOfficeId;
+    const realUnits = (S.isDepartmentUser
+      ? S.units.filter((u) => u.departmentId === scopeId && u.status === "active")
+      : officeUnits(scopeId)).filter((u) => u.role !== "self_report");
+    // أول خيار دائمًا: تقرير القسم/المكتب نفسه (ذاتي) — يُنشأ تلقائيًا عند
+    // الحاجة؛ هذا هو ما يتيح للقسم/المكتب نفسه إنشاء تقريره الخاص، منفصلاً
+    // عن تقارير وحداته التابعة، تمامًا بنفس فكرة لوحة المعلومات.
+    const selfUnit = ensureSelfReportUnit(kind, scopeId);
+    const list = selfUnit ? [selfUnit, ...realUnits] : realUnits;
+    if (list.length < 2) return "";
+    const current = S.currentUnitId;
+    return `
+    <div class="card" style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:11.5px;font-weight:700;color:${SUBTLE};white-space:nowrap;">اختيار الوحدة:</span>
+      <select class="input" style="flex:1;min-width:200px;" data-action="scoped-switch-unit">
+        ${list.map((u) => `<option value="${esc(u.id)}" ${current === u.id ? "selected" : ""}>${u.role === "self_report" ? "📁 " : ""}${esc(u.name)}</option>`).join("")}
+      </select>
+    </div>`;
+  }
+  return "";
+}
+// صفحة مستقلة قائمة بذاتها لـ"اعتماد أبرز النتائج والتوصيات" — نفس القسم
+// بالضبط (deptCurationSectionHtml، بدون أي تكرار بالكود)، بنفس نمط صفحة
+// "office-curation" المستقلة أصلًا للمكتب. "قسمي" تبقى تعرض نفس القسم أيضًا
+// بدون أي حذف، لحد ما تتأكد نجود من الصفحة الجديدة وتقرر حذف القديمة بنفسها.
+// الجهات التي يقدر الحساب الحالي يعتمد لها — تتكيّف مع نطاق الحساب (نفس فكرة
+// "لوحة المعلومات"): مديرة النظام/الإدارة العليا = كل المكاتب والأقسام، المكتب =
+// مكتبه وأقسامه، القسم = قسمه، الوحدة = قسم وحدتها.
+function curationTargets() {
+  const depts = (S.departments || []).filter((d) => d.status !== "inactive");
+  const offices = (S.offices || []).filter((o) => o.status !== "inactive");
+  const T = [];
+  const addO = (o) => T.push({ key: "o:" + o.id, kind: "office", id: o.id, label: "مكتب — " + o.name });
+  const addD = (d) => T.push({ key: "d:" + d.id, kind: "dept", id: d.id, label: "قسم — " + d.name });
+  if (S.isAdmin || S.isExecutive) { offices.forEach(addO); depts.forEach(addD); return T; }
+  if (S.currentOfficeId) {
+    const o = offices.find((x) => x.id === S.currentOfficeId);
+    if (o) addO(o);
+    const ids = officeScopeIds(S.currentOfficeId);
+    depts.filter((d) => ids.includes(d.officeId)).forEach(addD);
+    return T;
+  }
+  let deptId = S.currentDepartmentId;
+  if (!deptId && S.currentUnitId) { const u = (S.units || []).find((x) => x.id === S.currentUnitId); deptId = u && u.departmentId; }
+  if (deptId) { const d = depts.find((x) => x.id === deptId); if (d) addD(d); return T; }
+  offices.forEach(addO); depts.forEach(addD);
+  return T;
+}
+function renderCurationUnified() {
+  const targets = curationTargets();
+  const cur = targets.find((t) => t.key === S.ui.curationTarget) || targets[0];
+  const sw = targets.length > 1 ? `<div class="card" style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div style="font-size:12.5px;font-weight:800;color:${ROSE};">اعتماد لـ:</div>
+      <select class="input" style="flex:1;min-width:200px;" data-action="curation-target">
+        ${targets.map((t) => `<option value="${esc(t.key)}" ${cur && cur.key === t.key ? "selected" : ""}>${esc(t.label)}</option>`).join("")}
+      </select>
+    </div>` : "";
+  let body;
+  if (!cur) body = `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد مكاتب أو أقسام بعد.</div>`;
+  else if (cur.kind === "office") {
+    const o = (S.offices || []).find((x) => x.id === cur.id);
+    body = curationSectionHtml(officeUnits(o.id), (key) => isOfficeCurated(o, key), "toggle-office-curation", { office: o.id }, "اعتماد المكتب — " + o.name);
+  } else {
+    const d = S.departments.find((x) => x.id === cur.id);
+    body = deptCurationSectionHtml(d, "اعتماد القسم — " + d.name);
+  }
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: dept.name, subtitle: `مرحبًا — ${units.length} وحدة تابعة لهذا القسم`,
-      right: S.isAdmin && S.adminPreviewOrigin ? pillBtn("رجوع", { variant: "ghost", icon: iconChevronRight(15, INK), action: "nav-to", data: { view: S.adminPreviewOrigin } }) : pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
-    ${reviewDecisionsSectionHtml(pendingReports)}
-    ${units.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد وحدات نشطة تابعة لهذا القسم بعد.</div>` :
-      `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${units.map((u) => unitCardHtml(u, null, latestReportForUnit(u.id))).join("")}</div>`}
+    ${topBarHtml({ title: "اعتماد أبرز النتائج والتوصيات", subtitle: cur ? cur.label : "",
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    ${sw}
+    ${body}
+  </div></div>`;
+}
+function adminCurationKindTabs() { return ""; }
+function renderDepartmentCuration() {
+  const dept = S.departments.find((d) => d.id === S.currentDepartmentId);
+  if (!dept) return `<div class="page-wrap"><div class="page-inner">${S.isAdmin ? adminScopeSwitcherHtml("department") : ""}<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">${(S.departments || []).length ? "اختاري قسمًا من القائمة أعلاه." : "لا توجد أقسام بعد."}</div></div></div>`;
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "اعتماد أبرز النتائج والتوصيات", subtitle: dept.name,
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    ${adminCurationKindTabs()}
+    ${adminScopeSwitcherHtml("department")}
     ${deptCurationSectionHtml(dept)}
   </div></div>`;
 }
@@ -1849,7 +4461,9 @@ function reviewDecisionsSectionHtml(pendingReports) {
             </select>
           </div>
           <textarea id="review-notes-${esc(key)}" class="input" style="width:100%;min-height:60px;margin-bottom:8px;" placeholder="ملاحظات نصية (اختياري)..."></textarea>
-          ${pillBtn("إرسال القرار", { icon: iconCheckCircle(14, "#fff"), action: "submit-department-review-decision", disabled: !chosen, data: { unitId: unit.id, reportId: report.id } })}
+          ${platformActionAllowed("submit-department-review-decision")
+            ? pillBtn("إرسال القرار", { icon: iconCheckCircle(14, "#fff"), action: "submit-department-review-decision", disabled: !chosen, data: { unitId: unit.id, reportId: report.id } })
+            : `<div class="hint bad">لا تملكين صلاحية اتخاذ قرار المراجعة.</div>`}
         </div>`;
       }).join("")}
     </div>
@@ -1861,9 +4475,15 @@ function reviewDecisionsSectionHtml(pendingReports) {
    نفسها، بدون أي جدول أو تبويب جديد بقاعدة البيانات. ---- */
 function curationKey(kind, reportId, itemId) { return `${kind}:${reportId}:${itemId}`; }
 function isDeptCurated(dept, key) { return !!(dept.curation && dept.curation.approvedKeys && dept.curation.approvedKeys.includes(key)); }
+function isOfficeCurated(office, key) { return !!(office.curation && office.curation.approvedKeys && office.curation.approvedKeys.includes(key)); }
+// عنصر يظهر "⭐ معتمد" بالملخص التنفيذي/التقرير النهائي لو اعتمدته مديرة القسم
+// أو مكتب الإشراف (أيهما اعتمده) — طبقتا إشراف مستقلتان، كل وحدة يمر اعتمادها
+// عبر الاثنتين إن وُجدتا.
 function isItemCurated(unit, key) {
   const dept = S.departments.find((d) => d.id === unit.departmentId);
-  return dept ? isDeptCurated(dept, key) : false;
+  if (dept && isDeptCurated(dept, key)) return true;
+  const office = dept ? (S.offices || []).find((o) => o.id === dept.officeId) : null;
+  return office ? isOfficeCurated(office, key) : false;
 }
 function toggleDeptCuration(dept, key) {
   const current = (dept.curation && dept.curation.approvedKeys) || [];
@@ -1871,10 +4491,11 @@ function toggleDeptCuration(dept, key) {
   S.departments = S.departments.map((d) => d.id === dept.id ? { ...d, curation: { approvedKeys: next } } : d);
   dataStore.saveDepartments(S.departments);
 }
-function collectDeptCurationCandidates(dept) {
-  const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+// نسخة عامة تأخذ أي قائمة وحدات — تُستخدم لكل من القسم (وحداته) ومكتب الإشراف
+// (وحدات كل أقسامه التابعة، عبر officeUnits).
+function collectCurationCandidatesForUnits(units) {
   const achievements = [], recommendations = [], challenges = [], strengths = [];
-  deptUnits.forEach((u) => {
+  units.forEach((u) => {
     ensureUnitReportsLoaded(u.id).forEach((r) => {
       (r.sections?.programs?.data?.programs || []).filter((p) => p.highlightResult).forEach((p) => {
         achievements.push({ key: curationKey("achievement", r.id, p.id), unitName: u.name, text: `${p.name || "عمل"}: ${p.highlightResult}` });
@@ -1892,18 +4513,25 @@ function collectDeptCurationCandidates(dept) {
   });
   return { achievements, recommendations, challenges, strengths };
 }
-function deptCurationSectionHtml(dept) {
-  const { achievements, recommendations, challenges, strengths } = collectDeptCurationCandidates(dept);
+function collectDeptCurationCandidates(dept) {
+  return collectCurationCandidatesForUnits(S.units.filter((u) => u.departmentId === dept.id && u.status === "active"));
+}
+// عرض عام لقسم "اعتماد أبرز النتائج والتوصيات" — يُستخدم لكل من مديرة القسم
+// ومكتب الإشراف، بفرق فقط في: مصدر العناصر المرشّحة (units)، ودالتي isCurated/
+// toggleAction + بيانات الإجراء (data-*) اللي يحتاجها كل زر.
+function curationSectionHtml(units, isCuratedFn, toggleAction, toggleData, blockTitle) {
+  const { achievements, recommendations, challenges, strengths } = collectCurationCandidatesForUnits(units);
+  const dataAttrs = Object.entries(toggleData || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
   const renderList = (items, emptyMsg) => items.length === 0 ? emptyHint(emptyMsg) : items.map((it) => `
-    <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:${isDeptCurated(dept, it.key) ? GREEN_BG : "#fff"};border:1px solid ${isDeptCurated(dept, it.key) ? GREEN : BORDER};margin-bottom:6px;">
-      <button type="button" data-action="toggle-dept-curation" data-key="${esc(it.key)}" style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:2px;">
-        ${isDeptCurated(dept, it.key) ? iconCheckCircle(18, GREEN) : iconCircle(18, SUBTLE)}
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:${isCuratedFn(it.key) ? GREEN_BG : "#fff"};border:1px solid ${isCuratedFn(it.key) ? GREEN : BORDER};margin-bottom:6px;">
+      <button type="button" data-action="${esc(toggleAction)}" data-key="${esc(it.key)}" ${dataAttrs} style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:2px;">
+        ${isCuratedFn(it.key) ? iconCheckCircle(18, GREEN) : iconCircle(18, SUBTLE)}
       </button>
       <div style="flex:1;font-size:12.5px;"><b>${esc(it.unitName)}</b> — ${esc(it.text || "—")}</div>
     </div>`).join("");
   return `
     <div class="card" style="margin-top:18px;">
-      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:6px;">اعتماد أبرز النتائج والتوصيات</div>
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:6px;">${blockTitle ? esc(blockTitle) : "اعتماد أبرز النتائج والتوصيات"}</div>
       <div class="hint" style="margin-bottom:12px;">علّمي أهم ما يستحق الوصول للإدارة العليا — العناصر المعتمدة تظهر أولاً بالملخص التنفيذي والتقرير الإداري النهائي.</div>
       <div class="subhead">أبرز الإنجازات</div>${renderList(achievements, "لا توجد إنجازات بارزة مُدخلة بعد.")}
       <div class="subhead">نقاط القوة</div>${renderList(strengths, "لا توجد نقاط قوة مُدخلة بعد.")}
@@ -1911,16 +4539,292 @@ function deptCurationSectionHtml(dept) {
       <div class="subhead">التحديات</div>${renderList(challenges, "لا توجد تحديات مُدخلة بعد.")}
     </div>`;
 }
+function deptCurationSectionHtml(dept, blockTitle) {
+  const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+  return curationSectionHtml(deptUnits, (key) => isDeptCurated(dept, key), "toggle-dept-curation", blockTitle ? { dept: dept.id } : {}, blockTitle);
+}
+function toggleOfficeCuration(office, key) {
+  const current = (office.curation && office.curation.approvedKeys) || [];
+  const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+  S.offices = (S.offices || []).map((o) => o.id === office.id ? { ...o, curation: { approvedKeys: next } } : o);
+  dataStore.saveOffices(S.offices);
+}
+function officeCurationSectionHtml(office) {
+  // المكتب يرى: نتائج المكتب (كل وحداته) ثم كل قسم تابع له بوحداته، ويعتمد على كل مستوى.
+  const own = curationSectionHtml(officeUnits(office.id), (key) => isOfficeCurated(office, key), "toggle-office-curation", { office: office.id }, "اعتماد المكتب — " + office.name);
+  const depts = (S.departments || []).filter((d) => officeScopeIds(office.id).includes(d.officeId) && d.status !== "inactive");
+  const deptBlocks = depts.map((d) => {
+    const dUnits = S.units.filter((u) => u.departmentId === d.id && u.status === "active");
+    return curationSectionHtml(dUnits, (key) => isDeptCurated(d, key), "toggle-dept-curation", { dept: d.id }, "اعتماد القسم — " + d.name);
+  }).join("");
+  return own + deptBlocks;
+}
+
+/* =============================== صفحات مكتب الإشراف (لوحة المعلومات، الأرشفة،
+   الملخص، الاعتماد) — كل صفحة مقتصرة على وحدات أقسام هذا المكتب فقط، عبر
+   officeUnits(officeId). صفحة "التقارير" لا تحتاج دالة خاصة: تُستخدم renderAllReports
+   نفسها (مُعمَّمة أعلاه لتشمل فرع S.isOfficeUser). ============================= */
+// المكتب الأب يرى كل ما تحت المكاتب التابعة له (مكتب ← مكاتب فرعية ← أقسام ← وحدات).
+function officeScopeIds(officeId) {
+  const out = [officeId]; const seen = new Set(out);
+  for (let i = 0; i < out.length; i++) {
+    (S.offices || []).forEach((o) => { if (o.parentOfficeId === out[i] && !seen.has(o.id)) { seen.add(o.id); out.push(o.id); } });
+  }
+  return out;
+}
+function currentOffice() { return (S.offices || []).find((o) => o.id === S.currentOfficeId) || null; }
+
+function officeNotFoundPageHtml() {
+  return `<div class="page-wrap"><div class="page-inner">${adminScopeSwitcherHtml("office")}<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">${(S.offices || []).length ? "اختاري مكتب إشراف من القائمة أعلاه." : "لا توجد مكاتب إشراف بعد."}</div></div></div>`;
+}
+function renderOfficeDashboard() {
+  const office = currentOffice();
+  if (!office) return officeNotFoundPageHtml();
+  const units = officeUnits(office.id);
+  const depts = S.departments.filter((d) => officeScopeIds(office.id).includes(d.officeId) && d.status === "active");
+  return renderExecutiveDashboard(units, depts, { kind: "office", subtitle: `نظرة إشرافية شاملة على وحدات ${office.name}`, extraTop: adminScopeSwitcherHtml("office") });
+}
+
+// وحدات/أقسام النطاق الفعلي للحساب الحالي (نفس منطق "لوحة المعلومات") — تُستخدم
+// لصفحتي "الأرشفة" و"ملخص الوحدات" كي تظهرا لأي حساب تمنحينه إياهما بنفس نطاقه.
+// مديرة النظام وحساب مكتب الإشراف يبقيان على سلوكهما الأصلي (بدون تغيير).
+function scopedAccessUnitsAndDepts() {
+  let units;
+  if (S.isDepartmentUser && S.currentDepartmentId) units = S.units.filter((u) => u.departmentId === S.currentDepartmentId);
+  else if (!S.isAdmin && !S.isExecutive && !S.isOfficeUser && S.currentUnitId) units = S.units.filter((u) => u.id === S.currentUnitId);
+  else units = S.units;
+  units = units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive");
+  const depts = S.departments.filter((d) => d.status === "active" && units.some((u) => u.departmentId === d.id));
+  return { units, depts };
+}
+function usesOfficeScope() { return S.isAdmin || S.isOfficeUser; }
+function renderOfficeSummary() {
+  if (!usesOfficeScope()) {
+    const sc = scopedAccessUnitsAndDepts();
+    return renderExecutiveSummary(sc.units, sc.depts, { title: "ملخص الوحدات", showAiSummary: false });
+  }
+  const office = currentOffice();
+  if (!office) return officeNotFoundPageHtml();
+  const units = officeUnits(office.id);
+  const depts = S.departments.filter((d) => officeScopeIds(office.id).includes(d.officeId) && d.status === "active");
+  return renderExecutiveSummary(units, depts, { title: `ملخص ${office.name}`, showAiSummary: false, extraTop: adminScopeSwitcherHtml("office") });
+}
+
+function renderOfficeCuration() {
+  const office = currentOffice();
+  if (!office) return officeNotFoundPageHtml();
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "اعتماد أبرز النتائج والتوصيات", subtitle: office.name,
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    ${adminCurationKindTabs()}
+    ${adminScopeSwitcherHtml("office")}
+    ${officeCurationSectionHtml(office)}
+  </div></div>`;
+}
+
+// أرشيف التقارير: تلقائي بالكامل من بيانات التقرير نفسه (السنة الهجرية ونوع
+// الفترة بقسم "البيانات الأساسية") — بدون أي مجلدات تُنشأ أو تُحذف يدويًا، حسب
+// طلب نجود صراحة. البنية: سنة هجرية ← نوع الفترة ← قائمة التقارير.
+function officeArchiveTree(units) {
+  const flat = collectReportsFlatForUnits(units);
+  const tree = {};
+  flat.forEach((x) => {
+    const basic = x.report.sections?.basic?.data || {};
+    const year = basic.hijriYear || "بدون سنة محددة";
+    const period = basic.periodType || "بدون نوع فترة";
+    if (!tree[year]) tree[year] = {};
+    if (!tree[year][period]) tree[year][period] = [];
+    tree[year][period].push(x);
+  });
+  return tree;
+}
+// أيقونة مجلد ملوّنة (تدرّج) بنمط مدير الملفات — gid لازم يكون فريدًا بكل بطاقة.
+const ARC_FOLDER_COLORS = [["#9fb0ff", "#6174f3"], ["#e8b4f7", "#c77be8"], ["#86e8c4", "#3cc79a"], ["#fbb27a", "#ec7a30"]];
+function archiveFolderSvg(idx) {
+  const c = ARC_FOLDER_COLORS[idx % ARC_FOLDER_COLORS.length];
+  const g = "arcf" + idx;
+  return `<svg width="64" height="52" viewBox="0 0 64 52" aria-hidden="true"><defs><linearGradient id="${g}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient></defs>
+    <path d="M4 8a4 4 0 0 1 4-4h14l6 6h28a4 4 0 0 1 4 4v6H4z" fill="${c[1]}" opacity=".55"/>
+    <rect x="4" y="14" width="56" height="34" rx="5" fill="url(#${g})"/></svg>`;
+}
+function archiveFileSvg(color) {
+  return `<svg width="46" height="58" viewBox="0 0 46 58" aria-hidden="true"><path d="M5 2h26l11 11v39a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4z" fill="#fff" stroke="#e4d9d6" stroke-width="1.5"/><path d="M31 2v9a2 2 0 0 0 2 2h9" fill="#f3ecea" stroke="#e4d9d6" stroke-width="1.5"/><rect x="9" y="26" width="28" height="3" rx="1.5" fill="#e4d9d6"/><rect x="9" y="33" width="22" height="3" rx="1.5" fill="#e4d9d6"/><rect x="9" y="40" width="26" height="3" rx="1.5" fill="#e4d9d6"/><circle cx="15" cy="19" r="4.5" fill="${color}"/></svg>`;
+}
+function renderOfficeArchive() {
+  const office = usesOfficeScope() ? currentOffice() : { id: "", name: "نطاق حسابك" };
+  if (usesOfficeScope() && !currentOffice()) return officeNotFoundPageHtml();
+  const units = usesOfficeScope() ? officeUnits(office.id) : scopedAccessUnitsAndDepts().units;
+  const tree = officeArchiveTree(units);
+  const years = Object.keys(tree).sort((a, b) => b.localeCompare(a, "ar"));
+  const selectedYear = S.ui.officeArchiveYear && tree[S.ui.officeArchiveYear] ? S.ui.officeArchiveYear : null;
+  const selectedPeriod = selectedYear && S.ui.officeArchivePeriod && tree[selectedYear][S.ui.officeArchivePeriod] ? S.ui.officeArchivePeriod : null;
+
+  const crumbs = [`<button class="pill-btn pill-ghost" data-action="office-archive-nav" data-year="" data-period="">${iconLayers(13, ROSE)} الأرشيف</button>`];
+  if (selectedYear) crumbs.push(`<span style="color:${SUBTLE};">/</span><button class="pill-btn pill-ghost" data-action="office-archive-nav" data-year="${esc(selectedYear)}" data-period="">${esc(selectedYear)}</button>`);
+  if (selectedPeriod) crumbs.push(`<span style="color:${SUBTLE};">/</span><span class="pill-btn pill-primary" style="cursor:default;">${esc(selectedPeriod)}</span>`);
+
+  // المجلدات = المستوى التالي (سنوات ← أنواع فترات)، والملفات = تقارير المستوى الحالي.
+  let folders = [], items = [];
+  if (!selectedYear) {
+    folders = years.map((y) => ({ name: y, count: Object.values(tree[y]).reduce((n, arr) => n + arr.length, 0), year: y, period: "" }));
+    years.forEach((y) => Object.values(tree[y]).forEach((arr) => { items = items.concat(arr); }));
+  } else if (!selectedPeriod) {
+    folders = Object.keys(tree[selectedYear]).map((p) => ({ name: p, count: tree[selectedYear][p].length, year: selectedYear, period: p }));
+    Object.values(tree[selectedYear]).forEach((arr) => { items = items.concat(arr); });
+  } else {
+    items = tree[selectedYear][selectedPeriod].slice();
+  }
+  items.sort((x, y) => (y.report.createdAt || 0) - (x.report.createdAt || 0));
+
+  const foldersHtml = folders.length ? `<div class="arc-folders">${folders.map((f, i) => `
+    <button type="button" class="arc-folder" data-action="office-archive-nav" data-year="${esc(f.year)}" data-period="${esc(f.period)}">
+      ${archiveFolderSvg(i)}
+      <div class="arc-folder-name">${esc(f.name)}</div>
+      <div class="arc-folder-meta"><b>${f.count}</b> تقرير</div>
+    </button>`).join("")}</div>` : "";
+
+  const filesHtml = items.length === 0
+    ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير مؤرشفة بعد.</div>`
+    : `<div class="arc-files" id="archive-grid">${items.map(({ unit, report }) => {
+        const meta = reportStatusMeta(report.status);
+        const dateStr = new Date(report.createdAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "short", day: "numeric" });
+        const title = report.label || "تقرير";
+        return `<button type="button" class="arc-file" data-search="${esc((title + " " + unit.name + " " + meta.label).toLowerCase())}" data-action="view-report-pdf" data-unit-id="${esc(unit.id)}" data-report-id="${esc(report.id)}" title="عرض PDF">
+          ${archiveFileSvg(meta.color)}
+          <div class="arc-file-name">${esc(title)}</div>
+          <div class="arc-file-unit">${esc(unit.name)}</div>
+          <div class="arc-file-foot"><span>${esc(dateStr)}</span><span class="arc-dot" style="background:${meta.color};" title="${esc(meta.label)}"></span></div>
+        </button>`;
+      }).join("")}</div>`;
+
+  // العمود الجانبي: إحصاءات المستوى الحالي (إجمالي + توزيع الحالات).
+  const total = items.length;
+  const byStatus = {};
+  items.forEach(({ report }) => { const m = reportStatusMeta(report.status); (byStatus[m.label] = byStatus[m.label] || { m, n: 0 }).n++; });
+  const approved = (byStatus["معتمد"] || { n: 0 }).n;
+  const pct = total ? Math.round((approved / total) * 100) : 0;
+  const chips = Object.values(byStatus).sort((x, y) => y.n - x.n).map(({ m, n }) => `
+    <div class="arc-chip" style="background:${m.bg};color:${m.color};"><span class="arc-chip-dot" style="background:${m.color};"></span><span style="flex:1;">${esc(m.label)}</span><b>${n}</b></div>`).join("");
+  const side = `<div class="arc-side">
+    <div class="arc-card">
+      <div class="arc-card-label">إجمالي التقارير</div>
+      <div class="arc-big"><b>${total}</b> <span>تقرير${folders.length ? " · " + folders.length + " مجلد" : ""}</span></div>
+      <div class="arc-bar"><i style="width:${pct}%;"></i></div>
+      <div class="arc-card-label" style="margin:6px 0 0;">${approved} معتمد (${pct}٪)</div>
+    </div>
+    ${chips ? `<div class="arc-card arc-chips">${chips}</div>` : ""}
+    <div class="arc-card arc-tip">${iconDocument(26, ROSE)}<div>اضغطي على أي تقرير لعرضه بصيغة PDF، أو على أي مجلد لفتحه.</div></div>
+  </div>`;
+
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "أرشيف التقارير", subtitle: `منظَّم تلقائيًا حسب السنة الهجرية ونوع الفترة — ${office.name}`,
+      right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    ${usesOfficeScope() ? adminScopeSwitcherHtml("office") : ""}
+    <div class="arc-search"><input id="archive-search" class="input" placeholder="ابحثي باسم التقرير أو الوحدة أو الحالة..." /></div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${crumbs.join("")}</div>
+    <div class="arc-layout">
+      <div class="arc-main">${foldersHtml}${folders.length && items.length ? `<div class="arc-section-title">${selectedYear ? "تقارير " + esc(selectedPeriod || selectedYear) : "أحدث التقارير"}</div>` : ""}${filesHtml}</div>
+      ${side}
+    </div>
+  </div></div>`;
+}
 
 /* =============================== Executive (الإدارة العليا) — اطّلاع إشرافي شامل فقط،
    بدون أي دخول لنموذج كتابة أو تعديل تقارير الوحدات. ============================= */
-function collectAllReportsFlat() {
+// نسخة عامة تأخذ أي قائمة وحدات (كل الوحدات للإدارة العليا، أو وحدات مكتب إشراف
+// معيّن فقط) — تُستخدم من collectAllReportsFlat ومن صفحات مكتب الإشراف الجديدة.
+function collectReportsFlatForUnits(units) {
   const flat = [];
-  S.units.filter((u) => u.status === "active").forEach((u) => {
+  units.forEach((u) => {
     const dept = S.departments.find((d) => d.id === u.departmentId);
     ensureUnitReportsLoaded(u.id).forEach((r) => flat.push({ unit: u, dept, report: r }));
   });
   return flat;
+}
+function collectAllReportsFlat() {
+  return collectReportsFlatForUnits(S.units.filter((u) => u.status === "active"));
+}
+// كل الوحدات (النشطة) التابعة لمكتب إشراف معيّن — عبر office.id <- department.officeId
+// <- department.id <- unit.departmentId، بنفس العلاقة المستخدمة أصلاً بصفحة "الأقسام"
+// الخاصة بمكتب الإشراف (renderDepartmentsPage).
+function officeUnits(officeId) {
+  const deptIds = S.departments.filter((d) => officeScopeIds(officeId).includes(d.officeId)).map((d) => d.id);
+  // تشمل أيضًا "وحدة" تقرير المكتب الذاتي نفسه (role: self_report, officeId
+  // مباشرة بلا قسم) — بهذا تظهر تلقائيًا بـ"جميع التقارير" لأي حساب أعلى من
+  // المكتب (مديرة النظام/الإدارة العليا) دون أي تعديل إضافي بتلك الصفحات.
+  return S.units.filter((u) => (deptIds.includes(u.departmentId) || officeScopeIds(officeId).includes(u.officeId)) && u.status === "active");
+}
+// "وحدة" افتراضية (role: self_report) تمثّل تقرير القسم أو المكتب نفسه —
+// يُنشأ تلقائيًا أول مرة تُطلب، وتُستخدم لتخزين/عرض هذا التقرير بنفس محرك
+// التقارير الكامل المُختبر (بدون أي محرّك جديد)، لكنها لا تُحتسب كـ"وحدة"
+// فعلية في أي عداد/رسم بياني (role !== "self_report" بكل تلك المواضع) ولا
+// تظهر لأي وحدة تابعة (أدنى بالمخطط) — فقط لصاحب القسم/المكتب نفسه ولمن
+// أعلى منه (المكتب/الإدارة العليا/مديرة النظام) عبر "جميع التقارير".
+// kind: "department" | "office" | "own" (مسمى وظيفي بلا نطاق محدّد (none) —
+// تقرير خاص بالمسمى نفسه فقط، غير تابع لأي قسم/مكتب، فيظهر فقط لمن أعلى
+// الجميع (مديرة النظام/الإدارة العليا) ضمن "جميع التقارير"، بلا أي ظهور
+// لأي حساب آخر.
+function ensureSelfReportUnit(kind, scopeId) {
+  if (!scopeId) return null;
+  const field = kind === "office" ? "officeId" : kind === "own" ? "platformUserId" : "departmentId";
+  let u = S.units.find((x) => x.role === "self_report" && x[field] === scopeId && (kind === "office" || kind === "own" ? !x.departmentId : true));
+  if (u) return u;
+  const owner = kind === "office" ? (S.offices || []).find((o) => o.id === scopeId)
+    : kind === "own" ? { name: S.currentPlatformUserJobTitle || "تقرير مستقل" }
+    : S.departments.find((d) => d.id === scopeId);
+  u = {
+    id: uid("unit"), name: owner ? `تقرير ${owner.name} (ذاتي)` : "تقرير ذاتي",
+    role: "self_report", status: "active", createdAt: Date.now(),
+    ...(kind === "office" ? { officeId: scopeId } : kind === "own" ? { platformUserId: scopeId } : { departmentId: scopeId }),
+  };
+  S.units = [...S.units, u];
+  dataStore.saveUnits(S.units);
+  return u;
+}
+// تضمن وجود وحدة صالحة (S.currentUnitId) قبل الدخول فعليًا لأي صفحة من مجموعة
+// "unit-home" (لوحة الوحدة/تقارير/إنشاء تقرير/الإعدادات) — صارت هذه الصفحات
+// روابط رئيسية ظاهرة دومًا بالشريط الجانبي لكل أنواع الحسابات (مديرة النظام/
+// القسم/المكتب/المسمى الوظيفي)، بلا اشتراط مسبق بوحدة محدّدة (طلب نجود
+// الصريح)، فقد تُدخَل مباشرة بدون المرور بالاختيار التلقائي للوحدة الذي كان
+// يحصل فقط عند أول تسجيل دخول أو عبر صفحات أخرى (قسمي/وحدتي/مكتب الإشراف).
+// تُستدعى من معالج "nav-to" ومن "open-or-create-report". لا تفعل شيئًا لو
+// الوحدة الحالية صالحة أصلًا، فلا تغيّر شيئًا لحساب عادي (وحدة واحدة) أو لمن
+// مرّ بالفعل بهذا الاختيار.
+function ensureUnitContextForNav(navView) {
+  const targetPage = SIDEBAR_PAGES.find((p) => p.id === navView);
+  if (!targetPage || targetPage.group !== "unit-home") return;
+  // ملاحظة مهمة: "role" قد تكون غير محددة أصلًا بوحدات البذرة القديمة
+  // (undefined)، وتُعامَل بكل مكان آخر بالكود كـ"unit" افتراضيًا (راجع
+  // unitToRow: `u.role || "unit"`) — نطبّق نفس التطبيع هنا، وإلا تُستثنى هذي
+  // الوحدات خطأً فتُستبدل الوحدة الصحيحة الحالية بوحدة أخرى بالغلط.
+  const effRole = (u) => u.role || "unit";
+  const alreadyValid = (S.units || []).some((u) => u.id === S.currentUnitId && (effRole(u) === "unit" || effRole(u) === "center" || effRole(u) === "self_report"));
+  if (alreadyValid) return;
+  // حساب نطاقه قسم أو مكتب إشراف (يشرف على عدة وحدات تابعة): الافتراضي
+  // دائمًا تقريره الذاتي هو (تقرير القسم/المكتب نفسه)، مو أي وحدة تابعة
+  // حقيقية — حتى ما ينفتح/يُعدَّل تقرير وحدة تابعة بالغلط بمجرد الدخول بلا
+  // اختيار صريح (نفس ملاحظة نجود: "ابي اقدر أضيف إذا احتاج إنشاء تقرير").
+  // تبقى كل الوحدات التابعة متاحة بوضوح من قائمة "اختيار الوحدة" (📁 يميّز
+  // الذاتي عنها) لو احتاجت فعلًا تنشئ/تعدّل تقرير وحدة معيّنة بنفسها.
+  if (S.currentDepartmentId) {
+    const selfUnit = ensureSelfReportUnit("department", S.currentDepartmentId);
+    if (selfUnit) { S.currentUnitId = selfUnit.id; return; }
+  } else if (S.currentOfficeId) {
+    const selfUnit = ensureSelfReportUnit("office", S.currentOfficeId);
+    if (selfUnit) { S.currentUnitId = selfUnit.id; return; }
+  } else if (S.currentUser && S.currentUser.role === "platform") {
+    // حساب "بدون نطاق" (scopeKind: none) — بلا قسم/مكتب أصلًا؛ تقريره الذاتي
+    // المستقل هو الخيار الوحيد أصلًا.
+    const selfUnit = ensureSelfReportUnit("own", S.currentUser.id);
+    if (selfUnit) { S.currentUnitId = selfUnit.id; return; }
+  }
+  // مديرة النظام (أو أي حالة بلا قسم/مكتب/مسمى محدّد): تختار أول وحدة فعلية
+  // نشطة من كل الوحدات — نفس سلوك "وحدتي" القديم تمامًا، بلا تغيير هنا.
+  const scopedUnits = (S.units || []).filter((u) => effRole(u) === "unit" || effRole(u) === "center");
+  const activeUnit = scopedUnits.find((u) => u.status === "active") || scopedUnits[0];
+  if (activeUnit) S.currentUnitId = activeUnit.id;
 }
 // "متأخر" هنا يعني: تقرير لم يُعتمد بعد (مسودة أو قيد المراجعة) ومضى على إنشائه
 // أكثر من 14 يومًا — تقدير عملي بما إن النظام لا يحتفظ بموعد استحقاق صريح لكل تقرير.
@@ -1934,22 +4838,27 @@ function hijriMonthLabel(ts) {
   catch (e) { return "—"; }
 }
 
-function renderExecutiveDashboard() {
-  const flat = collectAllReportsFlat();
+// معمّمة الآن لتأخذ (وحدات، أقسام) اختياريًا — تُستخدم من الإدارة العليا (كل
+// شي) ومن لوحة معلومات مكتب الإشراف (وحدات/أقسام مكتبه فقط) بنفس الدالة تمامًا.
+function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
+  opts = opts || {};
+  const xk = opts.kind || "executive";
+  const units = scopeUnits || S.units.filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
+  const activeDepartments = scopeDepartments || S.departments.filter((d) => d.status === "active");
+  const flat = scopeUnits ? collectReportsFlatForUnits(units) : collectAllReportsFlat();
   const total = flat.length;
   const completed = flat.filter((x) => x.report.status === "completed").length;
   const inProgress = flat.filter((x) => x.report.status === "draft" || x.report.status === "under_review" || x.report.status === "returned").length;
   const overdue = flat.filter((x) => isReportOverdue(x.report)).length;
   const completionPct = total ? Math.round((completed / total) * 100) : 0;
 
-  const activeDepartments = S.departments.filter((d) => d.status === "active");
   const deptPerf = activeDepartments.map((dept) => {
-    const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+    const deptUnits = units.filter((u) => u.departmentId === dept.id);
     const pcts = deptUnits.map((u) => computeProgress(latestReportForUnit(u.id)).percent);
     const avg = pcts.length ? Math.round(pcts.reduce((s, v) => s + v, 0) / pcts.length) : 0;
     return { label: dept.name, value: avg, color: "var(--rpt-burgundy)" };
   });
-  const unitPerf = S.units.filter((u) => u.status === "active").map((u) => ({ label: u.name, value: computeProgress(latestReportForUnit(u.id)).percent, color: ROSE }));
+  const unitPerf = units.map((u) => ({ label: u.name, value: computeProgress(latestReportForUnit(u.id)).percent, color: ROSE }));
 
   const statusPie = svgPieChart([
     { label: "مكتمل", value: completed, color: GREEN },
@@ -1966,34 +4875,32 @@ function renderExecutiveDashboard() {
 
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "لوحة المعلومات", subtitle: "نظرة إشرافية شاملة على كل الأقسام والوحدات",
+    ${topBarHtml({ title: "لوحة المعلومات", subtitle: opts.subtitle || "نظرة إشرافية شاملة على كل الأقسام والوحدات",
       right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
-    <div class="stat-grid" style="margin-bottom:18px;">
+    ${opts.extraTop || ""}
+    ${dashBlock(xk, "exStats", `<div class="stat-grid" style="margin-bottom:18px;">
       ${statIconCardHtml("إجمالي التقارير", total, iconDocument(18, ROSE), DANGER_BG)}
       ${statIconCardHtml("تقارير مكتملة", completed, iconCheckCircle(18, GREEN), GREEN_BG)}
       ${statIconCardHtml("قيد الإعداد", inProgress, iconGauge(GOLD, 18), GOLD_BG)}
       ${statIconCardHtml("تقارير متأخرة", overdue, iconBell(18, DANGER), DANGER_BG)}
-    </div>
-    <div class="card" style="margin-bottom:18px;">
+    </div>`)}
+    ${dashBlock(xk, "exCompletion", `<div class="card" style="margin-bottom:18px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div class="prs-title" style="font-size:14px;font-weight:800;">نسبة إنجاز التقارير إجمالاً</div>
         <span style="font-size:16px;font-weight:900;color:${ROSE}">${completionPct}٪</span>
       </div>
       ${progressBarHtml(completionPct, ROSE)}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">
-      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
-        ${deptPerf.length ? svgBarChart(deptPerf, { height: 180 }) : emptyHint("لا توجد أقسام نشطة بعد.")}</div>
-      <div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات التقارير</div>${total ? statusPie : emptyHint("لا توجد تقارير بعد.")}</div>
-    </div>
-    <div class="card" style="margin-bottom:18px;">
-      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">ملخص أداء الوحدات</div>
-      ${unitPerf.length ? svgBarChart(unitPerf, { height: 200 }) : emptyHint("لا توجد وحدات نشطة بعد.")}
-    </div>
-    <div class="card">
+    </div>`)}
+    ${dashExGrid(xk, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
+        ${deptPerf.length ? svgBarChart(deptPerf, { height: 180 }) : emptyHint("لا توجد أقسام نشطة بعد.")}</div>`, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات التقارير</div>${total ? statusPie : emptyHint("لا توجد تقارير بعد.")}</div>`)}
+    ${dashBlock(xk, "exUnitPerf", `<div class="card" style="margin-bottom:18px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">نسبة الإنجاز حسب الوحدة</div>
+      ${unitPerf.length ? progressListHtml(unitPerf) : emptyHint("لا توجد وحدات نشطة بعد.")}
+    </div>`)}
+    ${dashBlock(xk, "exPeriod", `<div class="card">
       <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:12px;">مقارنة عدد التقارير حسب الفترة</div>
       ${periodChart}
-    </div>
+    </div>`)}
   </div></div>`;
 }
 
@@ -2041,8 +4948,12 @@ async function generateAiSummaryAsync() {
   render();
 }
 
-function renderExecutiveSummary() {
-  const flat = collectAllReportsFlat();
+// معمّمة بنفس أسلوب renderExecutiveDashboard أعلاه — وحدات/أقسام اختيارية
+// لدعم نسخة مكتب الإشراف المقتصرة على وحداته فقط.
+function renderExecutiveSummary(scopeUnits, scopeDepartments, opts) {
+  opts = opts || {};
+  const activeDepartments = scopeDepartments || S.departments.filter((d) => d.status === "active");
+  const flat = scopeUnits ? collectReportsFlatForUnits(scopeUnits) : collectAllReportsFlat();
   const sortCurated = (arr) => [...arr].sort((a, b) => (b.curated ? 1 : 0) - (a.curated ? 1 : 0));
   const achievementsAll = [];
   flat.forEach((x) => (x.report.sections?.programs?.data?.programs || []).filter((p) => p.highlightResult).forEach((p) => {
@@ -2075,9 +4986,9 @@ function renderExecutiveSummary() {
   const endDates = dates.map((d) => d.endDate).filter(Boolean).sort();
   const periodRange = startDates.length && endDates.length ? `${esc(startDates[0])} — ${esc(endDates[endDates.length - 1])}` : "لم تُحدَّد فترات بعد";
 
-  const activeDepartments = S.departments.filter((d) => d.status === "active");
+  const scopeUnitsList = scopeUnits || S.units.filter((u) => u.status === "active");
   const deptRows = activeDepartments.map((dept) => {
-    const deptUnits = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
+    const deptUnits = scopeUnitsList.filter((u) => u.departmentId === dept.id);
     const pcts = deptUnits.map((u) => computeProgress(latestReportForUnit(u.id)).percent);
     const avg = pcts.length ? Math.round(pcts.reduce((s, v) => s + v, 0) / pcts.length) : 0;
     return [esc(dept.name), deptUnits.length, avg + "٪"];
@@ -2085,10 +4996,11 @@ function renderExecutiveSummary() {
 
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "الملخص التنفيذي", subtitle: `الفترة: ${periodRange}`,
+    ${topBarHtml({ title: opts.title || "الملخص التنفيذي", subtitle: `الفترة: ${periodRange}`,
       right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
+    ${opts.extraTop || ""}
 
-    ${aiSummaryCardHtml()}
+    ${opts.showAiSummary === false ? "" : aiSummaryCardHtml()}
 
     <div class="card" style="margin-bottom:16px;">
       <div class="prs-title" style="font-size:14px;font-weight:800;margin-bottom:10px;">أهم النتائج والإنجازات</div>
@@ -2286,6 +5198,8 @@ function renderAllReports() {
     scopeUnits = S.units.filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive");
   } else if (S.isDepartmentUser) {
     scopeUnits = S.units.filter((u) => u.status === "active" && u.departmentId === S.currentDepartmentId);
+  } else if (S.isOfficeUser) {
+    scopeUnits = officeUnits(S.currentOfficeId);
   } else {
     scopeUnits = S.units.filter((u) => u.id === S.currentUnitId);
   }
@@ -2297,7 +5211,7 @@ function renderAllReports() {
   });
   rows.sort((a, b) => b.report.createdAt - a.report.createdAt);
 
-  const canSeeMultipleEntities = S.isAdmin || S.isExecutive || S.isDepartmentUser;
+  const canSeeMultipleEntities = S.isAdmin || S.isExecutive || S.isDepartmentUser || S.isOfficeUser;
   const tabs = [
     { id: "all", label: "الكل" },
     { id: "completed", label: "مكتمل" },
@@ -2327,7 +5241,9 @@ function renderAllReports() {
     </tr>`;
   }).join("");
 
-  const scopeDeptOptions = canSeeMultipleEntities && (S.isAdmin || S.isExecutive) ? S.departments.filter((d) => d.status === "active") : [];
+  const scopeDeptOptions = S.isAdmin || S.isExecutive ? S.departments.filter((d) => d.status === "active")
+    : S.isOfficeUser ? S.departments.filter((d) => d.status === "active" && officeScopeIds(S.currentOfficeId).includes(d.officeId))
+    : [];
   const scopeUnitOptions = canSeeMultipleEntities ? scopeUnits : [];
 
   return `
@@ -2372,10 +5288,11 @@ function reportCardHtml(unit, entry) {
   const dateStr = new Date(entry.createdAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" });
   const confirming = S.ui.confirmDeleteReportId === entry.id;
   const showNotes = S.ui.showReportNotesId === entry.id;
-  const managerNotes = entry.sections?.review?.data?.managerNotesText || "";
+  const apReturnNote = (entry.status === "returned" || entry.status === "needs_completion") && reportApPathId(entry) ? (entry.internalReviewNotes || "") : "";
+  const managerNotes = entry.sections?.review?.data?.managerNotesText || apReturnNote;
   // ملاحظات المديرة المباشرة (المسار الخارجي القديم) تبقى للمراكز فقط — أُخفيت عن
   // الإدارية ورئيسة الوحدة تفاديًا للتكرار مع مسار المراجعة الداخلي الجديد.
-  const showManagerNotesToUnit = !!managerNotes && S.currentUnitEntryMode !== "admin" && S.currentUnitEntryMode !== "head";
+  const showManagerNotesToUnit = !!managerNotes && (!!apReturnNote || (S.currentUnitEntryMode !== "admin" && S.currentUnitEntryMode !== "head" && S.currentUnitEntryMode !== "extra"));
 
   let actionsHtml;
   if (confirming) {
@@ -2387,43 +5304,46 @@ function reportCardHtml(unit, entry) {
       </div>`;
   } else if (entry.status === "draft") {
     actionsHtml = `<div style="display:flex;gap:6px;">
-      <button class="icon-btn" style="border:1px solid ${BORDER}" data-action="confirm-delete-report" data-id="${entry.id}" title="حذف التقرير">${iconTrash(14, DANGER)}</button>
-      ${pillBtn("معاينة", { variant: "ghost", icon: iconEye(14, INK), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
+      ${platformActionAllowed("delete-report") ? `<button class="icon-btn" style="border:1px solid ${BORDER}" data-action="confirm-delete-report" data-id="${entry.id}" title="حذف التقرير">${iconTrash(14, DANGER)}</button>` : ""}
+      ${pillBtn("معاينة", { variant: "ghost", icon: iconEye(14, INK), action: "open-report", data: { unitId: unit.id, reportId: entry.id, btn: "card-preview" } })}
       ${pillBtn("تعديل", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
     </div>`;
   } else if (entry.status === "under_review") {
     actionsHtml = `<div style="display:flex;gap:6px;">
-      ${pillBtn("معاينة", { variant: "ghost", icon: iconEye(14, INK), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
+      ${pillBtn("معاينة", { variant: "ghost", icon: iconEye(14, INK), action: "open-report", data: { unitId: unit.id, reportId: entry.id, btn: "card-preview" } })}
       ${pillBtn("عرض التفاصيل", { variant: "ghost", icon: iconChevronLeft(14, ROSE), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
     </div>`;
   } else if (entry.status === "returned" || entry.status === "needs_completion") {
     actionsHtml = `<div style="display:flex;flex-direction:column;gap:6px;">
       ${showManagerNotesToUnit ? `<button class="pill-btn pill-ghost" data-action="toggle-report-notes" data-id="${entry.id}" style="width:100%;">${iconEye(14, INK)} ${showNotes ? "إخفاء الملاحظات" : "عرض الملاحظات"}</button>` : ""}
       ${showManagerNotesToUnit && showNotes ? `<div class="hint" style="text-align:right;">${esc(managerNotes)}</div>` : ""}
-      ${pillBtn(entry.status === "returned" ? "إعادة التعديل" : "استكمال التقرير", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
+      ${pillBtn(entry.status === "returned" ? "إعادة التعديل" : "استكمال التقرير", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id, btn: "card-reedit" } })}
     </div>`;
-  } else if (entry.status === "pending_head_review") {
-    actionsHtml = S.currentUnitEntryMode === "head"
+  } else if (entry.status === "pending_head_review" || entry.status === "pending_extra_review") {
+    const reviewerMode = entry.status === "pending_extra_review" ? "extra" : "head";
+    actionsHtml = S.currentUnitEntryMode === reviewerMode
       ? `<div style="display:flex;gap:6px;">
       ${pillBtn("فتح التقرير", { icon: iconChevronLeft(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
     </div>`
       : `<div style="display:flex;gap:6px;">
-      ${pillBtn("عرض", { variant: "ghost", icon: iconEye(14, INK), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id } })}
+      ${pillBtn("عرض", { variant: "ghost", icon: iconEye(14, INK), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id, btn: "card-view" } })}
     </div>`;
-  } else if (entry.status === "head_returned_edit" || entry.status === "head_returned_completion") {
+  } else if (entry.status === "head_returned_edit" || entry.status === "head_returned_completion" || entry.status === "extra_returned_edit" || entry.status === "extra_returned_completion") {
     const headNotes = entry.internalReviewNotes || "";
     const returnedDateStr = entry.internalReturnedAt ? new Date(entry.internalReturnedAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+    const isEdit = entry.status === "head_returned_edit" || entry.status === "extra_returned_edit";
+    const notesLabel = entry.status.indexOf("extra_") === 0 ? "عرض ملاحظات المراجعة الإضافية" : "عرض ملاحظات رئيسة الوحدة";
     actionsHtml = `<div style="display:flex;flex-direction:column;gap:6px;">
       ${returnedDateStr ? `<div style="font-size:10px;color:${SUBTLE};">تاريخ الإعادة: ${esc(returnedDateStr)}</div>` : ""}
-      ${headNotes ? `<button class="pill-btn pill-ghost" data-action="toggle-report-notes" data-id="${entry.id}" style="width:100%;">${iconEye(14, INK)} ${showNotes ? "إخفاء الملاحظات" : "عرض ملاحظات رئيسة الوحدة"}</button>` : ""}
+      ${headNotes ? `<button class="pill-btn pill-ghost" data-action="toggle-report-notes" data-id="${entry.id}" style="width:100%;">${iconEye(14, INK)} ${showNotes ? "إخفاء الملاحظات" : notesLabel}</button>` : ""}
       ${showNotes ? `<div class="hint" style="text-align:right;">${esc(headNotes)}</div>` : ""}
-      ${pillBtn(entry.status === "head_returned_edit" ? "تعديل التقرير" : "استكمال التقرير", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
+      ${pillBtn(isEdit ? "تعديل التقرير" : "استكمال التقرير", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id, btn: "card-reedit" } })}
     </div>`;
   } else {
     // مكتمل أو معتمد
     actionsHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;">
-      ${pillBtn("عرض", { variant: "ghost", icon: iconChevronLeft(14, ROSE), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id } })}
-      ${pillBtn("تنزيل PDF", { variant: "ghost", icon: iconDownload(14, INK), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id } })}
+      ${pillBtn("عرض", { variant: "ghost", icon: iconChevronLeft(14, ROSE), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id, btn: "card-view" } })}
+      ${pillBtn("تنزيل PDF", { variant: "ghost", icon: iconDownload(14, INK), action: "view-report-pdf", data: { unitId: unit.id, reportId: entry.id, btn: "card-download" } })}
     </div>`;
   }
 
@@ -2431,7 +5351,7 @@ function reportCardHtml(unit, entry) {
   <div class="card prs-card">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <div style="width:30px;height:30px;border-radius:9px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${reportTypeIconHtml(entry.reportType, 14, ROSE)}</div>
+        <div style="width:30px;height:30px;border-radius:9px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconDocument(14, ROSE)}</div>
         <div><div style="font-size:14px;font-weight:800;">${esc(entry.label || "تقرير")}</div><div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(dateStr)}</div>${headApprovedDateStr ? `<div style="font-size:10px;color:${SUBTLE};margin-top:2px;">اعتمدته رئيسة الوحدة بتاريخ ${esc(headApprovedDateStr)}</div>` : ""}</div>
       </div>
       ${badgeHtml(meta.label, meta.color, meta.bg)}
@@ -2443,47 +5363,47 @@ function reportCardHtml(unit, entry) {
 
 function renderUnitReportsHub() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
-  if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
+  if (!unit) return S.isAdmin ? unitNotFoundPageHtml() : `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
   const dept = S.departments.find((d) => d.id === unit.departmentId);
   const list = ensureUnitReportsLoaded(unit.id);
-  const filter = S.ui.unitReportsFilter || "all";
+  let filter = S.ui.unitReportsFilter || "all";
   const typeFilter = S.ui.unitReportsTypeFilter || "";
   const yearFilter = S.ui.unitReportsYearFilter || "";
 
   const isHeadMode = S.currentUnitEntryMode === "head";
+  const isExtraMode = S.currentUnitEntryMode === "extra";
   const isAdminMode = S.currentUnitEntryMode === "admin";
   // تبويبات "بحاجة إلى تعديل/استكمال" و"التقارير المرسلة" تجمع حالتها القديمة (المسار
-  // الخارجي) مع نظيرتها الجديدة من مسار الإدارية/رئيسة الوحدة الداخلي، حتى تظهر تحت
-  // نفس التبويب المألوف بدون إضافة عناصر واجهة مكررة.
-  const TAB_STATUS_GROUPS = {
-    returned: ["returned", "head_returned_edit"],
-    needs_completion: ["needs_completion", "head_returned_completion"],
-    under_review: isAdminMode ? ["under_review", "pending_head_review"] : ["under_review"],
-  };
+  // الخارجي) مع نظيرتها الجديدة من مسار الإدارية/رئيسة الوحدة/المراجعة الإضافية
+  // الداخلي، حتى تظهر تحت نفس التبويب المألوف بدون إضافة عناصر واجهة مكررة.
+  // الأزرار وحالاتها صارت من القاعدة (report_tabs) — تُدار من «إدارة أزرار التقارير».
   const reportMatchesTab = (r, id) => {
-    const group = TAB_STATUS_GROUPS[id];
-    return group ? group.indexOf(r.status) !== -1 : r.status === id;
+    const t = reportTabDef(id);
+    if (!t) return false;
+    return (t.statuses || []).indexOf(r.status) !== -1 || (isAdminMode && (t.adminStatuses || []).indexOf(r.status) !== -1);
   };
+  const tabSpecial = (id) => { const t = reportTabDef(id); return t ? t.special : ""; };
 
-  const tabs = [
-    { id: "all", label: "الكل" },
-    ...(isHeadMode ? [{ id: "pending_head_review", label: "الواردة للمراجعة" }] : []),
-    { id: "draft", label: "مسوداتي" },
-    { id: "returned", label: "بحاجة إلى تعديل" },
-    { id: "needs_completion", label: "بحاجة إلى استكمال" },
-    { id: "under_review", label: "التقارير المرسلة" },
-    { id: "completed", label: "التقارير الكاملة" },
-    { id: "approved", label: "معتمد" },
-    { id: "archived", label: "أرشيف التقارير" },
-  ];
+  const tabs = reportTabsList().filter((t) => t.enabled !== false && (!t.mode || (t.mode === "head" && isHeadMode) || (t.mode === "extra" && isExtraMode))).map((t) => ({ id: t.id, label: t.label }));
+  // أزرار محددة من مديرة النظام لهذا الحساب/المسمى (إن وُجدت) تحل محل الأزرار الافتراضية.
+  const tabsCfg = effectiveReportTabsConfig();
+  // «بانتظار مراجعتي» يظهر تلقائيًا لمن هو في مرحلة بمسار اعتماد (أو إن اختارته مديرة النظام صراحة).
+  if (!userInAnyApStage()) { const mi = tabs.findIndex((t) => t.id === MINE_TAB_ID); if (mi >= 0) tabs.splice(mi, 1); }
+  if (tabsCfg && tabsCfg.tabs.length) {
+    const chosen = reportTabsList().filter((t) => t.enabled !== false && tabsCfg.tabs.includes(t.id)).map((t) => ({ id: t.id, label: t.label }));
+    tabs.length = 0; chosen.forEach((t) => tabs.push(t));
+  }
+  if (!tabs.some((t) => t.id === filter)) filter = tabs.length ? tabs[0].id : "all";
   const countFor = (id) => {
-    if (id === "all") return list.filter((r) => !isReportArchived(r)).length;
-    if (id === "archived") return list.filter((r) => isReportArchived(r)).length;
+    if (tabSpecial(id) === "mine") return apPendingForMe().length;
+    if (tabSpecial(id) === "all") return list.filter((r) => !isReportArchived(r)).length;
+    if (tabSpecial(id) === "archived") return list.filter((r) => isReportArchived(r)).length;
     return list.filter((r) => reportMatchesTab(r, id) && !isReportArchived(r)).length;
   };
 
-  let filtered = filter === "all" ? list.filter((r) => !isReportArchived(r))
-    : filter === "archived" ? list.filter((r) => isReportArchived(r))
+  const mineMode = tabSpecial(filter) === "mine";
+  let filtered = mineMode ? [] : tabSpecial(filter) === "all" ? list.filter((r) => !isReportArchived(r))
+    : tabSpecial(filter) === "archived" ? list.filter((r) => isReportArchived(r))
     : list.filter((r) => reportMatchesTab(r, filter) && !isReportArchived(r));
   if (typeFilter) filtered = filtered.filter((r) => (r.sections?.basic?.data?.periodType || "") === typeFilter);
   if (yearFilter) filtered = filtered.filter((r) => (r.sections?.basic?.data?.hijriYear || "") === yearFilter);
@@ -2495,7 +5415,17 @@ function renderUnitReportsHub() {
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "نظام توثيق الأداء", subtitle: dept ? `${unit.name} — ${dept.name}` : unit.name,
       backAction: S.isAdmin && S.adminPreviewOrigin ? "nav-to" : S.isAdmin ? "nav-back-admin" : S.isDepartmentUser ? "nav-back-department" : "",
-      backData: S.isAdmin && S.adminPreviewOrigin ? { view: S.adminPreviewOrigin } : undefined })}
+      backData: S.isAdmin && S.adminPreviewOrigin ? { view: S.adminPreviewOrigin } : undefined,
+      // زر "إنشاء تقرير" هنا بالصفحة نفسها، مو بالشريط الجانبي فقط — يحتاج
+      // فقط صلاحية الإجراء (open-or-create-report)، بدون اشتراط وجود صفحة
+      // "إنشاء تقرير" ضمن allowedPages أيضًا. هذا يمنع طريق مسدود حقيقي: حساب
+      // وصل لهذي الصفحة من مكان آخر (مثال: بطاقة الوحدة بصفحة "قسمي") لكن
+      // زر الشريط الجانبي نفسه غير ظاهر له لأن صفحة "إنشاء تقرير" تحديدًا لم
+      // تُمنح له ضمن قائمة الصفحات — فتظل الصفحة تَعِد بالزر "من الشريط
+      // الجانبي" بينما هو غير موجود أصلًا.
+      right: (platformActionAllowed("open-or-create-report") && !adminReportsReadOnly() && !computeVisibleSidebarPages().some((p) => p.id === "unit-report") ? pillBtn("إنشاء تقرير", { icon: iconPencil(14, "#fff"), action: "open-or-create-report" }) : "")
+        + (platformActionAllowed("create-new-report") && !adminReportsReadOnly() ? pillBtn("تقرير جديد", { variant: "ghost", icon: iconPlus(14, INK), action: "create-new-report" }) : "") })}
+    ${scopedUnitSwitcherHtml()}
 
     <div class="hero-banner">
       <img class="hero-banner-bg" src="hero-bg.jpg" alt="" />
@@ -2513,249 +5443,401 @@ function renderUnitReportsHub() {
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <input id="unit-reports-search" class="input" style="flex:2;min-width:180px;" placeholder="ابحثي باسم التقرير..." />
-        <select class="input" style="flex:1;min-width:120px;" data-action="filter-unit-reports-type"><option value="">النوع: الكل</option>${PERIOD_TYPES.map((p) => `<option value="${esc(p)}" ${typeFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
+        <select class="input" style="flex:1;min-width:120px;" data-action="filter-unit-reports-type"><option value="">الفترة: الكل</option>${periodOptionsFor(list).map((p) => `<option value="${esc(p)}" ${typeFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
         <select class="input" style="flex:1;min-width:110px;" data-action="filter-unit-reports-year"><option value="">السنة: الكل</option>${yearOptions.map((y) => `<option value="${esc(y)}" ${yearFilter === y ? "selected" : ""}>${esc(y)}</option>`).join("")}</select>
       </div>
     </div>
     <div style="font-size:12px;color:${SUBTLE};margin-bottom:10px;">عدد التقارير: ${sorted.length}</div>
 
-    ${sorted.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير مطابقة${filter === "all" ? " — ابدئي بإنشاء تقرير جديد من الشريط الجانبي." : "."}</div>` :
+    ${mineMode ? (apPendingForMe().length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;border-style:dashed;">لا توجد تقارير بانتظارك حاليًا.</div>` : `<div style="display:flex;flex-direction:column;gap:12px;">${apPendingForMe().map((item) => apInboxCardHtml(item)).join("")}</div>`) : sorted.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير مطابقة${filter === "all" ? " — ابدئي بإنشاء تقرير جديد من الشريط الجانبي." : "."}</div>` :
       `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;" id="unit-reports-grid">${sorted.map((entry) => `<div data-search="${esc((entry.label || "").toLowerCase())}">${reportCardHtml(unit, entry)}</div>`).join("")}</div>`}
   </div></div>`;
 }
 
 /* =============================== Departments / units management ============== */
-function simpleAccountRowHtml(u, roleLabel) {
-  const editingPassword = S.ui.editingUnitPasswordId === u.id;
-  const confirming = S.ui.confirmDeleteUnitId === u.id;
-  if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(u.name)}" نهائيًا؟</span>
-      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-unit", data: { id: u.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-confirm-unit" })}</div>
-    </div>`;
-  }
-  if (editingPassword) {
-    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
-      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(u.name)} —</span>
-      <input class="input" id="edit-unit-password" style="flex:1;" placeholder="كلمة المرور الجديدة" value="${esc(S.ui.editUnitPasswordValue || "")}" />
-      <button data-action="save-unit-password" data-id="${esc(u.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-unit-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
-  }
-  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconBuilding(ROSE, 16)}</div>
-      <div style="font-size:13.5px;font-weight:700;">${esc(u.name)} <span style="font-size:10px;font-weight:700;color:${ROSE};background:${DANGER_BG};padding:2px 7px;border-radius:999px;">${esc(roleLabel)}</span></div>
+// نقطة إضافة واحدة موحّدة بدل 6 نماذج دائمة الظهور: ضغطة "+ إضافة" تفتح قائمة
+// أنواع (تفرّع من نفس فكرة الهيكل)، واختيار نوع يفتح نموذجه الفعلي (نفس
+// الحقول وأزرار add-* القديمة تمامًا، بلا أي تغيير بالمنطق) — إضافة واجهة
+// بحتة فقط.
+const ADD_ENTITY_TYPES = [
+  { key: "executive", label: "إدارة عليا", sectionKey: "executive" },
+  { key: "sysadmin", label: "مديرة نظام", sectionKey: "sysadmin" },
+  { key: "office", label: "مكتب إشراف", sectionKey: "offices" },
+  { key: "department", label: "قسم", sectionKey: "departments" },
+  { key: "unit", label: "وحدة", sectionKey: "units" },
+  { key: "center", label: "مركز", sectionKey: "centers" },
+];
+
+
+/* ---------- شجرة الهيكل (مكتب ← قسم ← وحدة) بنفس شكل المخطط الحر:
+   طيّ، إضافة (تابع/أب)، تعديل (الاسم + الإيميل + الرقم السري)، حذف، نقل ---------- */
+function treeEntity(type, id) {
+  const list = type === "office" ? (S.offices || []) : type === "dept" ? S.departments : S.units; // "exec" و"unit" كلاهما بجدول units
+  return list.find((x) => x.id === id) || null;
+}
+function treeSetEntity(type, id, patch) {
+  if (type === "office") { S.offices = (S.offices || []).map((x) => x.id === id ? { ...x, ...patch } : x); dataStore.saveOffices(S.offices); }
+  else if (type === "dept") { S.departments = S.departments.map((x) => x.id === id ? { ...x, ...patch } : x); dataStore.saveDepartments(S.departments); }
+  else { S.units = S.units.map((x) => x.id === id ? { ...x, ...patch } : x); dataStore.saveUnits(S.units); }
+}
+function treeAddFormHtml(type, id) {
+  const f = S.ui.treeAddFor;
+  if (!f || f.type !== type || f.id !== id) return "";
+  const opts = type === "exec" ? [["child-office", "تحته"]]
+    : type === "office" ? [["child", "تحته"], ["parent-exec", "فوقه"]]
+    : type === "dept" ? [["child", "تحته"], ["parent", "فوقه"]]
+    : [["parent", "فوقه"]];
+  const kind = opts.some((o) => o[0] === S.ui.treeAddKind) ? S.ui.treeAddKind : opts[0][0];
+  return `<div class="card" style="margin:6px 0;background:${GRAY_BG};">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+      ${opts.length > 1 ? opts.map((o) => pillBtn(o[1], { variant: kind === o[0] ? "primary" : "ghost", action: "tree-add-kind", data: { kind: o[0] } })).join("") : ""}
     </div>
-    <div style="display:flex;gap:6px;align-items:center;">
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-password" data-id="${esc(u.id)}" title="تغيير كلمة المرور">${iconKey(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-unit" data-id="${esc(u.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${entityJobTitleFieldHtml("tree-add-name")}
+      <input class="input" id="tree-add-email" style="flex:1;min-width:140px;" type="email" placeholder="الإيميل (اختياري)" />
+      <input class="input" id="tree-add-password" style="flex:1;min-width:110px;" placeholder="الرقم السري (اختياري)" />
+      ${pillBtn("حفظ", { action: "tree-add-save", data: { kind } })}
+      ${pillBtn("إلغاء", { variant: "ghost", action: "tree-add-cancel" })}
     </div>
   </div>`;
 }
-
-function collapsibleUsersSection({ key, title, count, formHtml, listHtml }) {
-  const manualState = (S.ui.usersSectionState || {})[key];
-  const isOpen = manualState !== undefined ? manualState : false;
-  return `
-    <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;">
-      <button data-action="toggle-users-section" data-key="${esc(key)}" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;cursor:pointer;padding:14px 16px;">
-        <span style="font-size:13.5px;font-weight:800;color:${ROSE};">${esc(title)} <span style="font-size:11px;font-weight:700;color:${SUBTLE};">(${count})</span></span>
-        <span style="display:inline-flex;transition:transform 0.15s;transform:rotate(${isOpen ? "0" : "-90"}deg);">${iconChevronDown(14, SUBTLE)}</span>
-      </button>
-      ${isOpen ? `<div style="padding:0 16px 16px;">${formHtml}${listHtml}</div>` : ""}
+function treeEditFormHtml(type, id) {
+  const f = S.ui.treeEditFor;
+  if (!f || f.type !== type || f.id !== id) return "";
+  const e = treeEntity(type, id); if (!e) return "";
+  return `<div class="card" style="margin:6px 0;background:${GRAY_BG};">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <input class="input" id="tree-edit-name" style="flex:2;min-width:140px;" placeholder="المسمى الوظيفي" value="${esc(e.name)}" />
+      <input class="input" id="tree-edit-email" style="flex:1;min-width:140px;" type="email" placeholder="الإيميل" value="${esc(e.email || "")}" />
+      <input class="input" id="tree-edit-password" style="flex:1;min-width:110px;" placeholder="رقم سري جديد (فارغ = بدون تغيير)" />
+      ${pillBtn("حفظ", { action: "tree-edit-save", data: { type, id } })}
+      ${pillBtn("إلغاء", { variant: "ghost", action: "tree-edit-cancel" })}
+    </div>
+  </div>`;
+}
+const STRUCT_OWNER_KIND = { unit: "unit", dept: "department", office: "office" };
+// ===== عرض «القائمة مع لوحة التفاصيل» لصفحة الهيكل والأشخاص =====
+// إضافة جديدة فقط: الشجرة القديمة (structureTreeHtml) تبقى كما هي وتُفتح من زر «العرض القديم».
+// لا بيانات جديدة ولا أعمدة: تستخدم نفس الأشخاص والأدوار والمسارات ونفس الإجراءات الموجودة.
+const STRUCT_PANEL_TAGS = {
+  admin: { label: "مديرة نظام", bg: "#f3e9ef", fg: "#6b2337" },
+  exec: { label: "إدارة عليا", bg: "#f3e9ef", fg: "#6b2337" },
+  office: { label: "مكتب", bg: "#f3e9ef", fg: "#6b2337" },
+  dept: { label: "قسم", bg: "#fbf0e1", fg: "#9a6420" },
+  unit: { label: "وحدة", bg: "#e8f0ea", fg: "#2f6b45" },
+  center: { label: "مركز", bg: "#e8f0ea", fg: "#2f6b45" },
+};
+function structPanelTagHtml(type, e) {
+  const t = STRUCT_PANEL_TAGS[type === "unit" && e && e.role === "center" ? "center" : type] || STRUCT_PANEL_TAGS.unit;
+  return `<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:${t.bg};color:${t.fg};white-space:nowrap;">${t.label}</span>`;
+}
+function structPanelPersonsCount(type, e) {
+  if (!STRUCT_OWNER_KIND[type]) return null;
+  return personsList().filter((x) => (x.ownerKind || "unit") === STRUCT_OWNER_KIND[type] && x.ownerId === e.id).length;
+}
+function structPanelParentName(type, e) {
+  if (type === "unit") { const d = S.departments.find((x) => x.id === e.departmentId); return d ? d.name : ""; }
+  if (type === "dept") { const o = (S.offices || []).find((x) => x.id === e.officeId); return o ? o.name : ""; }
+  if (type === "office") {
+    const p = (S.offices || []).find((x) => x.id === e.parentOfficeId) || S.units.find((x) => x.id === e.parentOfficeId && x.role === "executive");
+    return p ? p.name : "";
+  }
+  return "";
+}
+function structPanelMoveHtml(type, e) {
+  const offices = S.offices || [];
+  const sel = (action, first, opts, cur) => `<select class="input" style="padding:5px 8px;font-size:12px;width:170px;" data-action="${action}" data-id="${esc(e.id)}" title="يتبع">
+    <option value="">${first}</option>${opts.map((o) => `<option value="${esc(o.id)}" ${cur === o.id ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select>`;
+  if (type === "unit") return sel("assign-unit-dept", "بلا قسم", S.departments, e.departmentId);
+  if (type === "dept") return sel("assign-dept-office", "بلا مكتب", offices, e.officeId);
+  if (type === "office") {
+    const blocked = officeScopeIds(e.id);
+    return sel("assign-office-parent", "بلا", offices.filter((x) => blocked.indexOf(x.id) === -1).concat(S.units.filter((u) => u.role === "executive")), e.parentOfficeId);
+  }
+  return "";
+}
+function structPanelListHtml(sel) {
+  const offices = S.offices || [];
+  const units = S.units.filter((u) => u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
+  const execs = S.units.filter((u) => u.role === "executive");
+  const admins = S.units.filter((u) => u.role === "admin");
+  const row = (e, type, depth) => {
+    const key = type + ":" + e.id;
+    const on = sel === key;
+    const n = structPanelPersonsCount(type, e);
+    return `<button type="button" data-action="struct-select" data-key="${esc(key)}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:right;font-family:inherit;cursor:pointer;padding:9px 10px;margin:2px 0;border-radius:12px;border:${on ? `1.5px solid ${ROSE}` : "1.5px solid transparent"};background:${on ? "#f3e9ef" : "transparent"};margin-right:${depth * 16}px;width:calc(100% - ${depth * 16}px);">
+      ${structPanelTagHtml(type, e)}
+      <span style="flex:1;font-size:13px;font-weight:${on ? 800 : 700};color:${on ? ROSE : INK};">${esc(e.name)}</span>
+      ${n ? `<span style="font-size:11px;font-weight:800;color:${ROSE};">${n}</span>` : ""}
+    </button>`;
+  };
+  const unitRow = (u, d) => row(u, "unit", d);
+  const deptRow = (d, depth) => row(d, "dept", depth) + units.filter((u) => u.departmentId === d.id).map((u) => unitRow(u, depth + 1)).join("");
+  const officeRow = (o, depth, guard) => row(o, "office", depth)
+    + offices.filter((x) => x.parentOfficeId === o.id && guard.indexOf(x.id) === -1).map((x) => officeRow(x, depth + 1, guard.concat(o.id))).join("")
+    + S.departments.filter((d) => d.officeId === o.id).map((d) => deptRow(d, depth + 1)).join("");
+  const isRoot = (o) => !o.parentOfficeId || (!offices.some((x) => x.id === o.parentOfficeId) && !execs.some((x) => x.id === o.parentOfficeId));
+  const looseDepts = S.departments.filter((d) => !offices.some((o) => o.id === d.officeId));
+  const looseUnits = units.filter((u) => !S.departments.some((d) => d.id === u.departmentId));
+  const sep = `<div style="height:1px;background:${BORDER};margin:6px 8px;"></div>`;
+  const grp = (t) => `<div style="font-size:11.5px;font-weight:800;color:${SUBTLE};margin:8px 10px 2px;">${t}</div>`;
+  return `${admins.map((u) => row(u, "admin", 0)).join("")}
+    ${execs.map((u) => row(u, "exec", 0) + offices.filter((o) => o.parentOfficeId === u.id).map((o) => officeRow(o, 1, [])).join("")).join("")}
+    ${(admins.length || execs.length) && offices.filter(isRoot).length ? sep : ""}
+    ${offices.filter(isRoot).map((o) => officeRow(o, 0, [])).join("")}
+    ${looseDepts.length ? sep + grp("أقسام بلا مكتب") + looseDepts.map((d) => deptRow(d, 0)).join("") : ""}
+    ${looseUnits.length ? sep + grp("بلا قسم") + looseUnits.map((u) => unitRow(u, 0)).join("") : ""}`;
+}
+function structPanelPathTabHtml(type, e) {
+  const list = approvalPathsList().filter((a) => a.ownerKind === type && a.ownerId === e.id);
+  const ed = S.ui.apEdit;
+  const edMine = ed && ((ed.id && list.some((a) => a.id === ed.id)) || (!ed.id && ed.draft && ed.draft.ownerKind === type && ed.draft.ownerId === e.id));
+  const rows = list.map((a) => {
+    const active = a.status === "active";
+    const confirming = S.ui.apConfirmDeleteId === a.id;
+    const roleName = a.authorRoleId ? ((rolesList().find((r) => r.id === a.authorRoleId) || {}).name || "(دور محذوف)") : "";
+    return `<div class="card" style="margin-bottom:8px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:13.5px;font-weight:800;">${esc(a.name || apOwnerName(a.ownerKind, a.ownerId))} ${badgeHtml(active ? "مفعّل" : "مسودة", active ? GREEN : SUBTLE, active ? GREEN_BG : GRAY_BG)}</div>
+          <div style="font-size:11px;color:${SUBTLE};margin-top:3px;">${esc(a.periodType || "كل الفترات")} • ${roleName ? "تقرير " + esc(roleName) : "أي صاحب تقرير"} • ${(a.stages || []).length} مرحلة</div>
+          <div style="margin-top:8px;">${(a.stages || []).map((st, i) => `<div style="display:flex;gap:8px;align-items:center;font-size:12px;margin-bottom:4px;"><span style="width:22px;height:22px;border-radius:50%;background:${ROSE};color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i + 1}</span><span style="font-weight:700;">${esc(st.name || "مرحلة")}</span><span style="color:${SUBTLE};">← ${esc(apApproverLabel(st.approver))}</span></div>`).join("")}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${confirming
+          ? `${pillBtn("تأكيد الحذف", { variant: "danger", action: "ap-delete", data: { id: a.id } })}${pillBtn("تراجع", { variant: "ghost", action: "ap-delete-cancel" })}`
+          : `${pillBtn(active ? "إيقاف" : "تفعيل", { variant: active ? "ghost" : "primary", action: "ap-toggle", data: { id: a.id } })}
+             <button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="ap-edit" data-id="${esc(a.id)}" title="تعديل">${iconPencil(13, INK)}</button>
+             <button class="icon-btn" style="width:30px;height:30px;background:${DANGER_BG}" data-action="ap-delete-ask" data-id="${esc(a.id)}" title="حذف">${iconTrash(13, DANGER)}</button>`}</div>
+      </div>
+      ${S.ui.apMsg && S.ui.apMsg.id === a.id ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:8px;">${esc(S.ui.apMsg.msg)}</div>` : ""}
     </div>`;
+  }).join("");
+  const otherEditing = ed && !edMine;
+  return `<div class="hint" style="margin-bottom:10px;">المسار الجديد يُحفظ مسودة ولا يعمل قبل «تفعيل». لا يوجد مسار افتراضي.</div>
+    ${edMine ? apEditorHtml() : otherEditing ? `<div class="card" style="color:${SUBTLE};font-size:12px;margin-bottom:10px;">يوجد مسار آخر قيد التعديل في صفحة «إعداد مسارات الاعتماد».</div>` : `<div style="margin-bottom:10px;">${pillBtn("مسار جديد لهذه الجهة", { icon: iconPlus(14, "#fff"), action: "struct-ap-new", data: { kind: type, id: e.id } })}</div>`}
+    ${rows || (edMine ? "" : `<div class="card" style="text-align:center;color:${SUBTLE};padding:24px;border-style:dashed;font-size:12px;">لا توجد مسارات لهذه الجهة بعد.</div>`)}
+    ${type === "unit" && unitHasCustomPath(e) ? `<div class="hint" style="margin-top:8px;">لهذه الوحدة أيضًا مسار قديم محفوظ ضمن إعداداتها، ويبقى كما هو ويُعدَّل من «العرض القديم».</div>` : ""}`;
+}
+function structPanelDetailHtml(sel) {
+  const [type, ...rest] = String(sel || "").split(":");
+  const id = rest.join(":");
+  const e = sel ? treeEntity(type, id) : null;
+  if (!e) return `<div class="card" style="text-align:center;color:${SUBTLE};padding:40px 20px;border-style:dashed;font-size:13px;">اختاري جهة من القائمة لتظهر تفاصيلها وأشخاصها وصفحاتها ومسارها.</div>`;
+  const key = type + ":" + e.id;
+  const admins = S.units.filter((u) => u.role === "admin");
+  const confirming = S.ui.treeConfirmDel && S.ui.treeConfirmDel.type === type && S.ui.treeConfirmDel.id === e.id;
+  const parent = structPanelParentName(type, e);
+  const actions = confirming
+    ? (type === "admin" && admins.length <= 1
+      ? `<span style="font-size:12px;font-weight:700;color:${DANGER};">لا يمكن حذف آخر حساب لمديرة النظام — أضيفي حساباً آخر أولاً.</span>${pillBtn("حسناً", { variant: "ghost", action: "tree-cancel-delete" })}`
+      : `<span style="font-size:12px;font-weight:700;">حذف "${esc(e.name)}"؟</span>${pillBtn("حذف", { variant: "danger", action: "tree-delete", data: { type, id: e.id } })}${pillBtn("تراجع", { variant: "ghost", action: "tree-cancel-delete" })}`)
+    : `${type === "admin" ? "" : `<button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="tree-add-start" data-type="${type}" data-id="${esc(e.id)}" title="إضافة">${iconPlus(14, INK)}</button>`}
+       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="tree-edit-start" data-type="${type}" data-id="${esc(e.id)}" title="تعديل">${iconPencil(14, INK)}</button>
+       <button class="icon-btn" style="width:32px;height:32px;background:${DANGER_BG}" data-action="tree-confirm-delete" data-type="${type}" data-id="${esc(e.id)}" title="حذف">${iconTrash(14, DANGER)}</button>`;
+  return `<div class="card" style="padding:16px;">
+    <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${structPanelTagHtml(type, e)}<span style="font-size:17px;font-weight:800;">${esc(e.name)}</span></div>
+        ${e.email ? `<div style="font-size:11px;color:${SUBTLE};margin-top:3px;">${esc(e.email)}</div>` : ""}
+        ${parent ? `<div style="font-size:12px;color:${SUBTLE};margin-top:4px;">يتبع: ${esc(parent)}</div>` : ""}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${actions}</div>
+    </div>
+    ${structPanelMoveHtml(type, e) ? `<div style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:12px;font-weight:700;">يتبع ${structPanelMoveHtml(type, e)}</div>` : ""}
+    ${treeAddFormHtml(type, e.id)}${treeEditFormHtml(type, e.id)}
+  </div>`;
+}
+// ===== العرض المبسّط: أسئلة بسيطة (الأشخاص ← ماذا يرون ← المسار) + نسخ الإعداد + بطاقة الشخص =====
+// إضافة فقط: العرض السابق (ذو التبويبات) والشجرة القديمة يبقيان ويُفتحان من الأزرار أعلى الصفحة.
+function structSimpleRoleCountsText(role) {
+  const p = rolePermsOf(role);
+  const b = p.buttons.length ? p.buttons : p.actions.filter((a) => BUTTON_CATALOG.some((x) => x.id === a));
+  if (!p.pages.length) return "⚠ بلا صفحات — لا يرى شيئًا";
+  return `${p.pages.length} صفحات · ${b.length} أزرار`;
+}
+function structSimplePathsOf(type, e) {
+  return approvalPathsList().filter((a) => a.ownerKind === type && a.ownerId === e.id);
+}
+function structSimplePeopleHtml(type, e, key) {
+  const kind = STRUCT_OWNER_KIND[type];
+  const ui = S.ui;
+  const roles = rolesList();
+  const list = personsList().filter((p) => (p.ownerKind || "unit") === kind && p.ownerId === e.id);
+  const roleSel = (p) => `<select class="input" data-action="struct-person-role" data-id="${esc(p.id)}" style="width:150px;padding:6px 8px;font-size:12.5px;">
+    <option value="">— بلا دور —</option>${roles.map((r) => `<option value="${esc(r.id)}" ${p.roleId === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select>`;
+  const rows = list.map((p) => {
+    const on = p.status !== "disabled";
+    const menu = ui.structPersonMenu === p.id;
+    const hasOv = p.permsOverride && (Array.isArray(p.permsOverride.pages) || Array.isArray(p.permsOverride.actions));
+    const perm = ui.personPermEditId === p.id ? personPermsEditorHtml(p) : "";
+    if (ui.personEditId === p.id) {
+      return perm + `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+        <input class="input" id="sp-ename-${esc(p.id)}" value="${esc(p.name)}" style="flex:1;min-width:120px;" />
+        <select class="input" id="sp-erole-${esc(p.id)}" style="width:150px;"><option value="">— الدور —</option>${roles.map((r) => `<option value="${esc(r.id)}" ${p.roleId === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select>
+        <input class="input" id="sp-epin-${esc(p.id)}" inputmode="numeric" placeholder="رمز (اختياري)" value="${esc(p.pin)}" style="width:120px;" />
+        ${pillBtn("حفظ", { action: "struct-person-save", data: { id: p.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "person-cancel" })}</div>`;
+    }
+    return perm + `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;margin-bottom:6px;background:${GRAY_BG};border:1px solid ${BORDER};border-radius:14px;opacity:${on ? 1 : 0.6};">
+      <span style="width:32px;height:32px;border-radius:50%;background:${ROSE};color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;">${esc((p.name || "؟").charAt(0))}</span>
+      <div style="flex:1;min-width:110px;font-size:13.5px;font-weight:700;">${esc(p.name)}<div style="font-size:10.5px;color:${SUBTLE};font-weight:500;">${personEffectivePin(p) ? "برمز" : "بلا رمز"}${hasOv ? " • استثناء خاص" : ""}${on ? "" : " • معطّل"}</div></div>
+      ${roleSel(p)}
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="struct-person-menu" data-id="${esc(p.id)}" title="المزيد">⋯</button>
+      ${menu ? `<div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${ui.personConfirmDeleteId === p.id
+        ? `${pillBtn("تأكيد الحذف", { variant: "danger", action: "person-delete", data: { id: p.id } })}${pillBtn("تراجع", { variant: "ghost", action: "person-delete-cancel" })}`
+        : `${pillBtn("تعديل", { variant: "ghost", action: "person-edit", data: { id: p.id } })}${pillBtn("استثناء الصلاحيات", { variant: "ghost", action: "person-perm-edit", data: { id: p.id } })}${pillBtn(on ? "تعطيل" : "تفعيل", { variant: "ghost", action: "person-toggle", data: { id: p.id } })}${pillBtn("حذف", { variant: "danger", action: "person-delete-ask", data: { id: p.id } })}`}</div>` : ""}
+    </div>`;
+  }).join("");
+  const err = ui.structPersonError && ui.structPersonError.key === key ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:6px;">${esc(ui.structPersonError.msg)}</div>` : "";
+  const adding = ui.structPersonAdd === key;
+  return `${rows || `<div style="font-size:12px;color:${SUBTLE};padding:4px 2px 8px;">لا يوجد أشخاص بعد.</div>`}
+    ${adding ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+      <input class="input" id="sp-name-${esc(key)}" placeholder="اسم الشخص" style="flex:1;min-width:120px;" />
+      <select class="input" id="sp-role-${esc(key)}" style="width:150px;"><option value="">— الدور —</option>${roles.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")}</select>
+      <input class="input" id="sp-pin-${esc(key)}" inputmode="numeric" placeholder="رمز (اختياري)" style="width:120px;" />
+      ${pillBtn("إضافة", { icon: iconPlus(14, "#fff"), action: "struct-person-add", data: { kind, id: e.id, key } })}${pillBtn("إلغاء", { variant: "ghost", action: "struct-person-add-cancel" })}
+    </div>${err}` : ""}
+    ${roles.length ? "" : `<div style="font-size:11px;color:${SUBTLE};margin-top:6px;">أنشئي دورًا أولًا من «إدارة الأدوار» أسفل الصفحة.</div>`}`;
+}
+function structSimpleRoleCardsHtml(type, e) {
+  const kind = STRUCT_OWNER_KIND[type];
+  const roles = rolesList();
+  const card = (r) => {
+    const on = baseRoleIdsRaw(e).includes(r.id);
+    return `<button type="button" data-action="struct-set-base-role" data-kind="${esc(kind)}" data-id="${esc(e.id)}" data-role="${esc(r.id)}" style="text-align:right;font-family:inherit;cursor:pointer;padding:12px 14px;border-radius:14px;border:${on ? `2px solid ${ROSE}` : `1px solid ${BORDER}`};background:${on ? "#f3e9ef" : GRAY_BG};display:flex;flex-direction:column;gap:3px;">
+      <span style="display:flex;align-items:center;gap:8px;"><span style="width:18px;height:18px;border-radius:50%;${on ? `background:${ROSE};` : "border:1.5px solid #cdb9c1;"}display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;">${on ? "✓" : ""}</span><b style="font-size:14px;color:${INK};">${esc(r.name)}</b></span>
+      <span style="font-size:11.5px;color:${SUBTLE};">${structSimpleRoleCountsText(r)}</span></button>`;
+  };
+  const none = `<button type="button" data-action="struct-set-base-role" data-kind="${esc(kind)}" data-id="${esc(e.id)}" data-role="" style="text-align:right;font-family:inherit;cursor:pointer;padding:12px 14px;border-radius:14px;border:${!baseRoleIdsRaw(e).length ? `2px solid ${ROSE}` : `1px dashed #d9c6cd`};background:${!baseRoleIdsRaw(e).length ? "#f3e9ef" : "#fff"};"><b style="font-size:14px;color:${INK};">بلا دور</b><div style="font-size:11.5px;color:${SUBTLE};margin-top:3px;">لا صفحات عند الدخول المباشر</div></button>`;
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">${roles.map(card).join("")}${none}</div>
+    <div style="font-size:11.5px;color:${SUBTLE};margin-top:8px;">لتغيير صفحات الدور أو أزراره نفسه: «إدارة الأدوار» أسفل الصفحة. هنا تختارين فقط.</div>`;
+}
+function structSimpleCopyHtml(type, e, key) {
+  const c = S.ui.structCopy;
+  if (!c || c.key !== key) return "";
+  const lists = type === "office" ? (S.offices || []) : type === "dept" ? S.departments : S.units.filter((u) => u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
+  const src = lists.filter((x) => x.id !== e.id);
+  const from = c.from ? lists.find((x) => x.id === c.from) : null;
+  const nPaths = from ? structSimplePathsOf(type, from).length : 0;
+  return `<div class="card" style="background:${GRAY_BG};margin-bottom:12px;">
+    <div style="font-size:12.5px;font-weight:800;margin-bottom:8px;">نسخ الإعداد إلى «${esc(e.name)}»</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <select class="input" data-action="struct-copy-from" style="width:230px;"><option value="">— من أي جهة؟ —</option>${src.map((x) => `<option value="${esc(x.id)}" ${c.from === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
+      ${from ? pillBtn("نسخ", { action: "struct-copy-confirm", data: { key } }) : ""}${pillBtn("إلغاء", { variant: "ghost", action: "struct-copy-cancel" })}
+    </div>
+    ${from ? `<div style="font-size:11.5px;color:${SUBTLE};margin-top:8px;">سيُنسخ: الدور الأساسي${from.baseRoleId ? "" : " (بلا دور)"} + ${nPaths} مسار كمسودات (تحتاج تفعيلًا). لا تُنسخ أسماء الأشخاص، ولا يُحذف شيء من هذه الجهة. إن كان لها دور حاليًا فسيُستبدل.</div>` : ""}
+  </div>`;
+}
+function structSimpleStepHead(n, title, extra) {
+  return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="width:26px;height:26px;border-radius:50%;background:${ROSE};color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;">${n}</span><div style="flex:1;font-size:15px;font-weight:800;">${title}</div>${extra || ""}</div>`;
+}
+function structSimpleDetailHtml(sel) {
+  const [type, ...rest] = String(sel || "").split(":");
+  const id = rest.join(":");
+  const e = sel ? treeEntity(type, id) : null;
+  if (!e) return `<div class="card" style="text-align:center;color:${SUBTLE};padding:40px 20px;border-style:dashed;font-size:13px;">اختاري جهة من القائمة.</div>`;
+  const key = type + ":" + e.id;
+  if (!STRUCT_OWNER_KIND[type]) return structPanelDetailHtml(sel);
+  const confirming = S.ui.treeConfirmDel && S.ui.treeConfirmDel.type === type && S.ui.treeConfirmDel.id === e.id;
+  const menuOpen = S.ui.structMenu === key;
+  const parent = structPanelParentName(type, e);
+  const mv = structPanelMoveHtml(type, e);
+  const menu = menuOpen ? `<div class="card" style="background:${GRAY_BG};margin:10px 0 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    ${confirming ? `<span style="font-size:12px;font-weight:700;">حذف "${esc(e.name)}"؟</span>${pillBtn("حذف", { variant: "danger", action: "tree-delete", data: { type, id: e.id } })}${pillBtn("تراجع", { variant: "ghost", action: "tree-cancel-delete" })}`
+      : `${pillBtn("تعديل", { variant: "ghost", action: "tree-edit-start", data: { type, id: e.id } })}${pillBtn("إضافة تحتها/فوقها", { variant: "ghost", action: "tree-add-start", data: { type, id: e.id } })}${type === "unit" ? pillBtn("المسار القديم (رئيسة / مراجعة إضافية)", { variant: "ghost", action: "start-unit-approval-edit", data: { id: e.id } }) : ""}${mv ? `<span style="font-size:12px;font-weight:700;">يتبع</span>${mv}` : ""}${pillBtn("حذف", { variant: "danger", action: "tree-confirm-delete", data: { type, id: e.id } })}`}
+  </div>` : "";
+  const card = (n, title, extra, body) => `<div class="card" style="padding:16px 18px;margin-bottom:12px;">${structSimpleStepHead(n, title, extra)}${body}</div>`;
+  return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="flex:1;min-width:180px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${structPanelTagHtml(type, e)}<span style="font-size:19px;font-weight:800;">${esc(e.name)}</span></div>
+        ${parent ? `<div style="font-size:12px;color:${SUBTLE};margin-top:4px;">يتبع: ${esc(parent)}</div>` : ""}</div>
+      ${pillBtn("نسخ الإعداد من جهة أخرى", { variant: "ghost", action: "struct-copy-open", data: { key } })}
+      <button class="icon-btn" style="width:38px;height:38px;border:1px solid ${BORDER}" data-action="struct-menu" data-key="${esc(key)}" title="المزيد">⋯</button>
+    </div>
+    ${menu}${treeAddFormHtml(type, e.id)}${treeEditFormHtml(type, e.id)}${structSimpleCopyHtml(type, e, key)}
+    ${type === "unit" && S.ui.editingUnitApprovalId === e.id ? `<div style="margin:6px 0 12px;">${unitRowHtml(e)}</div>` : ""}
+    ${card(1, "من الأشخاص؟", S.ui.structPersonAdd === key ? "" : pillBtn("إضافة شخص", { icon: iconPlus(14, "#fff"), action: "struct-person-add-open", data: { key } }), structSimplePeopleHtml(type, e, key))}
+    ${card(2, "ما أنواع الدخول المباشر لهذه الجهة؟", "", structSimpleRoleCardsHtml(type, e))}
+    ${card(3, "من يعتمد تقاريرها؟", "", structPanelPathTabHtml(type, e))}`;
+}
+function structSimplePeopleViewHtml() {
+  const roles = rolesList();
+  const filt = S.ui.structPeopleFilter || "all";
+  let list = personsList();
+  if (filt === "none") list = list.filter((p) => !roles.some((r) => r.id === p.roleId));
+  else if (filt !== "all") list = list.filter((p) => p.roleId === filt);
+  const ownerOf = (p) => {
+    const k = p.ownerKind === "department" ? "dept" : (p.ownerKind || "unit");
+    const ent = treeEntity(k, p.ownerId);
+    return { key: k + ":" + p.ownerId, name: ent ? ent.name : "(جهة محذوفة)", type: k, ent };
+  };
+  const chip = (id, label) => `<button type="button" data-action="struct-people-filter" data-f="${esc(id)}" style="font-family:inherit;cursor:pointer;padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid ${BORDER};background:${filt === id ? ROSE : "#fff"};color:${filt === id ? "#fff" : INK};">${label}</button>`;
+  const cards = list.map((p) => {
+    const o = ownerOf(p);
+    const r = roles.find((x) => x.id === p.roleId);
+    const paths = o.ent ? structSimplePathsOf(o.type, o.ent) : [];
+    const act = paths.find((a) => a.status === "active");
+    const on = p.status !== "disabled";
+    return `<div class="card" style="padding:14px 16px;${r ? "" : "border:1.5px dashed #e3c9a1;"}opacity:${on ? 1 : 0.6};">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span style="width:40px;height:40px;border-radius:50%;background:${ROSE};color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;">${esc((p.name || "؟").charAt(0))}</span>
+        <div style="flex:1;min-width:0;"><div style="font-size:14.5px;font-weight:800;">${esc(p.name)}</div>
+          <button type="button" data-action="struct-open-entity" data-key="${esc(o.key)}" style="font-family:inherit;cursor:pointer;background:none;border:none;padding:0;font-size:12px;color:${ROSE};font-weight:700;">${esc(o.name)} ›</button></div></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <div style="padding:9px 11px;background:${GRAY_BG};border:1px solid ${BORDER};border-radius:12px;"><div style="font-size:11px;color:${SUBTLE};">الدور</div>
+          <select class="input" data-action="struct-person-role" data-id="${esc(p.id)}" style="margin-top:4px;padding:5px 8px;font-size:12.5px;"><option value="">— بلا دور —</option>${roles.map((x) => `<option value="${esc(x.id)}" ${p.roleId === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
+          <div style="font-size:11px;color:${SUBTLE};margin-top:3px;">${r ? structSimpleRoleCountsText(r) : ""}</div></div>
+        <div style="padding:9px 11px;background:${act ? GRAY_BG : "#fdf7ec"};border:1px ${act ? "solid" : "dashed"} ${act ? BORDER : "#e3c9a1"};border-radius:12px;"><div style="font-size:11px;color:${SUBTLE};">مسار تقاريرها</div>
+          <div style="font-size:13px;font-weight:800;margin-top:4px;">${act ? esc(act.name || apOwnerName(act.ownerKind, act.ownerId)) : "لم يُحدَّد"}</div>
+          <div style="font-size:11px;color:${act ? GREEN : "#9a6420"};margin-top:3px;font-weight:700;">${act ? `● مفعّل · ${(act.stages || []).length} مراحل` : (paths.length ? "مسودات غير مفعّلة" : "لا مسار لهذه الجهة")}</div></div>
+      </div>
+      ${!r ? `<div style="margin-top:8px;font-size:12px;color:#9a6420;font-weight:700;">⚠ بلا دور، فلا يرى أي صفحة. اختاري له دورًا.</div>` : ""}
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">${S.ui.personConfirmDeleteId === p.id
+        ? `<span style="font-size:12px;color:${DANGER};font-weight:700;">حذف «${esc(p.name)}» نهائيًا؟</span>${pillBtn("تأكيد الحذف", { variant: "danger", action: "person-delete", data: { id: p.id } })}${pillBtn("تراجع", { variant: "ghost", action: "person-delete-cancel" })}`
+        : pillBtn("حذف الشخص", { variant: "danger", action: "person-delete-ask", data: { id: p.id } })}</div>
+    </div>`;
+  }).join("");
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${chip("all", "الكل")}${roles.map((r) => chip(r.id, esc(r.name))).join("")}${chip("none", "بلا دور ⚠")}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;">${cards || `<div class="card" style="text-align:center;color:${SUBTLE};padding:30px;border-style:dashed;grid-column:1/-1;">لا يوجد أشخاص بهذا الفلتر.</div>`}</div>
+    <div style="font-size:11.5px;color:${SUBTLE};margin-top:10px;">لإضافة شخص جديد: «حسب الجهة»، ثم اختاري الجهة.</div>`;
+}
+function structSimpleToggleHtml(section) {
+  const b = (id, l) => `<button type="button" data-action="struct-section" data-section="${id}" style="font-family:inherit;cursor:pointer;border:none;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:700;background:${section === id ? ROSE : "transparent"};color:${section === id ? "#fff" : INK};">${l}</button>`;
+  return `<div style="display:flex;gap:4px;background:#fff;border:1px solid ${BORDER};padding:4px;border-radius:12px;">${b("struct", "حسب الجهة")}${b("people", "حسب الشخص")}</div>`;
+}
+function structSimpleHtml() {
+  const section = ["people", "roles", "paths"].indexOf(S.ui.structSection) !== -1 ? S.ui.structSection : "struct";
+  if (section === "roles" || section === "paths") {
+    return `<div style="margin-bottom:18px;">${pillBtn("‹ رجوع للهيكل والأشخاص", { variant: "ghost", action: "struct-section", data: { section: "struct" } })}<div style="height:10px;"></div>
+      ${section === "roles" ? renderRolesManage() : (S.isAdmin ? renderApprovalPathsSetup() : `<div class="card" style="text-align:center;padding:30px;">هذه الصفحة لمديرة النظام فقط.</div>`)}</div>`;
+  }
+  const sel = S.ui.structSel || "";
+  const empty = !(S.offices || []).length && !S.departments.length && !S.units.length;
+  const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;">${iconLayers(18, ROSE)} الهيكل والأشخاص</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">${structSimpleToggleHtml(section)}${section === "struct" ? pillBtn("إضافة", { icon: iconPlus(14, "#fff"), action: "tree-add-root", data: { type: "office" } }) : ""}</div>
+    </div>
+    ${S.ui.treeAddRoot ? `<div class="card" style="margin-bottom:10px;background:${GRAY_BG};"><div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${entityJobTitleFieldHtml("tree-root-name")}
+      <input class="input" id="tree-root-email" style="flex:1;min-width:140px;" type="email" placeholder="الإيميل (اختياري)" />
+      <input class="input" id="tree-root-password" style="flex:1;min-width:110px;" placeholder="الرقم السري (اختياري)" />
+      ${pillBtn("حفظ", { action: "tree-root-save", data: { type: S.ui.treeAddRoot } })}${pillBtn("إلغاء", { variant: "ghost", action: "tree-root-cancel" })}
+    </div></div>` : ""}`;
+  const footer = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+      ${pillBtn("إدارة الأدوار ›", { variant: "ghost", action: "struct-section", data: { section: "roles" } })}${S.isAdmin ? pillBtn("إدارة المسارات ›", { variant: "ghost", action: "struct-section", data: { section: "paths" } }) : ""}
+    </div>`;
+  if (section === "people") return `<div style="margin-bottom:18px;">${header}${structSimplePeopleViewHtml()}${footer}</div>`;
+  return `<div style="margin-bottom:18px;">${header}${empty ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:30px;border-style:dashed;">لا يوجد شيء بعد — اضغطي "إضافة" لبدء أول عنصر.</div>` : `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="card" style="flex:1 1 250px;max-width:100%;padding:8px;">${structPanelListHtml(sel)}</div>
+      <div style="flex:2 1 380px;min-width:0;">${structSimpleDetailHtml(sel)}</div></div>`}${footer}</div>`;
 }
 
 function renderDepartmentsManage() {
-  const ui = S.ui;
-  const execUnits = S.units.filter((u) => u.role === "executive");
-  const adminUnits = S.units.filter((u) => u.role === "admin");
-  const unitUnits = S.units.filter((u) => u.role !== "center" && u.role !== "admin" && u.role !== "executive");
-  const centerUnits = S.units.filter((u) => u.role === "center");
-
   return `
-  <div class="page-wrap"><div class="page-inner narrow">
-    ${topBarHtml({ title: "المستخدمون", backAction: "nav-back-admin" })}
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "المستخدمون", subtitle: USERS_HUB_SUBTITLE, icon: iconUser(18, ROSE), backAction: "nav-back-admin" })}
+    ${accountsHubTabBarHtml("units-manage")}
 
-    ${collapsibleUsersSection({
-      key: "executive", title: "الإدارة العليا", count: execUnits.length,
-      formHtml: `<div class="card" style="margin-bottom:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="input" id="new-executive-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newExecutiveName || "")}" />
-          <input class="input" id="new-executive-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newExecutivePassword || "")}" />
-          ${pillBtn("إضافة حساب إدارة عليا", { icon: iconPlus(15, "#fff"), action: "add-executive" })}
-        </div>
-      </div>`,
-      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${execUnits.map((u) => simpleAccountRowHtml(u, "إدارة عليا")).join("") || `<div class="hint">لا توجد حسابات إدارة عليا بعد.</div>`}</div>`,
-    })}
-
-    ${collapsibleUsersSection({
-      key: "sysadmin", title: "مديرة النظام", count: adminUnits.length,
-      formHtml: `<div class="card" style="margin-bottom:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="input" id="new-sysadmin-name" style="flex:2;min-width:160px;" placeholder="اسم الحساب" value="${esc(ui.newSysadminName || "")}" />
-          <input class="input" id="new-sysadmin-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newSysadminPassword || "")}" />
-          <input class="input" id="new-sysadmin-email" style="flex:1;min-width:160px;" type="email" placeholder="الإيميل (اختياري)" value="${esc(ui.newSysadminEmail || "")}" />
-          ${pillBtn("إضافة حساب مديرة نظام", { icon: iconPlus(15, "#fff"), action: "add-sysadmin" })}
-        </div>
-      </div>`,
-      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${adminUnits.map((u) => simpleAccountRowHtml(u, "مديرة نظام")).join("") || `<div class="hint">لا توجد حسابات مديرة نظام إضافية بعد.</div>`}</div>`,
-    })}
-
-    ${collapsibleUsersSection({
-      key: "offices", title: "مكاتب الإشراف", count: (S.offices || []).length,
-      formHtml: `<div class="card" style="margin-bottom:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="input" id="new-office-name" style="flex:2;min-width:160px;" placeholder="اسم مكتب الإشراف الجديد" value="${esc(ui.newOfficeName || "")}" />
-          ${pillBtn("إضافة مكتب إشراف", { icon: iconPlus(15, "#fff"), action: "add-office" })}
-        </div>
-      </div>`,
-      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${(S.offices || []).map((o) => officeRowHtml(o)).join("") || `<div class="hint">لا توجد مكاتب إشراف بعد.</div>`}</div>`,
-    })}
-
-        ${collapsibleUsersSection({
-      key: "departments", title: "الأقسام", count: S.departments.length,
-      formHtml: `${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة مرور القسم (اختيارية) تفتح للقسم كل وحداته التابعة له دفعة واحدة.</div>` : ""}
-      <div class="card" style="margin-bottom:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="input" id="new-dept-name" style="flex:2;min-width:160px;" placeholder="اسم القسم الجديد" value="${esc(ui.newDeptName || "")}" />
-          <input class="input" id="new-dept-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور (اختياري)" value="${esc(ui.newDeptPassword || "")}" />
-          <input class="input" id="new-dept-email" style="flex:1;min-width:160px;" type="email" placeholder="الإيميل (اختياري)" value="${esc(ui.newDeptEmail || "")}" />
-          ${pillBtn("إضافة قسم", { icon: iconPlus(15, "#fff"), action: "add-department" })}
-        </div>
-      </div>`,
-      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${S.departments.map((d) => departmentRowHtml(d)).join("")}</div>`,
-    })}
-
-    ${collapsibleUsersSection({
-      key: "units", title: "الوحدات", count: unitUnits.length,
-      formHtml: `${sheetsConfigured() ? `<div class="hint" style="background:${BLUE_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">كلمة المرور هنا هي نفسها اللي تسجّل بيها الوحدة دخولها.</div>` : ""}
-      <div class="card" style="margin-bottom:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="input" id="new-unit-name" style="flex:2;min-width:160px;" placeholder="اسم الوحدة الجديدة" value="${esc(ui.newUnitName || "")}" />
-          <input class="input" id="new-unit-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newUnitPassword || "")}" />
-          <input class="input" id="new-unit-email" style="flex:1;min-width:160px;" type="email" placeholder="الإيميل (اختياري)" value="${esc(ui.newUnitEmail || "")}" />
-          <select class="input" id="new-unit-dept" style="flex:1;min-width:140px;">
-            <option value="">القسم (اختياري)</option>
-            ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newUnitDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
-          </select>
-          ${pillBtn("إضافة وحدة", { icon: iconPlus(15, "#fff"), action: "add-unit" })}
-        </div>
-      </div>`,
-      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${unitUnits.map((u) => unitRowHtml(u)).join("")}</div>`,
-    })}
-
-    ${collapsibleUsersSection({
-      key: "centers", title: "المراكز", count: centerUnits.length,
-      formHtml: `<div class="card" style="margin-bottom:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="input" id="new-center-name" style="flex:2;min-width:160px;" placeholder="اسم المركز الجديد" value="${esc(ui.newCenterName || "")}" />
-          <input class="input" id="new-center-password" style="flex:1;min-width:120px;" placeholder="كلمة المرور" value="${esc(ui.newCenterPassword || "")}" />
-          <input class="input" id="new-center-email" style="flex:1;min-width:160px;" type="email" placeholder="الإيميل (اختياري)" value="${esc(ui.newCenterEmail || "")}" />
-          <select class="input" id="new-center-dept" style="flex:1;min-width:140px;">
-            <option value="">القسم (اختياري)</option>
-            ${S.departments.map((d) => `<option value="${esc(d.id)}" ${ui.newCenterDept === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}
-          </select>
-          ${pillBtn("إضافة مركز", { icon: iconPlus(15, "#fff"), action: "add-center" })}
-        </div>
-      </div>`,
-      listHtml: `<div style="display:flex;flex-direction:column;gap:8px;">${centerUnits.map((u) => unitRowHtml(u)).join("")}</div>`,
-    })}
+${structSimpleHtml()}
   </div></div>`;
-}
-
-function departmentRowHtml(d) {
-  const isActive = d.status === "active";
-  const editing = S.ui.editingDeptId === d.id;
-  const editingPassword = S.ui.editingDeptPasswordId === d.id;
-  const confirming = S.ui.confirmDeleteDeptId === d.id;
-  const confirmingRemove = S.ui.confirmRemoveDeptId === d.id;
-  if (confirmingRemove) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(d.name)}" نهائيًا؟ الوحدات التابعة له تصبح بدون قسم.</span>
-      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-department", data: { id: d.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-department" })}</div>
-    </div>`;
-  }
-  if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">تعطيل/تفعيل "${esc(d.name)}"؟</span>
-      <div style="display:flex;gap:6px;">${pillBtn("تأكيد", { variant: "danger", action: "toggle-department", data: { id: d.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-confirm-dept" })}</div>
-    </div>`;
-  }
-  if (editingPassword) {
-    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
-      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(d.name)} —</span>
-      <input class="input" id="edit-dept-password" style="flex:1;" placeholder="كلمة المرور الجديدة (فارغة = بدون دخول بالقسم)" value="${esc(S.ui.editDeptPasswordValue || "")}" />
-      <button data-action="save-dept-password" data-id="${esc(d.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-dept-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
-  }
-  if (editing) {
-    return `<div class="card" style="display:flex;gap:6px;">
-      <input class="input" id="edit-dept-name" style="flex:1;" value="${esc(S.ui.editDeptValue || "")}" />
-      <button data-action="save-dept-edit" data-id="${esc(d.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;color:${GREEN}">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-dept-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
-  }
-  const linkedOffice = (S.offices || []).find((o) => o.id === d.officeId);
-  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconLayers(16, ROSE)}</div>
-      <div><div style="font-size:13.5px;font-weight:700;">${esc(d.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : d.password ? `<div style="font-size:10.5px;color:${GREEN}">دخول بكلمة سر القسم مفعّل</div>` : ""}${linkedOffice ? `<div style="font-size:10.5px;color:${SUBTLE}">تابع لـ ${esc(linkedOffice.name)}</div>` : ""}</div>
-    </div>
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-      <select class="input" style="padding:6px 8px;font-size:12px;width:170px;" data-action="assign-dept-office" data-id="${esc(d.id)}">
-        <option value="">بدون مكتب إشراف</option>
-        ${(S.offices || []).map((o) => `<option value="${esc(o.id)}" ${d.officeId === o.id ? "selected" : ""}>${esc(o.name)}</option>`).join("")}
-      </select>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-dept-password" data-id="${esc(d.id)}" title="كلمة مرور القسم">${iconKey(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-dept-edit" data-id="${esc(d.id)}" data-name="${esc(d.name)}" title="تعديل">${iconPencil(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-department" data-id="${esc(d.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-department" data-id="${esc(d.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
-    </div>
-  </div>`;
-}
-
-function officeRowHtml(o) {
-  const isActive = o.status === "active";
-  const editing = S.ui.editingOfficeId === o.id;
-  const editingPassword = S.ui.editingOfficePasswordId === o.id;
-  const confirming = S.ui.confirmRemoveOfficeId === o.id;
-  const linkedDeptsCount = S.departments.filter((d) => d.officeId === o.id).length;
-  if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(o.name)}" نهائيًا؟ الأقسام التابعة له تصبح بدون مكتب إشراف.</span>
-      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-office", data: { id: o.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-office" })}</div>
-    </div>`;
-  }
-  if (editingPassword) {
-    return `<div class="card" style="display:flex;gap:6px;align-items:center;">
-      <span style="font-size:12px;font-weight:700;white-space:nowrap;">${esc(o.name)} —</span>
-      <input class="input" id="edit-office-password" style="flex:1;" placeholder="كلمة المرور الجديدة" value="${esc(S.ui.editOfficePasswordValue || "")}" />
-      <button data-action="save-office-password" data-id="${esc(o.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-office-password" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
-  }
-  if (editing) {
-    return `<div class="card" style="display:flex;gap:6px;">
-      <input class="input" id="edit-office-name" style="flex:1;" value="${esc(S.ui.editOfficeValue || "")}" />
-      <button data-action="save-office-edit" data-id="${esc(o.id)}" style="background:${GREEN_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;color:${GREEN}">${iconCheck(16, GREEN)}</button>
-      <button data-action="cancel-office-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
-    </div>`;
-  }
-  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconLayers(16, ROSE)}</div>
-      <div><div style="font-size:13.5px;font-weight:700;">${esc(o.name)}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّل</div>` : o.password ? `<div style="font-size:10.5px;color:${GREEN}">كلمة سر المكتب مضبوطة</div>` : `<div style="font-size:10.5px;color:${SUBTLE}">${linkedDeptsCount} قسم تابع</div>`}</div>
-    </div>
-    <div style="display:flex;gap:6px;">
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-password" data-id="${esc(o.id)}" title="كلمة مرور المكتب">${iconKey(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-office-edit" data-id="${esc(o.id)}" data-name="${esc(o.name)}" title="تعديل">${iconPencil(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-office" data-id="${esc(o.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-office" data-id="${esc(o.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
-    </div>
-  </div>`;
 }
 
 function unitRowHtml(u) {
@@ -2763,6 +5845,7 @@ function unitRowHtml(u) {
   const editing = S.ui.editingUnitId === u.id;
   const editingPassword = S.ui.editingUnitPasswordId === u.id;
   const editingEmail = S.ui.editingUnitEmailId === u.id;
+  const editingApproval = S.ui.editingUnitApprovalId === u.id;
   const confirming = S.ui.confirmDeleteUnitId === u.id;
   if (confirming) {
     return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -2793,10 +5876,30 @@ function unitRowHtml(u) {
       <button data-action="cancel-unit-edit" style="background:${DANGER_BG};border:none;border-radius:8px;padding:0 10px;cursor:pointer;">${iconX(16, DANGER)}</button>
     </div>`;
   }
+  if (editingApproval) {
+    const hasHeadVal = S.ui.editUnitHasHead !== undefined ? S.ui.editUnitHasHead : unitHasHead(u);
+    const extraVal = S.ui.editUnitExtraReviewerTitle !== undefined ? S.ui.editUnitExtraReviewerTitle : (u.extraReviewerTitle || "");
+    return `<div class="card">
+      <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:10px;">مسار اعتماد "${esc(u.name)}"</div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">هل لهذي الوحدة رئيسة تراجع التقارير قبل القسم؟</div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="radio-pill ${hasHeadVal ? "active" : ""}" data-action="set-unit-approval-hashead" data-value="true">نعم، لها رئيسة</button>
+          <button type="button" class="radio-pill ${!hasHeadVal ? "active" : ""}" data-action="set-unit-approval-hashead" data-value="false">لا، بدون رئيسة</button>
+        </div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">مستوى مراجعة داخلي إضافي (اختياري، مثال: "مديرة تعليمية") — اتركيه فاضيًا لعدم وجود مستوى إضافي</div>
+        <input class="input" id="edit-unit-extra-reviewer" placeholder="مثال: مديرة تعليمية" value="${esc(extraVal)}" />
+      </div>
+      <div class="hint" style="margin-bottom:10px;">ترتيب المسار: الإدارية ← ${hasHeadVal ? "رئيسة الوحدة ← " : ""}${extraVal ? esc(extraVal) + " ← " : ""}القسم.</div>
+      <div style="display:flex;gap:6px;">${pillBtn("حفظ", { action: "save-unit-approval-edit", data: { id: u.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "cancel-unit-approval-edit" })}</div>
+    </div>`;
+  }
   return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;">${iconBuilding(ROSE, 16)}</div>
-      <div><div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:10px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:2px 7px;border-radius:999px;">مركز</span>` : ""}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّلة</div>` : ""}${u.email ? `<div style="font-size:10.5px;color:${SUBTLE}">${esc(u.email)}</div>` : ""}</div>
+      <div><div style="font-size:13.5px;font-weight:700;">${esc(u.name)} ${u.role === "center" ? `<span style="font-size:10px;font-weight:700;color:${GOLD};background:${GOLD_BG};padding:2px 7px;border-radius:999px;">مركز</span>` : ""}${(u.approvalPath && u.approvalPath.length) ? `<span style="font-size:10px;font-weight:700;color:${ROSE};background:${DANGER_BG};padding:2px 7px;border-radius:999px;">مسار حر (${u.approvalPath.length})</span>` : `${!unitHasHead(u) && u.role !== "center" ? `<span style="font-size:10px;font-weight:700;color:${SUBTLE};background:${GRAY_BG};padding:2px 7px;border-radius:999px;">بدون رئيسة</span>` : ""}${unitHasExtraReview(u) ? `<span style="font-size:10px;font-weight:700;color:${ROSE};background:${DANGER_BG};padding:2px 7px;border-radius:999px;">+${esc(u.extraReviewerTitle)}</span>` : ""}`}</div>${!isActive ? `<div style="font-size:10.5px;color:${SUBTLE}">معطّلة</div>` : ""}${u.email ? `<div style="font-size:10.5px;color:${SUBTLE}">${esc(u.email)}</div>` : ""}</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
       <select class="input" style="padding:6px 8px;font-size:12px;width:150px;" data-action="assign-unit-dept" data-id="${esc(u.id)}">
@@ -2805,6 +5908,7 @@ function unitRowHtml(u) {
       </select>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-email" data-id="${esc(u.id)}" data-email="${esc(u.email || "")}" title="الإيميل">${iconMail(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-password" data-id="${esc(u.id)}" title="تغيير كلمة المرور">${iconKey(14, INK)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-approval-edit" data-id="${esc(u.id)}" title="مسار الاعتماد">${iconLayers(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-unit-edit" data-id="${esc(u.id)}" data-name="${esc(u.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-unit" data-id="${esc(u.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-unit" data-id="${esc(u.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
@@ -2812,6 +5916,838 @@ function unitRowHtml(u) {
   </div>`;
 }
 
+/* =============================== "حسابات إضافية" (platform_users) =========== */
+// نظام مرن لإضافة مسميات وظيفية جديدة (سكرتارية، مديرة تعليمية، ...) بدون لمس
+// حسابات مديرة النظام/الأقسام/المكاتب/الوحدات الأصلية إطلاقًا — إضافة بحتة.
+const PLATFORM_USER_SCOPE_OPTIONS = [
+  { value: "none", label: "بدون نطاق (صفحات محددة فقط)" },
+  { value: "admin", label: "مديرة نظام (صلاحية كاملة)" },
+  { value: "executive", label: "الإدارة العليا" },
+  { value: "department", label: "قسم" },
+  { value: "office", label: "مكتب إشراف" },
+  { value: "unit", label: "وحدة" },
+];
+function platformUserScopeLabel(pu) {
+  if (pu.scopeKind === "department") { const d = S.departments.find((x) => x.id === pu.scopeId); return `قسم: ${d ? d.name : "—"}`; }
+  if (pu.scopeKind === "office") { const o = (S.offices || []).find((x) => x.id === pu.scopeId); return `مكتب إشراف: ${o ? o.name : "—"}`; }
+  if (pu.scopeKind === "unit") { const u = S.units.find((x) => x.id === pu.scopeId); return `وحدة: ${u ? u.name : "—"}`; }
+  const opt = PLATFORM_USER_SCOPE_OPTIONS.find((o) => o.value === pu.scopeKind);
+  return opt ? opt.label : "—";
+}
+// صفّ عنصر واحد (checkbox) داخل قائمة منسدلة لصلاحيات الصفحات/الإجراءات —
+// يحافظ على نفس data-action/data-id المستخدمين أصلًا في التبديل، فقط يغيّر الشكل.
+function permCheckboxRowHtml(action, id, label, checked) {
+  return `<label style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 4px;border-radius:6px;cursor:pointer;">
+    <input type="checkbox" style="width:15px;height:15px;cursor:pointer;flex-shrink:0;" ${checked ? "checked" : ""} data-action="${esc(action)}" data-id="${esc(id)}" />
+    <span>${esc(label)}</span>
+  </label>`;
+}
+// الإطار العام للقائمة المنسدلة القابلة للتعدد: زر ملخّص (كم محدد من الإجمالي)
+// يفتح/يقفل لوحة فيها "تحديد الكل"/"إلغاء الكل" + القائمة الفعلية. الفتح/الإغلاق
+// يُدار بـ S.ui.permDropdownOpen[action] — حالة عرض بحتة، ما تمسّ بيانات الصلاحيات.
+function permDropdownChecklistHtml({ action, selected, total, emptyLabel, renderList }) {
+  const isOpen = !!(S.ui.permDropdownOpen && S.ui.permDropdownOpen[action]);
+  const count = selected.length;
+  const summary = count === 0 ? `بدون قيد (كل ${emptyLabel})` : count === total ? `كل ${emptyLabel} (${count})` : `${count} من ${total} ${emptyLabel} محددة`;
+  return `
+    <div style="position:relative;">
+      <button type="button" class="input" style="display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer;text-align:right;" data-action="toggle-perm-dropdown" data-key="${esc(action)}">
+        <span style="font-size:12px;color:${count ? INK : SUBTLE};">${esc(summary)}</span>
+        <span style="display:inline-flex;transition:transform 0.15s;transform:rotate(${isOpen ? "180" : "0"}deg);">${iconChevronDown(14, SUBTLE)}</span>
+      </button>
+      ${isOpen ? `
+        <div style="border:1px solid ${BORDER};border-radius:10px;margin-top:6px;padding:10px;max-height:280px;overflow:auto;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,0.08);">
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            ${pillBtn("تحديد الكل", { variant: "soft", action: "select-all-perm", data: { key: action, mode: "all" } })}
+            ${pillBtn("إلغاء الكل", { variant: "ghost", action: "select-all-perm", data: { key: action, mode: "none" } })}
+          </div>
+          ${renderList()}
+        </div>` : ""}
+    </div>`;
+}
+// صفحات إدارية حسّاسة — تتحكم بإعدادات الموقع كامل، أو بإنشاء/تعديل حسابات
+// وصلاحيات حسابات أخرى، أو بهيكل القسم/المكتب/الوحدات نفسه. منحها لحساب
+// "مسمى وظيفي" عادي (زي سكرتارية) يعطيه قدرة أعلى بكثير من المقصود — فتُعرض
+// بقسم منفصل محذّر بصريًا بدل ما تكون مختلطة بصفحات المحتوى العادية.
+const SENSITIVE_PAGE_IDS = [
+  "site-settings",
+  "admin-reports", "indicators-manage", "goals-manage", "sections-manage",
+  "field-schemas-manage", "departments-list",
+  "org-chart",
+];
+// أسماء عرض مخصّصة لمجموعات الصفحات بقائمة صلاحيات "حسابات إضافية" — فقط
+// حيث اسم المجموعة الأصلي (المستخدم بالشريط الجانبي الحقيقي) غير واضح هنا.
+const PU_PAGE_GROUP_LABELS = { "unit-home": "صفحات التقارير (لوحة المعلومات/تقارير/إنشاء تقرير/الإعدادات)", "unit-extra": "صفحات الوحدة (التنبيهات/جميع تقارير الوحدة)" };
+function platformUserPagesChecklistHtml(selected, action) {
+  selected = normalizeDashboardPages(selected || []);
+  const groups = [];
+  const sensitivePages = [];
+  SIDEBAR_PAGES.forEach((p) => {
+    if (MERGED_DASHBOARD_IDS.indexOf(p.id) !== -1) return;
+    // صفحات "unit-home" (لوحة معلومات الوحدة/تقارير/إنشاء تقرير/الإعدادات)
+    // الآن قابلة للمنح لأي مسمى وظيفي — تحتاج فقط نطاق بيانات محدّد (قسم/مكتب
+    // إشراف/وحدة) ليعرف النظام لأي وحدة/قسم ينشئ التقرير (انظر ملاحظة أسفل
+    // قائمة النطاق بنموذج إضافة/تعديل المسمى الوظيفي).
+    if (SENSITIVE_PAGE_IDS.includes(p.id)) { sensitivePages.push(p); return; }
+    let g = groups.find((x) => x.name === p.group);
+    if (!g) { g = { name: p.group, pages: [] }; groups.push(g); }
+    g.pages.push(p);
+  });
+  const total = groups.reduce((sum, g) => sum + g.pages.length, 0) + sensitivePages.length;
+  return permDropdownChecklistHtml({
+    action, selected, total, emptyLabel: "صفحات",
+    renderList: () => `
+      <div style="font-size:10.5px;font-weight:800;color:${ROSE};margin-bottom:6px;">صفحات عامة (آمنة لأي حساب)</div>
+      ${groups.map((g) => `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10.5px;font-weight:800;color:${SUBTLE};margin-bottom:6px;">${esc(PU_PAGE_GROUP_LABELS[g.name] || (g.name === "standalone" ? "أخرى" : g.name))}</div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            ${g.pages.map((p) => permCheckboxRowHtml(action, p.id, p.label, selected.includes(p.id))).join("")}
+          </div>
+        </div>`).join("")}
+      ${sensitivePages.length ? `
+      <div style="margin-top:6px;padding-top:10px;border-top:1.5px dashed ${DANGER};">
+        <div style="font-size:10.5px;font-weight:800;color:${DANGER};margin-bottom:2px;">⚠️ صفحات إدارية حسّاسة</div>
+        <div style="font-size:10px;color:${SUBTLE};margin-bottom:6px;">تتحكم بإعدادات الموقع أو الحسابات أو الهيكل التنظيمي نفسه — امنحيها بحذر شديد، وفقط لمن تثقين بها فعلًا.</div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          ${sensitivePages.map((p) => permCheckboxRowHtml(action, p.id, p.label, selected.includes(p.id))).join("")}
+        </div>
+      </div>` : ""}
+    `,
+  });
+}
+function platformUserActionsChecklistHtml(selected, action) {
+  selected = selected || [];
+  return permDropdownChecklistHtml({
+    action, selected, total: ACTION_CATALOG.length, emptyLabel: "إجراءات",
+    renderList: () => `
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        ${ACTION_CATALOG.map((a) => permCheckboxRowHtml(action, a.id, a.label, selected.includes(a.id))).join("")}
+      </div>`,
+  });
+}
+// يرجع المصفوفة الحية (نفس المرجع المستخدم أصلًا بكل حالة toggle-*) بالاعتماد
+// على اسم الـ action — يخدم "تحديد الكل"/"إلغاء الكل" بدون تكرار منطق الحفظ.
+function permDropdownTargetArray(key) {
+  if (key === "toggle-new-pu-page") { capturePlatformUserFormFields("new-pu"); return S.ui.newPuAllowedPages || (S.ui.newPuAllowedPages = []); }
+  if (key === "toggle-edit-pu-page") { capturePlatformUserFormFields("edit-pu"); S.ui.editPuForm = S.ui.editPuForm || {}; return S.ui.editPuForm.allowedPages || (S.ui.editPuForm.allowedPages = []); }
+  if (key === "toggle-new-pu-action") { capturePlatformUserFormFields("new-pu"); return S.ui.newPuAllowedActions || (S.ui.newPuAllowedActions = []); }
+  if (key === "toggle-edit-pu-action") { capturePlatformUserFormFields("edit-pu"); S.ui.editPuForm = S.ui.editPuForm || {}; return S.ui.editPuForm.allowedActions || (S.ui.editPuForm.allowedActions = []); }
+  if (key === "toggle-account-perm-page") { S.ui.editAccountPermForm = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] }; return S.ui.editAccountPermForm.allowedPages || (S.ui.editAccountPermForm.allowedPages = []); }
+  if (key === "toggle-account-perm-action") { S.ui.editAccountPermForm = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] }; return S.ui.editAccountPermForm.allowedActions || (S.ui.editAccountPermForm.allowedActions = []); }
+  if (key === "toggle-role-perm-page") { const f = rolePermFormState(); return f.pages; }
+  if (key === "toggle-role-perm-action") { const f = rolePermFormState(); return f.actions; }
+  if (key === "toggle-role-perm-button") { const f = rolePermFormState(); return f.buttons; }
+  if (key === "toggle-new-template-page") { captureJobTitleTemplateFormFields("new-template"); return S.ui.newTemplateAllowedPages || (S.ui.newTemplateAllowedPages = []); }
+  if (key === "toggle-edit-template-page") { captureJobTitleTemplateFormFields("edit-template"); S.ui.editTemplateForm = S.ui.editTemplateForm || {}; return S.ui.editTemplateForm.allowedPages || (S.ui.editTemplateForm.allowedPages = []); }
+  if (key === "toggle-new-template-action") { captureJobTitleTemplateFormFields("new-template"); return S.ui.newTemplateAllowedActions || (S.ui.newTemplateAllowedActions = []); }
+  if (key === "toggle-edit-template-action") { captureJobTitleTemplateFormFields("edit-template"); S.ui.editTemplateForm = S.ui.editTemplateForm || {}; return S.ui.editTemplateForm.allowedActions || (S.ui.editTemplateForm.allowedActions = []); }
+  return [];
+}
+function platformUserScopeIdSelectHtml(scopeKind, selectedId, selectId) {
+  if (scopeKind === "department") {
+    return `<select class="input" id="${esc(selectId)}"><option value="">اختاري القسم</option>${S.departments.map((d) => `<option value="${esc(d.id)}" ${selectedId === d.id ? "selected" : ""}>${esc(d.name)}</option>`).join("")}</select>`;
+  }
+  if (scopeKind === "office") {
+    return `<select class="input" id="${esc(selectId)}"><option value="">اختاري مكتب الإشراف</option>${(S.offices || []).map((o) => `<option value="${esc(o.id)}" ${selectedId === o.id ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select>`;
+  }
+  if (scopeKind === "unit") {
+    return `<select class="input" id="${esc(selectId)}"><option value="">اختاري الوحدة</option>${S.units.filter((u) => u.role !== "admin" && u.role !== "executive").map((u) => `<option value="${esc(u.id)}" ${selectedId === u.id ? "selected" : ""}>${esc(u.name)}${u.role === "center" ? " (مركز)" : ""}</option>`).join("")}</select>`;
+  }
+  return "";
+}
+function platformUserFormFieldsHtml(prefix, form) {
+  form = form || {};
+  const loginType = form.loginType || "job_title";
+  const scopeKind = form.scopeKind || "none";
+  const templateId = form.templateId || "";
+  const linkedTemplate = templateId ? (S.jobTitleTemplates || []).find((t) => t.id === templateId) : null;
+  return `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <input class="input" id="${prefix}-jobtitle" list="pu-jobtitle-list" style="flex:1;min-width:180px;" placeholder="المسمى الوظيفي (مثال: سكرتارية)" value="${esc(form.jobTitle || "")}" />
+      <datalist id="pu-jobtitle-list">${[...new Set((S.platformUsers || []).map((u) => u.jobTitle))].map((t) => `<option value="${esc(t)}"></option>`).join("")}</datalist>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <select class="input" id="${prefix}-templateid" style="flex:1;min-width:220px;" data-action="change-pu-templateid" data-prefix="${esc(prefix)}">
+        <option value="">بدون قالب (صلاحيات خاصة بهذا الحساب فقط)</option>
+        ${(S.jobTitleTemplates || []).map((t) => `<option value="${esc(t.id)}" ${templateId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}
+      </select>
+    </div>
+    <div style="font-size:10.5px;color:${SUBTLE};background:${BLUE_BG};border-radius:8px;padding:7px 10px;margin-bottom:10px;">ربط الحساب بقالب مسمى وظيفي يجعله يرث صفحاته وإجراءاته تلقائيًا، وتبقى تتحدث معه فور تعديل القالب نفسه — بدون قالب، تضبطين صلاحيات هذا الحساب بنفسه فقط كالسابق.</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:11px;color:${SUBTLE};font-weight:700;">الدخول بـ:</span>
+      <button type="button" class="radio-pill ${loginType === "job_title" ? "active" : ""}" data-action="set-pu-logintype" data-prefix="${esc(prefix)}" data-value="job_title">المسمى الوظيفي</button>
+      <button type="button" class="radio-pill ${loginType === "email" ? "active" : ""}" data-action="set-pu-logintype" data-prefix="${esc(prefix)}" data-value="email">الإيميل</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <input class="input" id="${prefix}-loginid" type="${loginType === "email" ? "email" : "text"}" style="flex:1;min-width:160px;" placeholder="${loginType === "email" ? "الإيميل" : "معرّف الدخول (يُكتب عند تسجيل الدخول)"}" value="${esc(form.loginId || "")}" />
+      <input class="input" id="${prefix}-password" style="flex:1;min-width:140px;" placeholder="كلمة المرور" value="${esc(form.password || "")}" />
+    </div>
+    <div style="font-size:10.5px;color:${SUBTLE};background:${BLUE_BG};border-radius:8px;padding:7px 10px;margin-bottom:10px;">لمشاركة نفس الدخول بين مسمّيين (مثل الإدارية ورئيسة الوحدة): أضيفي المسمّى الثاني بنفس معرّف الدخول وكلمة المرور بالضبط — عند تسجيل الدخول سيُطلب اختيار الصفة.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <select class="input" id="${prefix}-scopekind" style="flex:1;min-width:180px;" data-action="change-pu-scopekind" data-prefix="${esc(prefix)}">
+        ${PLATFORM_USER_SCOPE_OPTIONS.map((o) => `<option value="${esc(o.value)}" ${scopeKind === o.value ? "selected" : ""}>${esc(o.label)}</option>`).join("")}
+      </select>
+      ${["department", "office", "unit"].includes(scopeKind) ? `<div style="flex:1;min-width:180px;">${platformUserScopeIdSelectHtml(scopeKind, form.scopeId || "", `${prefix}-scopeid`)}</div>` : ""}
+    </div>
+    ${linkedTemplate ? `
+    <div class="card" style="background:${GOLD_BG};margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:800;margin-bottom:4px;">يرث صلاحياته من قالب "${esc(linkedTemplate.name)}"</div>
+      <div style="font-size:11px;color:${SUBTLE};">${(linkedTemplate.allowedPages || []).length} صفحة · ${(linkedTemplate.allowedActions || []).length} إجراء — أي تعديل على القالب ينعكس هنا تلقائيًا. لتخصيص صلاحيات هذا الحساب بمفرده، اختاري "بدون قالب" من القائمة أعلاه.</div>
+    </div>` : `
+    <div style="margin-bottom:6px;font-size:11.5px;font-weight:800;color:${ROSE};">صلاحية الصفحات (تحدد ما تشوفه بالشريط الجانبي، إضافة لصلاحيات النطاق أعلاه إن وُجد)</div>
+    ${platformUserPagesChecklistHtml(form.allowedPages || [], `toggle-${prefix}-page`)}
+    <div style="margin:14px 0 6px;font-size:11.5px;font-weight:800;color:${ROSE};">صلاحية الإجراءات (أزرار مسار الاعتماد — اتركيها فاضية للسماح بكل الإجراءات المتاحة لها أصلًا)</div>
+    ${platformUserActionsChecklistHtml(form.allowedActions || [], `toggle-${prefix}-action`)}
+    `}
+  `;
+}
+
+// تلتقط القيم المكتوبة حاليًا بحقول نموذج "حساب إضافي" (المسمى/معرّف الدخول/
+// كلمة المرور/النطاق) وتحفظها بحالة S.ui — لازم تُستدعى قبل أي تغيير يسبب
+// إعادة رسم كاملة (تبديل صفة الدخول، تبديل صلاحية صفحة، تغيير النطاق)، وإلا
+// تنمسح القيم المكتوبة لأن النموذج يُعاد بناؤه من حالة S.ui فقط.
+function capturePlatformUserFormFields(prefix) {
+  const jt = document.getElementById(`${prefix}-jobtitle`);
+  const li = document.getElementById(`${prefix}-loginid`);
+  const pw = document.getElementById(`${prefix}-password`);
+  const sk = document.getElementById(`${prefix}-scopekind`);
+  const si = document.getElementById(`${prefix}-scopeid`);
+  const ti = document.getElementById(`${prefix}-templateid`);
+  if (prefix === "new-pu") {
+    if (jt) S.ui.newPuJobTitle = jt.value;
+    if (li) S.ui.newPuLoginId = li.value;
+    if (pw) S.ui.newPuPassword = pw.value;
+    if (sk) S.ui.newPuScopeKind = sk.value;
+    if (si) S.ui.newPuScopeId = si.value;
+    if (ti) S.ui.newPuTemplateId = ti.value;
+  } else {
+    S.ui.editPuForm = S.ui.editPuForm || {};
+    if (jt) S.ui.editPuForm.jobTitle = jt.value;
+    if (li) S.ui.editPuForm.loginId = li.value;
+    if (pw) S.ui.editPuForm.password = pw.value;
+    if (sk) S.ui.editPuForm.scopeKind = sk.value;
+    if (si) S.ui.editPuForm.scopeId = si.value;
+    if (ti) S.ui.editPuForm.templateId = ti.value;
+  }
+}
+function readPlatformUserFormFromDom(prefix, currentLoginType, currentAllowedPages, currentAllowedActions) {
+  const jobTitle = (document.getElementById(`${prefix}-jobtitle`).value || "").trim();
+  const loginId = (document.getElementById(`${prefix}-loginid`).value || "").trim();
+  const password = (document.getElementById(`${prefix}-password`).value || "").trim();
+  const scopeKindEl = document.getElementById(`${prefix}-scopekind`);
+  const scopeKind = scopeKindEl ? scopeKindEl.value : "none";
+  const scopeIdEl = document.getElementById(`${prefix}-scopeid`);
+  const scopeId = scopeIdEl ? scopeIdEl.value : "";
+  const templateIdEl = document.getElementById(`${prefix}-templateid`);
+  const templateId = templateIdEl ? templateIdEl.value : "";
+  return {
+    jobTitle, loginId, password, scopeKind, scopeId, templateId, loginType: currentLoginType || "job_title",
+    allowedPages: currentAllowedPages || [], allowedActions: currentAllowedActions || [],
+  };
+}
+
+/* ===================== قوالب المسميات الوظيفية (job_title_templates) ===================== */
+// صفحة مستقلة تديرها مديرة النظام: كل قالب = اسم + صفحات مسموحة + إجراءات
+// مسموحة. تُربط "حسابات إضافية" بقالب عبر حقل templateId (أعلى بنفس الملف)،
+// فتصبح صلاحياتها القادمة من القالب حيّة دائمًا بدل نسخة مجمّدة وقت الإنشاء.
+function captureJobTitleTemplateFormFields(prefix) {
+  const nm = document.getElementById(`${prefix}-name`);
+  const parentSel = document.getElementById(`${prefix}-parent`);
+  if (prefix === "new-template") {
+    if (nm) S.ui.newTemplateName = nm.value;
+    if (parentSel) S.ui.newTemplateParentId = parentSel.value;
+  } else {
+    S.ui.editTemplateForm = S.ui.editTemplateForm || {};
+    if (nm) S.ui.editTemplateForm.name = nm.value;
+    if (parentSel) S.ui.editTemplateForm.parentId = parentSel.value;
+  }
+}
+// يرجع كل المسميات "الفرعية" لمسمى معيّن (تتفرع منه مباشرة أو بعد عدة مستويات)
+// — تُستبعد من قائمة "يتفرع من" حتى ما يصير حلقة (مسمى يتفرع من فرعه هو نفسه).
+function jobTitleTemplateDescendantIds(templateId) {
+  const list = S.jobTitleTemplates || [];
+  const result = new Set();
+  let frontier = [templateId];
+  while (frontier.length) {
+    const next = list.filter((t) => frontier.includes(t.parentId)).map((t) => t.id).filter((id) => !result.has(id));
+    next.forEach((id) => result.add(id));
+    frontier = next;
+  }
+  return result;
+}
+function jobTitleTemplateFormFieldsHtml(prefix, form, excludeId) {
+  form = form || {};
+  const blocked = excludeId ? new Set([excludeId, ...jobTitleTemplateDescendantIds(excludeId)]) : new Set();
+  const parentOptions = (S.jobTitleTemplates || []).filter((t) => !blocked.has(t.id));
+  return `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <input class="input" id="${prefix}-name" style="flex:1;min-width:180px;" placeholder="اسم المسمى الوظيفي (مثال: رئيسة الوحدة)" value="${esc(form.name || "")}" />
+      <select class="input" id="${prefix}-parent" style="flex:1;min-width:180px;">
+        <option value="">يتفرع من (اختياري)</option>
+        ${parentOptions.map((t) => `<option value="${esc(t.id)}" ${form.parentId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}
+      </select>
+    </div>
+    <div style="margin-bottom:6px;font-size:11.5px;font-weight:800;color:${ROSE};">الصفحات المسموحة لهذا المسمى</div>
+    ${platformUserPagesChecklistHtml(form.allowedPages || [], `toggle-${prefix}-page`)}
+    <div style="margin:14px 0 6px;font-size:11.5px;font-weight:800;color:${ROSE};">الإجراءات المسموحة (أزرار مسار الاعتماد)</div>
+    ${platformUserActionsChecklistHtml(form.allowedActions || [], `toggle-${prefix}-action`)}
+    ${reportTabsEditorHtml(form, "template")}
+  `;
+}
+function jobTitleTemplateUsageCount(templateId) {
+  return (S.platformUsers || []).filter((pu) => pu.templateId === templateId).length;
+}
+function jobTitleTemplateRowHtml(t) {
+  const editing = S.ui.editingTemplateId === t.id;
+  const confirming = S.ui.confirmRemoveTemplateId === t.id;
+  const usage = jobTitleTemplateUsageCount(t.id);
+
+  if (confirming) {
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;">حذف قالب "${esc(t.name)}" نهائيًا؟${usage ? ` — ${usage} حساب مرتبط به سيفقد صلاحياته (يرجع بلا صفحات حتى تربطينه بقالب آخر)` : ""}</span>
+      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-job-title-template", data: { id: t.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-job-title-template" })}</div>
+    </div>`;
+  }
+  if (editing) {
+    const editForm = S.ui.editTemplateForm || {};
+    return `<div class="card">
+      ${jobTitleTemplateFormFieldsHtml("edit-template", editForm, t.id)}
+      ${S.ui.templateFormError ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-bottom:8px;">${esc(S.ui.templateFormError)}</div>` : ""}
+      <div style="display:flex;gap:6px;">${pillBtn("حفظ", { action: "save-job-title-template-edit", data: { id: t.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "cancel-job-title-template-edit" })}</div>
+    </div>`;
+  }
+  const parentTpl = t.parentId ? (S.jobTitleTemplates || []).find((x) => x.id === t.parentId) : null;
+  const eff = effectiveTemplatePermissions(t.id);
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconLayers(16, ROSE)}</div>
+      <div style="min-width:0;">
+        <div style="font-size:13.5px;font-weight:700;">${esc(t.name)}${parentTpl ? ` <span style="font-size:10px;font-weight:700;color:${SUBTLE};">(فرع من: ${esc(parentTpl.name)})</span>` : ""}</div>
+        <div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${eff.allowedPages.length} صفحة · ${eff.allowedActions.length} إجراء${usage ? ` · مستخدم من ${usage} حساب` : ""}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-job-title-template-edit" data-id="${esc(t.id)}" title="تعديل">${iconPencil(14, INK)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-job-title-template" data-id="${esc(t.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
+    </div>
+  </div>`;
+}
+// شريط تبويبات موحّد يربط الصفحات الأربع اللي صارت مدمجة منطقيًا بناءً على
+// طلب نجود الصريح ("ما اقدر ادمجها مع بعض؟") — كل صفحة باقية بمنطقها ودالتها
+// الأصلية بدون أي تغيير، بس صار التنقل بينها بتبويبات بدل روابط منفصلة
+// بالقائمة الجانبية. "مخطط الهيكل التنظيمي" تبقى مستقلة تمامًا (قرارها
+// الصريح: أداة تخطيط حرة بدون حسابات دخول، غير هذي الأربعة).
+// ثلاثة تبويبات واضحة: الهيكل (من يوجد بالنظام) — الأشخاص (حسابات بمسميات) — الصلاحيات
+// (ماذا يرى كل حساب، ومعها القوالب الجاهزة كتبويب فرعي).
+const ACCOUNTS_HUB_TABS = [
+  { view: "units-manage", label: "الهيكل والأشخاص", icon: "layers" },
+  { view: "org-chart", label: "المخطط الحر", icon: "gauge" },
+];
+const USERS_HUB_SUBTITLE = "إدارة المستخدمين وصلاحياتهم في النظام مع إمكانية إضافة وحذف وتعديل بياناتهم";
+function usersHubIcon(name, active) {
+  const c = active ? ROSE : SUBTLE;
+  return name === "layers" ? iconLayers(16, c) : name === "user" ? iconUser(16, c) : name === "key" ? iconKey(16, c) : iconTarget(16, c);
+}
+function accountsHubTabBarHtml(activeView) {
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;">
+    ${ACCOUNTS_HUB_TABS.map((t) => {
+      const active = t.view === activeView || (t.also || []).indexOf(activeView) !== -1;
+      return `<button type="button" data-action="nav-to" data-view="${esc(t.view)}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:12px;cursor:pointer;font-family:inherit;background:#fff;border:1px solid ${active ? ROSE : BORDER};box-shadow:${active ? "0 4px 14px rgba(120,30,50,.12)" : "0 2px 8px rgba(0,0,0,.04)"};">
+        <span style="font-size:12.5px;font-weight:800;color:${active ? ROSE : INK};">${esc(t.label)}</span>
+        <span style="width:30px;height:30px;border-radius:9px;background:${active ? DANGER_BG : GRAY_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${usersHubIcon(t.icon, active)}</span>
+      </button>`;
+    }).join("")}
+  </div>`;
+}
+
+// ---- المرحلة 2: صلاحيات الأدوار + استثناءات الأشخاص + سجل التغييرات ----
+// الصلاحيات تُخزَّن بـ roles.permissions = { pages:[], actions:[] }، واستثناء الشخص بـ
+// persons.perms_override = { pages:[]|null, actions:[]|null } (null/غائب = يرث الدور).
+// فارغ بالدور = لا صفحات (لا وراثة من حساب الجهة).
+// الفصل (عرض/إنشاء/تعديل/حذف/إرسال/مراجعة/اعتماد) هنا عرض مجمَّع للإجراءات الموجودة فعليًا
+// بالنظام — لا إجراءات جديدة، وتبقى الصفحات هي صلاحية "العرض".
+const PERM_ACTION_GROUPS = [
+  { name: "إنشاء", ids: ["open-or-create-report"] },
+  { name: "تعديل", ids: ["section-save-draft", "toggle-section-completed"] },
+  { name: "حذف", ids: ["delete-report"] },
+  { name: "إرسال", ids: ["submit-report-to-head", "start-send-report"] },
+  { name: "مراجعة", ids: ["start-head-return"] },
+  { name: "اعتماد", ids: ["approve-report-by-head", "submit-department-review-decision"] },
+];
+function permButtonsChecklistHtml(allSelected, action) {
+  const selectedAll = allSelected || [];
+  const selected = selectedAll.filter((x) => String(x).indexOf("notify:") !== 0);
+  const groups = [];
+  const shownCatalog = BUTTON_CATALOG.filter((b) => !CORE_REPORT_BUTTONS.includes(b.id) && (!LEGACY_PATH_BUTTONS.includes(b.id) || selected.includes(b.id))).map((b) => LEGACY_PATH_BUTTONS.includes(b.id) ? { ...b, label: b.label + " (مسار قديم مُلغى — تأشيره يمنح الزر الجديد المقابل فقط)" } : b);
+  shownCatalog.forEach((b) => { let g = groups.find((x) => x.name === b.g); if (!g) { g = { name: b.g, items: [] }; groups.push(g); } g.items.push(b); });
+  return permDropdownChecklistHtml({
+    action, selected, total: shownCatalog.length, emptyLabel: "الأزرار",
+    renderList: () => groups.map((g) => `<div style="margin-bottom:8px;"><div style="font-size:10.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">${esc(g.name)}</div>${g.items.map((b) => permCheckboxRowHtml(action, b.id, b.label, selected.includes(b.id)) + (b.id.indexOf("chip:") === 0 ? `<div style="padding-inline-start:22px;">${permCheckboxRowHtml(action, "notify:" + b.id, "↳ ينبّه بعدد تقارير هذا الزر (في التنبيهات)", selectedAll.includes("notify:" + b.id))}</div>` : "")).join("")}</div>`).join(""),
+  });
+}
+function rolePermFormState() {
+  return S.ui.rolePermForm || (S.ui.rolePermForm = { pages: [], actions: [], buttons: [] });
+}
+function permActionsGroupedChecklistHtml(selected, action) {
+  selected = selected || [];
+  const known = new Set();
+  const groups = PERM_ACTION_GROUPS.map((g) => ({ name: g.name, items: g.ids.filter((id) => !CORE_REPORT_BUTTONS.includes(id) && (!LEGACY_PATH_BUTTONS.includes(id) || selected.includes(id))).map((id) => ACTION_CATALOG.find((a) => a.id === id)).filter(Boolean) }));
+  // الأزرار الأساسية (حفظ/اكتمال/حذف مسودة) تتبع صفحة «إنشاء تقرير» تلقائيًا فلا تُعرض للتأشير.
+  groups.forEach((g) => g.items.forEach((a) => known.add(a.id)));
+  const rest = ACTION_CATALOG.filter((a) => !known.has(a.id) && !CORE_REPORT_BUTTONS.includes(a.id) && (!LEGACY_PATH_BUTTONS.includes(a.id) || selected.includes(a.id)));
+  if (rest.length) groups.push({ name: "أخرى", items: rest });
+  return permDropdownChecklistHtml({
+    action, selected, total: ACTION_CATALOG.length, emptyLabel: "إجراءات",
+    renderList: () => groups.filter((g) => g.items.length).map((g) => `<div style="margin-bottom:8px;"><div style="font-size:10.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">${esc(g.name)}</div>${g.items.map((a) => permCheckboxRowHtml(action, a.id, a.label, selected.includes(a.id))).join("")}</div>`).join(""),
+  });
+}
+function rolePermsOf(role) {
+  const p = (role && role.permissions) || {};
+  return { pages: Array.isArray(p.pages) ? p.pages : [], actions: Array.isArray(p.actions) ? p.actions : [], buttons: Array.isArray(p.buttons) ? p.buttons : [] };
+}
+function personEffectivePerms(person) {
+  const role = rolesList().find((r) => r.id === person.roleId);
+  const base = rolePermsOf(role);
+  const o = person.permsOverride || {};
+  return {
+    pages: Array.isArray(o.pages) ? o.pages : base.pages,
+    actions: Array.isArray(o.actions) ? o.actions : base.actions,
+    buttons: Array.isArray(o.buttons) ? o.buttons : base.buttons,
+  };
+}
+function approvalPathToRow(a) {
+  return { id: a.id, name: a.name || "", owner_kind: a.ownerKind || "", owner_id: a.ownerId || "", period_type: a.periodType || "", author_role_id: a.authorRoleId || "", stages: a.stages || [], status: a.status || "draft", created_at: a.createdAt || Date.now(), activated_at: a.activatedAt || null };
+}
+function rowToApprovalPath(r) {
+  return { id: r.id, name: r.name || "", ownerKind: r.owner_kind || "", ownerId: r.owner_id || "", periodType: r.period_type || "", authorRoleId: r.author_role_id || "", stages: Array.isArray(r.stages) ? r.stages : [], status: r.status || "draft", createdAt: Number(r.created_at) || 0, activatedAt: r.activated_at ? Number(r.activated_at) : null };
+}
+function permLogToRow(e) { return { id: e.id, at: e.at, by_name: e.by || "", target_kind: e.targetKind || "", target_id: e.targetId || "", target_name: e.targetName || "", summary: e.summary || "" }; }
+function rowToPermLog(r) { return { id: r.id, at: Number(r.at) || 0, by: r.by_name || "", targetKind: r.target_kind || "", targetId: r.target_id || "", targetName: r.target_name || "", summary: r.summary || "" }; }
+function addPermLog(targetKind, targetId, targetName, summary) {
+  const e = { id: uid("plog"), at: Date.now(), by: (S.currentUser && S.currentUser.name) || "", targetKind, targetId, targetName, summary };
+  S.permLog = [e, ...(S.permLog || dataStore.getPermLog())].slice(0, 200);
+  lsSet(PERM_LOG_KEY, JSON.stringify(S.permLog));
+  if (sheetsConfigured()) supabaseRequest("permission_log", { method: "POST", prefer: "return=minimal", body: JSON.stringify(permLogToRow(e)) }).catch(() => {});
+}
+async function refreshReportTabsFromSheet() {
+  if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("report_tabs");
+  const res = await supabaseRequest("report_tabs?select=*");
+  if (res.ok && Array.isArray(res.data)) { S.reportTabs = res.data.map(rowToReportTab).sort((a, b) => a.order - b.order); lsSet(REPORT_TABS_KEY, JSON.stringify(S.reportTabs)); syncReportTabCatalog(); }
+}
+async function refreshApprovalPathsFromSheet() {
+  if (!sheetsConfigured()) return;
+  await pendingSupabaseWrite("approval_paths");
+  const res = await supabaseRequest("approval_paths?select=*");
+  if (res.ok && Array.isArray(res.data)) { S.approvalPaths = res.data.map(rowToApprovalPath); lsSet(APPROVAL_PATHS_KEY, JSON.stringify(S.approvalPaths)); }
+}
+async function refreshPermLogFromSheet() {
+  if (!sheetsConfigured()) return;
+  const res = await supabaseRequest("permission_log?select=*&order=at.desc&limit=100");
+  if (res.ok && Array.isArray(res.data)) { S.permLog = res.data.map(rowToPermLog); lsSet(PERM_LOG_KEY, JSON.stringify(S.permLog)); }
+}
+function permSummaryText(p) { return `${(p.pages || []).length} صفحة، ${(p.buttons || p.actions || []).length} زر`; }
+function rolePermsEditorHtml(role) {
+  const f = rolePermFormState();
+  return `<div class="card" style="background:${GRAY_BG};margin:0 0 10px;">
+    <div style="font-size:12.5px;font-weight:800;margin-bottom:4px;">صلاحيات الدور: ${esc(role.name)}</div>
+    <div class="hint" style="margin-bottom:8px;">الصفحات = صلاحية العرض. إذا تُركت فارغة فلن يرى هذا الدور أي صفحة.</div>
+    <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">الصفحات (عرض)</div>
+    ${platformUserPagesChecklistHtml(f.pages, "toggle-role-perm-page")}
+    <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin:10px 0 4px;">أزرار الصفحات (التقارير والإرسال والمراجعة والاعتماد)</div>
+    ${permButtonsChecklistHtml(f.buttons, "toggle-role-perm-button")}
+    <div style="display:flex;gap:6px;margin-top:10px;">${pillBtn("حفظ الصلاحيات", { action: "role-perm-save", data: { id: role.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "role-perm-cancel" })}</div>
+  </div>`;
+}
+function personPermsEditorHtml(person) {
+  const f = rolePermFormState();
+  const role = rolesList().find((r) => r.id === person.roleId);
+  return `<div class="card" style="background:${GRAY_BG};margin:0 0 10px;">
+    <div style="font-size:12.5px;font-weight:800;margin-bottom:4px;">استثناء خاص: ${esc(person.name)}</div>
+    <div class="hint" style="margin-bottom:8px;">يُطبَّق بدل صلاحيات الدور (${esc(role ? role.name : "")}) لهذا الشخص فقط. «إلغاء الاستثناء» يعيده لصلاحيات دوره.</div>
+    <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">الصفحات (عرض)</div>
+    ${platformUserPagesChecklistHtml(f.pages, "toggle-role-perm-page")}
+    <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin:10px 0 4px;">أزرار الصفحات</div>
+    ${permButtonsChecklistHtml(f.buttons, "toggle-role-perm-button")}
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">${pillBtn("حفظ الاستثناء", { action: "person-perm-save", data: { id: person.id } })}${pillBtn("إلغاء الاستثناء (العودة للدور)", { variant: "soft", action: "person-perm-clear", data: { id: person.id } })}${pillBtn("إغلاق", { variant: "ghost", action: "role-perm-cancel" })}</div>
+  </div>`;
+}
+function rolesBulkCardHtml() {
+  const b = S.ui.rolesBulk;
+  if (!b) {
+    return `<div class="card" style="margin-bottom:14px;">
+      <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">تطبيق صلاحيات على كل الأدوار</div>
+      <div class="hint" style="margin-bottom:10px;">حددي الصلاحيات مرة واحدة وتُطبَّق على كل الأدوار (${rolesList().length}). بعدها تعدّلين أي دور على حدة.</div>
+      ${pillBtn("بدء", { variant: "ghost", action: "roles-bulk-start" })}
+    </div>`;
+  }
+  const f = rolePermFormState();
+  return `<div class="card" style="margin-bottom:14px;border:1.5px solid ${ROSE};">
+    <div style="font-size:13px;font-weight:800;margin-bottom:6px;">تطبيق على كل الأدوار (${rolesList().length})</div>
+    <div class="hint" style="margin-bottom:10px;">سيستبدل صلاحيات كل الأدوار الحالية بما تحددينه هنا. الاستثناءات الفردية للأشخاص لا تتأثر.</div>
+    <div style="margin-bottom:8px;">${pillBtn("تعبئة بالصفحات الافتراضية السابقة (وحدة)", { variant: "soft", action: "roles-bulk-preset" })}</div>
+    ${platformUserPagesChecklistHtml(f.pages, "toggle-role-perm-page")}
+    <div style="margin:10px 0 4px;"></div>
+    ${permButtonsChecklistHtml(f.buttons, "toggle-role-perm-button")}
+    <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+      ${b.confirm ? `<span style="font-size:12px;font-weight:700;color:${DANGER};">متأكدة؟ سيُستبدل ${rolesList().length} دور.</span>${pillBtn("نعم، طبّقي", { action: "roles-bulk-apply" })}` : pillBtn("تطبيق على الكل", { action: "roles-bulk-confirm" })}
+      ${pillBtn("إلغاء", { variant: "ghost", action: "roles-bulk-cancel" })}
+    </div>
+  </div>`;
+}
+function permLogCardHtml() {
+  const log = (S.permLog || dataStore.getPermLog()).slice(0, 30);
+  return `<div class="card" style="margin-top:18px;">
+    <div style="font-size:15px;font-weight:800;margin-bottom:8px;">سجل التغييرات</div>
+    ${log.length ? log.map((e) => `<div style="font-size:11.5px;padding:6px 0;border-top:1px solid ${BORDER};"><b>${esc(e.targetName)}</b> — ${esc(e.summary)}<div style="color:${SUBTLE};font-size:10.5px;margin-top:2px;">${esc(e.by || "")} • ${esc(new Date(e.at).toLocaleString("ar-SA"))}</div></div>`).join("") : `<div style="font-size:12px;color:${SUBTLE};">لا توجد تغييرات مسجّلة بعد.</div>`}
+  </div>`;
+}
+// ---- المرحلة 3: صفحة «إعداد مسارات الاعتماد» (لمديرة النظام فقط) ----
+// المسارات هنا إعدادات فقط: لا تؤثر على دورة التقرير الحالية ولا تعمل إلا بعد «تفعيل»
+// صريح منها، ولا يوجد أي مسار افتراضي. المسارات القديمة (units.approval_path) تبقى كما هي.
+function approvalPathsList() { return S.approvalPaths || (S.approvalPaths = dataStore.getApprovalPaths()); }
+function apOwnerOptions() {
+  const offices = (S.offices || []).map((o) => ["office", o]);
+  const depts = (S.departments || []).map((d) => ["dept", d]);
+  const real = (S.units || []).filter((u) => u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
+  return [
+    ["مكاتب الإشراف", offices],
+    ["الأقسام", depts],
+    ["الوحدات", real.filter((u) => u.role !== "center").map((u) => ["unit", u])],
+    ["المراكز", real.filter((u) => u.role === "center").map((u) => ["unit", u])],
+  ].filter((g) => g[1].length);
+}
+function apOwnerName(kind, id) {
+  const list = kind === "office" ? (S.offices || []) : kind === "dept" ? (S.departments || []) : (S.units || []);
+  const e = list.find((x) => x.id === id);
+  return e ? e.name : "(جهة محذوفة)";
+}
+function apApproverOptions(cur) {
+  const roles = rolesList(), persons = personsList();
+  const opt = (v, label) => `<option value="${esc(v)}" ${cur === v ? "selected" : ""}>${esc(label)}</option>`;
+  return `<option value="">— من يقوم بالمرحلة —</option>
+    ${roles.length ? `<optgroup label="أدوار">${roles.map((r) => opt("role:" + r.id, r.name)).join("")}</optgroup>` : ""}
+    ${persons.length ? `<optgroup label="أشخاص">${persons.map((p) => opt("person:" + p.id, p.name + " — " + apOwnerName(p.ownerKind === "department" ? "dept" : p.ownerKind, p.ownerId))).join("")}</optgroup>` : ""}
+    <optgroup label="حسابات الجهات">${[...(S.departments || []).map((d) => opt("dept:" + d.id, d.name + " (قسم)")), ...(S.offices || []).map((o) => opt("office:" + o.id, o.name + " (مكتب)"))].join("")}</optgroup>`;
+}
+function apApproverLabel(v) {
+  if (!v) return "—";
+  const [k, id] = v.split(":");
+  if (k === "role") { const r = rolesList().find((x) => x.id === id); return r ? "دور: " + r.name : "(دور محذوف)"; }
+  if (k === "person") { const p = personsList().find((x) => x.id === id); return p ? p.name : "(شخص محذوف)"; }
+  return apOwnerName(k, id);
+}
+function apCaptureForm() {
+  const d = S.ui.apEdit && S.ui.apEdit.draft; if (!d) return;
+  const g = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+  const c = (id) => { const el = document.getElementById(id); return el ? !!el.checked : null; };
+  if (g("ap-name") !== null) d.name = g("ap-name");
+  if (g("ap-owner") !== null) { const v = g("ap-owner"); const [k, ...rest] = v.split(":"); d.ownerKind = v ? k : ""; d.ownerId = rest.join(":"); }
+  if (g("ap-period") !== null) d.periodType = g("ap-period");
+  if (g("ap-author") !== null) d.authorRoleId = g("ap-author");
+  d.stages = (d.stages || []).map((st, i) => ({
+    ...st,
+    name: g("ap-s-name-" + i) !== null ? g("ap-s-name-" + i) : st.name,
+    approver: g("ap-s-appr-" + i) !== null ? g("ap-s-appr-" + i) : st.approver,
+    canApprove: c("ap-s-ap-" + i) !== null ? c("ap-s-ap-" + i) : st.canApprove,
+    canReturn: c("ap-s-rt-" + i) !== null ? c("ap-s-rt-" + i) : st.canReturn,
+    canEdit: c("ap-s-ed-" + i) !== null ? c("ap-s-ed-" + i) : st.canEdit,
+    noteRequired: c("ap-s-nr-" + i) !== null ? c("ap-s-nr-" + i) : !!st.noteRequired,
+  }));
+}
+function apEditorHtml() {
+  const ed = S.ui.apEdit; const d = ed.draft;
+  const ownerVal = d.ownerKind ? d.ownerKind + ":" + d.ownerId : "";
+  const roles = rolesList();
+  const stagesHtml = (d.stages || []).map((st, i) => `
+    <div class="card" style="background:${GRAY_BG};margin-bottom:8px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:800;color:${ROSE};">المرحلة ${i + 1}</div>
+        <div style="display:flex;gap:5px;">
+          <button class="icon-btn" style="width:28px;height:28px;border:1px solid ${BORDER}" data-action="ap-stage-move" data-idx="${i}" data-dir="up" title="تحريك لأعلى">${iconChevronDown ? `<span style="display:inline-flex;transform:rotate(180deg);">${iconChevronDown(13, INK)}</span>` : "▲"}</button>
+          <button class="icon-btn" style="width:28px;height:28px;border:1px solid ${BORDER}" data-action="ap-stage-move" data-idx="${i}" data-dir="down" title="تحريك لأسفل">${iconChevronDown ? iconChevronDown(13, INK) : "▼"}</button>
+          <button class="icon-btn" style="width:28px;height:28px;background:${DANGER_BG}" data-action="ap-stage-remove" data-idx="${i}" title="حذف المرحلة">${iconTrash(13, DANGER)}</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;">
+        <input class="input" id="ap-s-name-${i}" placeholder="اسم المرحلة (مثال: مراجعة)" value="${esc(st.name || "")}" />
+        <select class="input" id="ap-s-appr-${i}">${apApproverOptions(st.approver || "")}</select>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ap-s-ap-${i}" ${st.canApprove ? "checked" : ""} /> يعتمد</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ap-s-rt-${i}" ${st.canReturn ? "checked" : ""} /> يعيد للتعديل</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ap-s-ed-${i}" ${st.canEdit ? "checked" : ""} /> يعدّل التقرير</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ap-s-nr-${i}" ${st.noteRequired ? "checked" : ""} /> ملاحظة إلزامية عند الاعتماد</label>
+      </div>
+    </div>`).join("");
+  return `<div class="card" style="margin-bottom:14px;border:1.5px solid ${ROSE};">
+    <div style="font-size:14px;font-weight:800;margin-bottom:10px;">${ed.id ? "تعديل المسار" : "مسار جديد"} <span style="font-size:11px;color:${SUBTLE};font-weight:600;">(يُحفظ كمسودة ولا يعمل قبل التفعيل)</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:10px;">
+      <input class="input" id="ap-name" placeholder="اسم المسار (اختياري)" value="${esc(d.name || "")}" />
+      <select class="input" id="ap-owner"><option value="">— الجهة —</option>${apOwnerOptions().map((g) => `<optgroup label="${esc(g[0])}">${g[1].map(([k, e]) => `<option value="${esc(k + ":" + e.id)}" ${ownerVal === k + ":" + e.id ? "selected" : ""}>${esc(e.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+      <select class="input" id="ap-period"><option value="">كل الفترات</option>${PERIOD_TYPES.map((pt) => `<option value="${esc(pt)}" ${d.periodType === pt ? "selected" : ""}>${esc(pt)}</option>`).join("")}</select>
+      <select class="input" id="ap-author"><option value="">أي صاحب تقرير</option>${roles.map((r) => `<option value="${esc(r.id)}" ${d.authorRoleId === r.id ? "selected" : ""}>تقرير ${esc(r.name)}</option>`).join("")}</select>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+      <input class="input" id="ap-new-period" placeholder="فترة جديدة غير موجودة بالقائمة" style="flex:1;min-width:180px;" />
+      ${pillBtn("إضافة فترة", { variant: "soft", action: "ap-add-period" })}
+    </div>
+    <div style="font-size:12.5px;font-weight:800;margin-bottom:6px;">المراحل (بالترتيب)</div>
+    ${stagesHtml || `<div style="font-size:12px;color:${SUBTLE};margin-bottom:8px;">لا توجد مراحل بعد. أضيفي المرحلة الأولى.</div>`}
+    ${pillBtn("إضافة مرحلة", { variant: "ghost", icon: iconPlus(14, INK), action: "ap-stage-add" })}
+    ${ed.error ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:8px;">${esc(ed.error)}</div>` : ""}
+    <div style="display:flex;gap:6px;margin-top:12px;">${pillBtn("حفظ كمسودة", { action: "ap-save" })}${pillBtn("إلغاء", { variant: "ghost", action: "ap-cancel" })}</div>
+  </div>`;
+}
+function renderApprovalPathsSetup() {
+  const list = approvalPathsList();
+  const ed = S.ui.apEdit;
+  const rows = list.map((a) => {
+    const active = a.status === "active";
+    const confirming = S.ui.apConfirmDeleteId === a.id;
+    const roleName = a.authorRoleId ? ((rolesList().find((r) => r.id === a.authorRoleId) || {}).name || "(دور محذوف)") : "";
+    return `<div class="card" style="margin-bottom:8px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <div style="font-size:13.5px;font-weight:800;">${esc(a.name || apOwnerName(a.ownerKind, a.ownerId))} ${badgeHtml(active ? "مفعّل" : "مسودة", active ? GREEN : SUBTLE, active ? GREEN_BG : GRAY_BG)}</div>
+          <div style="font-size:11px;color:${SUBTLE};margin-top:3px;">${esc(apOwnerName(a.ownerKind, a.ownerId))} • ${esc(a.periodType || "كل الفترات")} • ${roleName ? "تقرير " + esc(roleName) : "أي صاحب تقرير"} • ${(a.stages || []).length} مرحلة</div>
+          <div style="font-size:11.5px;margin-top:6px;">${(a.stages || []).map((st, i) => `<span style="display:inline-block;background:${GRAY_BG};border-radius:8px;padding:2px 8px;margin:2px 0 2px 4px;">${i + 1}. ${esc(st.name || "مرحلة")} ← ${esc(apApproverLabel(st.approver))}</span>`).join("")}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${confirming
+          ? `${pillBtn("تأكيد الحذف", { variant: "danger", action: "ap-delete", data: { id: a.id } })}${pillBtn("تراجع", { variant: "ghost", action: "ap-delete-cancel" })}`
+          : `${pillBtn(active ? "إيقاف" : "تفعيل", { variant: active ? "ghost" : "primary", action: "ap-toggle", data: { id: a.id } })}
+             <button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="ap-edit" data-id="${esc(a.id)}" title="تعديل">${iconPencil(13, INK)}</button>
+             <button class="icon-btn" style="width:30px;height:30px;background:${DANGER_BG}" data-action="ap-delete-ask" data-id="${esc(a.id)}" title="حذف">${iconTrash(13, DANGER)}</button>`}</div>
+      </div>
+      ${S.ui.apMsg && S.ui.apMsg.id === a.id ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:8px;">${esc(S.ui.apMsg.msg)}</div>` : ""}
+    </div>`;
+  }).join("");
+  return `
+    <div class="card" style="background:${BLUE_BG};border:1px solid #cfe0f5;margin-bottom:14px;">
+      <div style="font-size:12px;color:#3a5a85;">لكل جهة ولكل نوع تقرير (من قائمة الفترات) تضيفين المراحل بالترتيب وتحددين من يقوم بكل مرحلة. المسار الجديد يُحفظ مسودة، ولا يُطبَّق على التقارير إلا بعد ضغط «تفعيل». المسارات الحالية في «الهيكل والأشخاص» تبقى كما هي.</div>
+    </div>
+    ${ed ? apEditorHtml() : `<div style="margin-bottom:12px;">${pillBtn("مسار جديد", { icon: iconPlus(15, "#fff"), action: "ap-new" })}</div>`}
+    ${rows || (ed ? "" : `<div class="card" style="text-align:center;color:${SUBTLE};padding:30px 20px;border-style:dashed;">لا توجد مسارات بعد.</div>`)}
+  `;
+}
+const ROLE_MODE_LABELS = { admin: "إدارية (واجهة الوحدة)", head: "رئيسة الوحدة", extra: "المراجعة الإضافية", entity: "قسم أو مكتب (بلا واجهة وحدة)" };
+function renderRolesManage() {
+  const ui = S.ui;
+  const roles = rolesList(), persons = personsList();
+  const editRole = ui.roleEditId ? roles.find((r) => r.id === ui.roleEditId) : null;
+  const editPerson = ui.personEditId ? persons.find((p) => p.id === ui.personEditId) : null;
+  const units = S.units || [];
+  // نفس قائمة الهيكل: وحدات ومراكز حقيقية فقط (بدون مديرة النظام/الإدارة العليا/تقارير ذاتية)
+  const realUnits = units.filter((u) => u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
+  const unitName = (id) => { const u = units.find((x) => x.id === id); return u ? u.name : "(جهة محذوفة)"; };
+  const roleForm = (ui.roleShowAdd || editRole) ? `<div class="card" style="background:${GRAY_BG};margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+        <input class="input" id="role-name" placeholder="اسم الدور (مثال: رئيسة الوحدة)" value="${esc(editRole ? editRole.name : "")}" />
+        <div>
+          <div style="font-size:11px;font-weight:700;color:${SUBTLE};margin-bottom:3px;">نوع الدخول (للوحدات فقط)</div>
+          <select class="input" id="role-mode" style="width:100%;">${Object.keys(ROLE_MODE_LABELS).map((k) => `<option value="${k}" ${editRole && editRole.mode === k ? "selected" : ""}>${esc(ROLE_MODE_LABELS[k])}</option>`).join("")}</select>
+          <div style="font-size:10.5px;color:${SUBTLE};margin-top:3px;line-height:1.6;">يحدد واجهة الوحدة عند الدخول بهذا الدور. للأقسام والمكاتب اختاري «قسم أو مكتب» — صلاحياتها تأتي من الصفحات والأزرار فقط.</div>
+        </div>
+        <input class="input" id="role-pin" inputmode="numeric" placeholder="رمز PIN (اختياري)" value="${esc(editRole ? editRole.pin : "")}" />
+        <input class="input" id="role-desc" placeholder="وصف (اختياري)" value="${esc(editRole ? editRole.description : "")}" />
+      </div>
+      ${ui.roleError ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:8px;">${esc(ui.roleError)}</div>` : ""}
+      <div style="display:flex;gap:6px;margin-top:10px;">${pillBtn(editRole ? "حفظ" : "إضافة", { action: "role-save" })}${pillBtn("إلغاء", { variant: "ghost", action: "role-cancel" })}</div>
+    </div>` : (ui.roleError ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-bottom:8px;">${esc(ui.roleError)}</div>` : "");
+  const roleRows = roles.map((r) => (ui.rolePermEditId === r.id ? rolePermsEditorHtml(r) : "") + `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+      <div><div style="font-size:13.5px;font-weight:800;">${esc(r.name)}</div>
+      <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">${esc(ROLE_MODE_LABELS[r.mode] || "")}${r.pin ? " • برمز" : " • بدون رمز"}${r.description ? " • " + esc(r.description) : ""} • ${persons.filter((p) => p.roleId === r.id).length} شخص • الصلاحيات: ${rolePermsOf(r).pages.length || rolePermsOf(r).actions.length || rolePermsOf(r).buttons.length ? esc(permSummaryText(rolePermsOf(r))) : "ترث صلاحيات الجهة"}</div></div>
+      <div style="display:flex;gap:6px;align-items:center;">${ui.roleConfirmDeleteId === r.id
+        ? `${pillBtn("تأكيد الحذف", { variant: "danger", action: "role-delete", data: { id: r.id } })}${pillBtn("تراجع", { variant: "ghost", action: "role-delete-cancel" })}`
+        : `<button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="role-perm-edit" data-id="${esc(r.id)}" title="الصلاحيات">${iconKey(13, INK)}</button>
+           <button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="role-edit" data-id="${esc(r.id)}" title="تعديل">${iconPencil(13, INK)}</button>
+           <button class="icon-btn" style="width:30px;height:30px;background:${DANGER_BG}" data-action="role-delete-ask" data-id="${esc(r.id)}" title="حذف">${iconTrash(13, DANGER)}</button>`}</div>
+    </div>`).join("") || `<div style="font-size:12px;color:${SUBTLE};padding:8px 2px;">لا توجد أدوار بعد.</div>`;
+  const personForm = (ui.personShowAdd || editPerson) ? `<div class="card" style="background:${GRAY_BG};margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+        <input class="input" id="person-name" placeholder="اسم الشخص" value="${esc(editPerson ? editPerson.name : "")}" />
+        <select class="input" id="person-owner"><option value="">— الجهة (وحدة/مركز) —</option>${[["وحدات", realUnits.filter((u) => u.role !== "center")], ["مراكز", realUnits.filter((u) => u.role === "center")]].filter((g) => g[1].length).map((g) => `<optgroup label="${g[0]}">${g[1].map((u) => `<option value="${esc(u.id)}" ${editPerson && editPerson.ownerId === u.id ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+        <select class="input" id="person-role"><option value="">— الدور —</option>${roles.map((r) => `<option value="${esc(r.id)}" ${editPerson && editPerson.roleId === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select>
+        <input class="input" id="person-pin" inputmode="numeric" placeholder="رمز خاص بالشخص (اختياري)" value="${esc(editPerson ? editPerson.pin : "")}" />
+      </div>
+      ${ui.personError ? `<div style="color:${DANGER};font-size:11.5px;font-weight:700;margin-top:8px;">${esc(ui.personError)}</div>` : ""}
+      <div style="display:flex;gap:6px;margin-top:10px;">${pillBtn(editPerson ? "حفظ" : "إضافة", { action: "person-save" })}${pillBtn("إلغاء", { variant: "ghost", action: "person-cancel" })}</div>
+    </div>` : "";
+  const personRows = persons.map((p) => {
+    const r = roles.find((x) => x.id === p.roleId);
+    const on = p.status !== "disabled";
+    return (ui.personPermEditId === p.id ? personPermsEditorHtml(p) : "") + `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;opacity:${on ? 1 : 0.6};">
+      <div><div style="font-size:13.5px;font-weight:800;">${esc(p.name)}</div>
+      <div style="font-size:11px;color:${SUBTLE};margin-top:2px;">${esc(unitName(p.ownerId))} • ${esc(r ? r.name : "(بلا دور)")}${personEffectivePin(p) ? " • برمز" : " • بدون رمز"}${(p.permsOverride && (Array.isArray(p.permsOverride.pages) || Array.isArray(p.permsOverride.actions))) ? " • باستثناء خاص" : ""}${on ? "" : " • معطّل"}</div></div>
+      <div style="display:flex;gap:6px;align-items:center;">${ui.personConfirmDeleteId === p.id
+        ? `${pillBtn("تأكيد الحذف", { variant: "danger", action: "person-delete", data: { id: p.id } })}${pillBtn("تراجع", { variant: "ghost", action: "person-delete-cancel" })}`
+        : `<button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="person-perm-edit" data-id="${esc(p.id)}" title="استثناء الصلاحيات">${iconKey(13, INK)}</button>
+           <button class="icon-btn" style="width:30px;height:30px;border:1px solid ${BORDER}" data-action="person-edit" data-id="${esc(p.id)}" title="تعديل">${iconPencil(13, INK)}</button>
+           <button class="icon-btn" style="width:30px;height:30px;background:${on ? DANGER_BG : GREEN_BG}" data-action="person-toggle" data-id="${esc(p.id)}" title="${on ? "تعطيل" : "تفعيل"}">${iconPower(13, on ? DANGER : GREEN)}</button>
+           <button class="icon-btn" style="width:30px;height:30px;background:${DANGER_BG}" data-action="person-delete-ask" data-id="${esc(p.id)}" title="حذف">${iconTrash(13, DANGER)}</button>`}</div>
+    </div>`;
+  }).join("") || `<div style="font-size:12px;color:${SUBTLE};padding:8px 2px;">لا يوجد أشخاص بعد.</div>`;
+  return `
+    ${rolesBulkCardHtml()}
+    <div class="card" style="margin-bottom:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+        <div style="font-size:15px;font-weight:800;">الأدوار</div>${pillBtn("إضافة دور", { icon: iconPlus(15, "#fff"), action: "role-show-add" })}
+      </div>
+      <div style="font-size:11px;color:${SUBTLE};margin-bottom:12px;">الدور يحدد واجهة الدخول، والرمز (PIN) اختياري تحددينه أنتِ لكل دور أو لكل شخص (رمز الشخص يغلب رمز الدور).</div>
+      ${roleForm}${roleRows}
+    </div>
+    <div class="card" style="background:${BLUE_BG};border:1px solid #cfe0f5;">
+      <div style="font-size:12px;color:#3a5a85;">الأشخاص يُدارون من تبويب «الهيكل والأشخاص»: اضغطي أيقونة 👥 بجانب أي مكتب أو قسم أو وحدة أو مركز. (${personsList().length} شخص مسجّل حاليًا)</div>
+    </div>
+    ${permLogCardHtml()}
+  `;
+}
+function platformUserRowHtml(pu, allList) {
+  const isActive = pu.status !== "disabled";
+  const editing = S.ui.editingPuId === pu.id;
+  const confirming = S.ui.confirmRemovePuId === pu.id;
+  const sharing = (allList || []).filter((x) => x.id !== pu.id && x.loginId === pu.loginId && x.password === pu.password && x.loginId);
+
+  if (confirming) {
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;font-weight:700;">حذف "${esc(pu.jobTitle)}" نهائيًا؟</span>
+      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-platform-user", data: { id: pu.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-remove-platform-user" })}</div>
+    </div>`;
+  }
+
+  if (editing) {
+    const editForm = S.ui.editPuForm || {};
+    return `<div class="card">
+      ${platformUserFormFieldsHtml("edit-pu", editForm)}
+      <div style="display:flex;gap:6px;">${pillBtn("حفظ", { action: "save-platform-user-edit", data: { id: pu.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "cancel-platform-user-edit" })}</div>
+    </div>`;
+  }
+
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;opacity:${isActive ? 1 : 0.6}">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+      <div style="width:34px;height:34px;border-radius:10px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconUser(16, ROSE)}</div>
+      <div style="min-width:0;">
+        <div style="font-size:13.5px;font-weight:700;">${esc(pu.jobTitle)}${!isActive ? ` <span style="font-size:10px;font-weight:700;color:${DANGER};">(معطّل)</span>` : ""}</div>
+        <div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${pu.loginType === "email" ? iconMail(11, SUBTLE) : ""} ${esc(pu.loginId)} · ${esc(platformUserScopeLabel(pu))}</div>
+        ${pu.templateId ? (() => { const t = (S.jobTitleTemplates || []).find((x) => x.id === pu.templateId); return t ? `<div style="font-size:10px;color:${GOLD};margin-top:2px;font-weight:700;">قالب: ${esc(t.name)} (${(t.allowedPages || []).length} صفحة، ${(t.allowedActions || []).length} إجراء)</div>` : ""; })() : `
+        ${(pu.allowedPages || []).length ? `<div style="font-size:10px;color:${GREEN};margin-top:2px;">${pu.allowedPages.length} صفحة مسموحة</div>` : ""}
+        ${(pu.allowedActions || []).length ? `<div style="font-size:10px;color:${GREEN};margin-top:2px;">${pu.allowedActions.length} إجراء مسموح (من أزرار مسار الاعتماد)</div>` : ""}`}
+        ${sharing.length ? `<div style="font-size:10px;color:${SUBTLE};margin-top:2px;">تشارك نفس الدخول مع: ${sharing.map((s) => esc(s.jobTitle)).join("، ")}</div>` : ""}
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-platform-user-edit" data-id="${esc(pu.id)}" title="تعديل">${iconPencil(14, INK)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;background:${isActive ? DANGER_BG : GREEN_BG}" data-action="toggle-platform-user" data-id="${esc(pu.id)}" title="${isActive ? "تعطيل" : "تفعيل"}">${iconPower(14, isActive ? DANGER : GREEN)}</button>
+      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-remove-platform-user" data-id="${esc(pu.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
+    </div>
+  </div>`;
+}
+
+// صفحة مستقلة لعرض/تعديل صلاحيات الحسابات الإضافية مباشرة — بدون المرور
+// بنموذج "إضافة حساب" أعلى صفحة "حسابات إضافية". تتيح البحث السريع بالمسمى
+// الوظيفي أو معرّف الدخول، ثم فتح نفس نموذج التعديل الكامل (صفحات + إجراءات +
+// نطاق) لأي حساب مباشرة. كل حساب له صلاحياته الخاصة به (حتى لو شارك نفس
+// المسمى الوظيفي مع حساب آخر) — بدون أي قوالب أو تأثير على الحسابات الحالية.
+// تجمع كل حساب بالنظام له صلاحيات قابلة للتخصيص بقائمة واحدة موحّدة: الحسابات
+// الأساسية (وحدات/مراكز/أقسام/مكاتب إشراف) + الحسابات الإضافية (platform_users)
+// — دمج حقيقي لنفس نظام الصلاحيات (allowedPages/allowedActions) على كل منها،
+// بدل ما يبقى النظامان منفصلين. حساب مديرة النظام والإدارة العليا مستثنيان
+// عمدًا (دائمًا كامل الصلاحيات، ما فيه داعي لتقييدهما).
+function collectPermissionAccounts() {
+  const list = [];
+  (S.units || []).forEach((u) => {
+    if (u.role === "admin" || u.role === "executive" || u.role === "self_report") return;
+    list.push({ kind: "unit", id: u.id, entity: u, label: u.name, typeLabel: u.role === "center" ? "مركز" : "وحدة" });
+  });
+  (S.departments || []).forEach((d) => {
+    list.push({ kind: "department", id: d.id, entity: d, label: d.name, typeLabel: "قسم" });
+  });
+  (S.offices || []).forEach((o) => {
+    list.push({ kind: "office", id: o.id, entity: o, label: o.name, typeLabel: "مكتب إشراف" });
+  });
+  (S.platformUsers || []).forEach((pu) => {
+    list.push({ kind: "platform_user", id: pu.id, entity: pu, label: pu.jobTitle, typeLabel: "حساب إضافي" });
+  });
+  return list;
+}
+function unifiedAccountPermRowHtml(rec) {
+  if (rec.kind === "platform_user") return platformUserRowHtml(rec.entity, S.platformUsers);
+  const entity = rec.entity;
+  const editing = S.ui.editingAccountPerm && S.ui.editingAccountPerm.kind === rec.kind && S.ui.editingAccountPerm.id === rec.id;
+  if (editing) {
+    const form = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+    return `<div class="card">
+      <div style="font-size:13px;font-weight:800;margin-bottom:10px;">${esc(rec.label)} <span style="font-size:10.5px;font-weight:700;color:${SUBTLE}">(${esc(rec.typeLabel)})</span></div>
+      <div style="margin-bottom:6px;font-size:11.5px;font-weight:800;color:${ROSE};">صلاحية الصفحات (إذا تركتِها فاضية ما يظهر للحساب أي صفحة)</div>
+      ${platformUserPagesChecklistHtml(form.allowedPages || [], "toggle-account-perm-page")}
+      <div style="margin:14px 0 6px;font-size:11.5px;font-weight:800;color:${ROSE};">صلاحية الإجراءات (اتركيها فاضية للسماح بكل الإجراءات المتاحة أصلًا)</div>
+      ${platformUserActionsChecklistHtml(form.allowedActions || [], "toggle-account-perm-action")}
+      ${reportTabsEditorHtml(form, "account")}
+      <div style="display:flex;gap:6px;margin-top:10px;">${pillBtn("حفظ", { action: "save-account-perm-edit", data: { kind: rec.kind, id: rec.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "cancel-account-perm-edit" })}</div>
+    </div>`;
+  }
+  const pagesCount = (entity.allowedPages || []).length;
+  const actionsCount = (entity.allowedActions || []).length;
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+      <div style="width:34px;height:34px;border-radius:10px;background:${BLUE_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBuilding(ROSE, 16)}</div>
+      <div style="min-width:0;">
+        <div style="font-size:13.5px;font-weight:700;">${esc(rec.label)} <span style="font-size:10px;font-weight:700;color:${SUBTLE};">(${esc(rec.typeLabel)})</span></div>
+        <div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${pagesCount ? `<span style="color:${GREEN}">${pagesCount} صفحة مسموحة</span>` : "بلا قيد صفحات"} · ${actionsCount ? `<span style="color:${GREEN}">${actionsCount} إجراء مسموح</span>` : "بلا قيد إجراءات"}</div>
+      </div>
+    </div>
+    <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-account-perm-edit" data-kind="${esc(rec.kind)}" data-id="${esc(rec.id)}" title="تعديل الصلاحيات">${iconPencil(14, INK)}</button>
+  </div>`;
+}
+const BULK_PERM_TYPES = [
+  { id: "unit", label: "الوحدات" },
+  { id: "center", label: "المراكز" },
+  { id: "department", label: "الأقسام" },
+  { id: "office", label: "مكاتب الإشراف" },
+];
+// الصفحات التي كانت تظهر بالأشرطة الثابتة القديمة — تعبئة جاهزة (تقدرين تعدّلينها)
+const BULK_PERM_PRESETS = {
+  unit: ["dashboard", "unit-report", "unit-reports", "unit-notifications", "unit-all-reports"],
+  center: ["dashboard", "unit-report", "unit-reports", "unit-notifications"],
+  department: ["dashboard", "department-curation", "all-reports", "unit-report", "unit-reports", "unit-settings"],
+  office: ["dashboard", "office-archive", "all-reports", "office-summary", "department-curation", "departments-list"],
+};
+function bulkPermTargets(type) {
+  if (type === "department") return (S.departments || []).slice();
+  if (type === "office") return (S.offices || []).slice();
+  if (type === "center") return (S.units || []).filter((u) => u.role === "center");
+  return (S.units || []).filter((u) => u.role !== "center" && u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
+}
+function bulkPermCardHtml() {
+  const b = S.ui.bulkPerm;
+  if (!b) {
+    return `<div class="card" style="margin-bottom:14px;">
+      <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">تطبيق صلاحيات على الكل</div>
+      <div class="hint" style="margin-bottom:10px;">حددي الصلاحيات مرة واحدة وتُطبَّق على كل حسابات نوع معيّن. بعدها تقدرين تعدّلين أي حساب على حدة من القائمة تحت.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${BULK_PERM_TYPES.map((t) => pillBtn(t.label + " (" + bulkPermTargets(t.id).length + ")", { variant: "ghost", action: "start-bulk-perm", data: { type: t.id } })).join("")}</div>
+    </div>`;
+  }
+  const t = BULK_PERM_TYPES.find((x) => x.id === b.type) || BULK_PERM_TYPES[0];
+  const n = bulkPermTargets(b.type).length;
+  const form = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+  return `<div class="card" style="margin-bottom:14px;border:1.5px solid ${ROSE};">
+    <div style="font-size:13px;font-weight:800;margin-bottom:6px;">تطبيق على كل ${esc(t.label)} (${n})</div>
+    <div class="hint" style="margin-bottom:10px;">سيستبدل صلاحيات كل ${esc(t.label)} الحالية بما تحددينه هنا. إذا تركتِ الصفحات فاضية ما يظهر لهذه الحسابات أي صفحة.</div>
+    <div style="margin-bottom:8px;">${pillBtn("تعبئة بالصفحات الافتراضية السابقة", { variant: "soft", action: "bulk-perm-preset" })}</div>
+    <div style="margin-bottom:6px;font-size:11.5px;font-weight:800;color:${ROSE};">صلاحية الصفحات</div>
+    ${platformUserPagesChecklistHtml(form.allowedPages || [], "toggle-account-perm-page")}
+    <div style="margin:14px 0 6px;font-size:11.5px;font-weight:800;color:${ROSE};">صلاحية الإجراءات</div>
+    ${platformUserActionsChecklistHtml(form.allowedActions || [], "toggle-account-perm-action")}
+    ${reportTabsEditorHtml(form, "account")}
+    <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+      ${b.confirm
+        ? `<span style="font-size:12px;font-weight:700;color:${DANGER};">متأكدة؟ سيُستبدل ${n} حساب.</span>${pillBtn("نعم، طبّقي", { action: "apply-bulk-perm" })}`
+        : pillBtn("تطبيق على الكل", { action: "confirm-bulk-perm" })}
+      ${pillBtn("إلغاء", { variant: "ghost", action: "cancel-bulk-perm" })}
+    </div>
+  </div>`;
+}
 /* =============================== Indicators management ======================= */
 function indicatorDefFieldsHtml(stateKey, values) {
   values = values || {};
@@ -2843,10 +6779,6 @@ function renderIndicatorsManage() {
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "إدارة مؤشرات الأداء", subtitle: "عرّفي بيانات المؤشر مرة واحدة — لن تحتاج إعادة كتابتها داخل التقارير", backAction: "nav-back-admin" })}
 
-    <div class="card" style="background:${BLUE_BG};border:1px solid #cfe0f5;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <div style="font-size:11.5px;color:#3a5a85;">لتجربة الواجهة سريعًا: حمّلي 5 مؤشرات تجريبية بحالات مختلفة على "وحدة الاختبارات".</div>
-      ${pillBtn(ui.sampleStatus || "تحميل بيانات تجريبية", { variant: "soft", icon: iconSparkles(15, GREEN), action: "load-sample-data" })}
-    </div>
 
     <div class="card" style="margin-bottom:22px;">
       <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:12px;">إضافة مؤشر جديد</div>
@@ -2971,6 +6903,68 @@ function sectionDefRowHtml(def, index, total) {
     </div>
   </div>`;
 }
+// ---- إدارة أزرار صفحة التقارير (تُحفظ بجدول report_tabs) ----
+function rtMaterialize() { return reportTabsList().map((t) => ({ ...t, statuses: [...(t.statuses || [])], adminStatuses: [...(t.adminStatuses || [])] })); }
+function rtSave(list) {
+  S.reportTabs = list;
+  dataStore.saveReportTabs(list);
+  syncReportTabCatalog();
+}
+function rtStatusLabel(id) { const o = REPORT_STATUS_OPTIONS.find((x) => x[0] === id); return o ? o[1] : id; }
+function rtCapture() {
+  const d = S.ui.rtEdit && S.ui.rtEdit.draft; if (!d) return;
+  const el = document.getElementById("rt-label"); if (el) d.label = el.value;
+  const en = document.getElementById("rt-enabled"); if (en) d.enabled = !!en.checked;
+}
+function rtEditorHtml() {
+  const ed = S.ui.rtEdit; if (!ed) return "";
+  const d = ed.draft;
+  return `
+  <div class="card" style="margin-bottom:18px;border:1.5px solid ${ROSE};">
+    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:12px;">${ed.id ? "تعديل الزر" : "زر جديد"}</div>
+    <div style="font-size:12px;font-weight:800;margin-bottom:6px;">اسم الزر</div>
+    <input class="input" id="rt-label" value="${esc(d.label)}" placeholder="مثال: قيد المراجعة" style="margin-bottom:12px;" />
+    ${d.special ? `<div class="hint" style="margin-bottom:12px;">${d.special === "all" ? "هذا الزر يعرض كل التقارير غير المؤرشفة" : "هذا الزر يعرض التقارير المؤرشفة"} — تقدرين تغيّرين اسمه فقط.</div>` : `
+    <div style="font-size:12px;font-weight:800;margin-bottom:6px;">يعرض التقارير التي حالتها</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px;margin-bottom:12px;">
+      ${REPORT_STATUS_OPTIONS.map(([id, lb]) => permCheckboxRowHtml("rt-toggle-status", id, lb, (d.statuses || []).includes(id))).join("")}
+    </div>`}
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:12px;cursor:pointer;"><input type="checkbox" id="rt-enabled" ${d.enabled !== false ? "checked" : ""} /> الزر ظاهر في صفحة التقارير</label>
+    ${S.ui.rtError ? `<div class="error-box" style="margin-bottom:10px;">${esc(S.ui.rtError)}</div>` : ""}
+    <div style="display:flex;gap:8px;">${pillBtn("حفظ", { icon: iconCheckCircle(14, "#fff"), action: "rt-save" })}${pillBtn("إلغاء", { variant: "ghost", action: "rt-cancel" })}</div>
+  </div>`;
+}
+function renderReportTabsManage() {
+  const list = reportTabsList();
+  const fromDb = (S.reportTabs || []).length > 0;
+  return `
+  <div class="page-wrap"><div class="page-inner narrow">
+    ${topBarHtml({ title: "إدارة أزرار التقارير", subtitle: "الأزرار اللي تظهر في صفحة التقارير: أضيفي، عدّلي، رتّبي، أو احذفي", backAction: "nav-back-admin" })}
+    <div class="card" style="background:${BLUE_BG};border:1px solid #cfe0f5;margin-bottom:18px;"><div style="font-size:11.5px;color:#3a5a85;line-height:1.8;">
+      كل زر يعرض التقارير حسب حالتها. ${fromDb ? "الأزرار محفوظة في قاعدة البيانات." : "الأزرار الآن هي القائمة الافتراضية؛ أول تعديل أو إضافة تحفظها في قاعدة البيانات."}
+      الزر الجديد يظهر تلقائيًا في صلاحيات الأدوار والأشخاص (مع خيار «ينبّه»). «تعطيل» يخفيه عن الجميع بدون حذف.
+    </div></div>
+    ${S.ui.rtMsg ? `<div class="hint" style="margin-bottom:12px;">${esc(S.ui.rtMsg)}</div>` : ""}
+    ${rtEditorHtml()}
+    ${S.ui.rtEdit ? "" : `<div style="margin-bottom:14px;">${pillBtn("زر جديد", { icon: iconPlus(15, "#fff"), action: "rt-new" })}</div>`}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${list.map((t, i) => `
+      <div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;${t.enabled === false ? "opacity:0.55;" : ""}">
+        <div style="flex:1;min-width:180px;">
+          <div style="font-size:13px;font-weight:800;">${esc(t.label)}${reportTabModeSuffix(t) ? ` <span style="font-size:10.5px;color:${SUBTLE};font-weight:600;">${esc(reportTabModeSuffix(t))}</span>` : ""}${t.enabled === false ? ` <span style="font-size:10.5px;color:${DANGER};">(معطّل)</span>` : ""}</div>
+          <div style="font-size:10.5px;color:${SUBTLE};margin-top:3px;line-height:1.7;">${t.special === "all" ? "كل التقارير غير المؤرشفة" : t.special === "archived" ? "التقارير المؤرشفة" : (t.statuses || []).map(rtStatusLabel).join("، ") || "لا حالات"}${(t.adminStatuses || []).length ? " + (للإدارية): " + t.adminStatuses.map(rtStatusLabel).join("، ") : ""}</div>
+        </div>
+        <button class="icon-btn" style="border:1px solid ${BORDER}" data-action="rt-move" data-idx="${i}" data-dir="up" ${i === 0 ? "disabled" : ""}><span style="display:inline-flex;transform:rotate(180deg);">${iconChevronDown(12, INK)}</span></button>
+        <button class="icon-btn" style="border:1px solid ${BORDER}" data-action="rt-move" data-idx="${i}" data-dir="down" ${i === list.length - 1 ? "disabled" : ""}>${iconChevronDown(12, INK)}</button>
+        ${pillBtn("تعديل", { variant: "ghost", action: "rt-edit", data: { id: t.id } })}
+        ${pillBtn(t.enabled === false ? "تفعيل" : "تعطيل", { variant: "ghost", action: "rt-toggle-enabled", data: { id: t.id } })}
+        ${S.ui.rtDeleteId === t.id
+          ? `${pillBtn("تأكيد الحذف", { variant: "ghost", action: "rt-delete", data: { id: t.id } })}${pillBtn("لا", { variant: "ghost", action: "rt-delete-cancel" })}`
+          : pillBtn("حذف", { variant: "ghost", icon: iconX(13, DANGER), action: "rt-delete-ask", data: { id: t.id } })}
+      </div>`).join("")}
+    </div>
+  </div></div>`;
+}
 function renderSectionsManage() {
   const defs = sortedSectionDefs();
   return `
@@ -2996,6 +6990,177 @@ function renderSectionsManage() {
     <div style="display:flex;flex-direction:column;gap:8px;">
       ${defs.map((d, i) => sectionDefRowHtml(d, i, defs.length)).join("")}
     </div>
+  </div></div>`;
+}
+
+/* =============================== Section field-schema management (الخطوة ٢) ====
+   إدارة حقول الأقسام المبنية على المحرك العام (SECTION_FIELD_SCHEMAS) — إضافة/
+   تعديل/حذف/ترتيب حقول أي قسم منها بدون الحاجة لتعديل الكود. التخصيصات المحفوظة
+   تُطبَّق فوق التعريفات الافتراضية عبر applyFieldSchemaOverrides (قسم بلا تخصيص
+   محفوظ يبقى بتعريفه الافتراضي كما هو). */
+const SCHEMA_FIELD_TYPE_LABELS = {
+  text: "نص قصير",
+  textarea: "نص طويل",
+  number: "رقم",
+  date: "تاريخ",
+  select: "قائمة اختيار (خيار واحد)",
+  radio: "أزرار اختيار",
+  expandableSelect: "قائمة قابلة للتوسعة (مع خيار أخرى)",
+  checklist: "قائمة تحقق (عناصر بعلامة صح)",
+  computed: "محسوب تلقائيًا (بكود خاص، غير قابل للإضافة هنا)",
+};
+// الأنواع اللي تقدر مديرة النظام تختارها بنفسها وقت إضافة/تعديل حقل من صفحة
+// الإدارة — "computed" يبقى يُعرض في القائمة (فوق) لو موجود بحقل قديم، لكنه
+// مستبعد من هذه القائمة لأنه يحتاج دالة حساب مكتوبة بالكود، مو شي عام.
+const SCHEMA_FIELD_TYPES_SELECTABLE = ["text", "textarea", "number", "date", "select", "radio", "expandableSelect", "checklist"];
+// حقول "checklist" تخزّن قيمتها ككائن {نص_البند: true/false} — نص كل بند هو
+// مفتاحه بالتخزين مباشرة (بدون مفتاح إنجليزي منفصل)، تمامًا بنفس أسلوب حقول
+// select/radio/expandableSelect اللي تُخزَّن بنص الخيار نفسه؛ لذا تعديل نص بند
+// موجود من لوحة الإدارة يفصله عن أي حالة "تم/لم يتم" محفوظة له سابقًا بنفس
+// الطريقة اللي يفصل فيها تعديل نص خيار عادي عن قيمة محفوظة سابقًا تطابقه.
+const SCHEMA_FIELD_TYPES_WITH_OPTIONS = ["select", "radio", "expandableSelect", "checklist"];
+
+function fieldSchemaManagedSections() {
+  return Object.keys(SECTION_FIELD_SCHEMAS).map((id) => {
+    const schema = SECTION_FIELD_SCHEMAS[id] || {};
+    const sectionDef = SECTIONS.find((s) => s.id === id);
+    // sectionLabel تسمية صريحة اختيارية — تُستخدم لأي تعريف حقول مضمّن داخل قسم
+    // مكتوب يدويًا (id غير مطابق لأي قسم فعلي، مثال: "analysisComparisons")، عشان
+    // يبين بتبويب واضح بلوحة "إدارة حقول الأقسام" بدل معرّف تقني.
+    return { id, label: schema.sectionLabel || (sectionDef && sectionDef.label) || schema.itemLabel || id };
+  });
+}
+
+function fieldEditFormHtml(draft, isNew) {
+  const type = draft.type || "text";
+  const showOptions = SCHEMA_FIELD_TYPES_WITH_OPTIONS.includes(type);
+  const optionsText = draft.optionsText != null ? draft.optionsText : (draft.options || draft.baseOptions || []).join("\n");
+  return `<div class="card" style="margin-bottom:14px;border:1px solid ${ROSE};">
+    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:12px;">${isNew ? "إضافة حقل جديد" : "تعديل الحقل"}</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${fieldWrap("اسم الحقل (يظهر للمستخدمة)", true, `<input class="input" id="field-draft-label" value="${esc(draft.label || "")}" placeholder="مثال: اسم التوصية" />`)}
+      ${fieldWrap("نوع الحقل", true, `<select class="input" data-action="set-field-draft" data-key="type" data-rerender="1">${SCHEMA_FIELD_TYPES_SELECTABLE.map((t) => `<option value="${t}" ${t === type ? "selected" : ""}>${esc(SCHEMA_FIELD_TYPE_LABELS[t])}</option>`).join("")}</select>`)}
+      ${showOptions ? fieldWrap("الخيارات (كل خيار بسطر)", true, `<textarea class="input" id="field-draft-options" style="min-height:90px">${esc(optionsText)}</textarea>`) : ""}
+      ${type === "expandableSelect" ? fieldWrap('نص خيار "إضافة قيمة جديدة"', false, `<input class="input" id="field-draft-other-label" value="${esc(draft.otherLabel || "أخرى")}" placeholder="أخرى" />`) : ""}
+      ${fieldWrap("أيقونة الحقل", false, `<div style="display:flex;flex-wrap:wrap;gap:8px;">${FIELD_ICON_CHOICES.map((k, n) => { const sel = (draft.icon || FIELD_TYPE_DEFAULT_ICON[type]) === k; return `<button type="button" data-action="set-field-draft-icon" data-icon="${k}" title="${k}" style="padding:3px;border-radius:14px;cursor:pointer;background:#fff;border:2px solid ${sel ? ROSE : "transparent"};">${fieldIconTileHtml(k, 30, n, draft)}</button>`; }).join("")}</div>`)}
+      ${fieldWrap("ألوان أيقونة هذا الحقل (اختياري)", false, `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;">لون الأيقونة <input type="color" id="field-draft-iconcolor" value="${esc(draft.iconColor || ROSE)}" style="width:42px;height:34px;border:1px solid ${BORDER};border-radius:8px;padding:2px;cursor:pointer;" /></label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;">لون الخلفية <input type="color" id="field-draft-iconbg" value="${esc(draft.iconBg || "#f1d0d9")}" style="width:42px;height:34px;border:1px solid ${BORDER};border-radius:8px;padding:2px;cursor:pointer;" /></label>
+        ${(draft.iconColor || draft.iconBg) ? `<button type="button" class="pill-btn pill-ghost" data-action="reset-field-draft-colors">الألوان الافتراضية</button>` : ""}
+      </div>`)}
+      ${fieldWrap("نص توضيحي داخل الحقل (اختياري)", false, `<input class="input" id="field-draft-placeholder" value="${esc(draft.placeholder || "")}" placeholder="مثال: اكتبي هنا..." />`)}
+      <button type="button" class="pill-btn ${draft.required ? "pill-primary" : "pill-ghost"}" data-action="toggle-field-draft-required" style="align-self:flex-start;">${draft.required ? "✓ حقل إلزامي" : "حقل اختياري — اضغطي لجعله إلزاميًا"}</button>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        ${pillBtn("حفظ الحقل", { icon: iconCheck(15, "#fff"), action: "save-schema-field" })}
+        ${pillBtn("إلغاء", { variant: "ghost", action: "cancel-field-edit" })}
+      </div>
+    </div>
+  </div>`;
+}
+
+const FIELD_SVG = {
+  text: `<path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/>`,
+  textarea: `<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="4" y1="16" x2="14" y2="16"/>`,
+  number: `<line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="10" y1="4" x2="8" y2="20"/><line x1="16" y1="4" x2="14" y2="20"/>`,
+  date: `<rect x="3" y="5" width="18" height="16" rx="3"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>`,
+  select: `<rect x="3" y="5" width="18" height="14" rx="3"/><polyline points="9 11 12 14 15 11"/>`,
+  radio: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/>`,
+  checklist: `<polyline points="4 6 6 8 9 4"/><polyline points="4 13 6 15 9 11"/><line x1="13" y1="6" x2="20" y2="6"/><line x1="13" y1="13" x2="20" y2="13"/><line x1="4" y1="19" x2="20" y2="19"/>`,
+  expandableSelect: `<rect x="3" y="3" width="18" height="18" rx="4"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>`,
+  computed: `<rect x="5" y="3" width="14" height="18" rx="3"/><line x1="8.5" y1="8" x2="15.5" y2="8"/><line x1="9" y1="13" x2="9" y2="13"/><line x1="12" y1="13" x2="12" y2="13"/><line x1="15" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="9" y2="17"/><line x1="12" y1="17" x2="12" y2="17"/><line x1="15" y1="17" x2="15" y2="17"/>`,
+  star: `<polygon points="12 3 14.8 9 21 9.8 16.5 14.2 17.6 20.5 12 17.4 6.4 20.5 7.5 14.2 3 9.8 9.2 9"/>`,
+  target: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>`,
+  chart: `<line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/>`,
+  trend: `<polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/>`,
+  bulb: `<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>`,
+  trophy: `<path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 6H4v2a4 4 0 0 0 4 4"/><path d="M16 6h4v2a4 4 0 0 1-4 4"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="8" y1="20" x2="16" y2="20"/>`,
+  users: `<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-1a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5v1"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M19 14.5a5 5 0 0 1 2.5 4.5v1"/>`,
+  building: `<rect x="5" y="3" width="14" height="18" rx="2"/><line x1="9" y1="8" x2="9.01" y2="8"/><line x1="15" y1="8" x2="15.01" y2="8"/><line x1="9" y1="12" x2="9.01" y2="12"/><line x1="15" y1="12" x2="15.01" y2="12"/><path d="M10 21v-4h4v4"/>`,
+  pin: `<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>`,
+  clip: `<path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.5 17.3a1.7 1.7 0 0 1-2.4-2.4L15 7"/>`,
+  bell: `<path d="M18 9a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>`,
+  check: `<circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/>`,
+  alert: `<path d="M12 3L2.5 20h19L12 3z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+  chat: `<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/>`,
+  flag: `<path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/>`,
+  heart: `<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/>`,
+  book: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`,
+};
+const FIELD_TYPE_DEFAULT_ICON = { text: "text", textarea: "textarea", number: "number", date: "date", select: "select", radio: "radio", checklist: "checklist", expandableSelect: "expandableSelect", computed: "computed" };
+const FIELD_ICON_CHOICES = Object.keys(FIELD_SVG).filter((k) => !["computed"].includes(k));
+function fieldIconKeyOf(field) { return field.icon || FIELD_TYPE_DEFAULT_ICON[field.type] || "text"; }
+// بلاطة أيقونة ملوّنة بألوان الموقع (تتبع ألوان بطاقات تصفّح الهيكل المختارة من إعدادات الموقع)
+function fieldIconTileHtml(key, size, colorIdx, custom) {
+  const PAL = bsPalette();
+  const idx = typeof colorIdx === "number" ? colorIdx : Math.max(0, Object.keys(FIELD_SVG).indexOf(key));
+  const c = PAL[idx % PAL.length];
+  const svg = FIELD_SVG[key];
+  const th_ = themeOf(S.siteSettings || dataStore.getSiteSettings());
+  const stroke = (custom && custom.iconColor) || th_.fieldIconColor || th_.iconColor || ROSE;
+  const bgCss = custom && custom.iconBg ? `linear-gradient(135deg,${mixHex(custom.iconBg, "#ffffff", 0.55)},${mixHex(custom.iconBg, "#ffffff", 0.1)})` : c.bg;
+  const inner = svg ? `<svg width="${Math.round(size * 0.5)}" height="${Math.round(size * 0.5)}" viewBox="0 0 24 24" fill="none" stroke="${esc(stroke)}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block">${svg}</svg>` : `<span style="font-size:${Math.round(size * 0.5)}px;line-height:1;">${esc(key)}</span>`;
+  return `<span style="width:${size}px;height:${size}px;border-radius:${Math.round(size * 0.32)}px;background:${bgCss};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(80,40,60,0.10);">${inner}</span>`;
+}
+function fieldSchemaRowHtml(field, index, total, sectionId) {
+  const typeLabel = SCHEMA_FIELD_TYPE_LABELS[field.type] || field.type;
+  const isComputed = field.type === "computed";
+  const btn = "width:30px;height:30px;border:1px solid " + BORDER;
+  return `<div class="card prs-card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-radius:18px;${isComputed ? "opacity:.85;" : ""}">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+      ${fieldIconTileHtml(fieldIconKeyOf(field), 34, undefined, field)}
+      <div style="min-width:0;">
+        <div style="font-size:13.5px;font-weight:800;">${esc(field.label)}${field.required ? ` <span style="color:${ROSE};">*</span>` : ""}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">
+          <span style="font-size:10.5px;font-weight:700;color:${INK};background:${GRAY_BG};padding:2px 9px;border-radius:999px;">${esc(typeLabel)}</span>
+          <span style="font-size:10.5px;font-weight:700;color:${isComputed ? BLUE : GREEN};background:${isComputed ? BLUE_BG : GREEN_BG};padding:2px 9px;border-radius:999px;">${isComputed ? "محسوبة تلقائيًا" : "إدخال يدوي"}</span>
+          ${field.required ? `<span style="font-size:10.5px;font-weight:700;color:${DANGER};background:${DANGER_BG};padding:2px 9px;border-radius:999px;">إلزامي</span>` : ""}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-shrink:0;align-items:center;">
+      <span style="display:inline-flex;flex-direction:column;gap:2px;">
+        <button class="icon-btn" style="width:22px;height:15px;border:1px solid ${BORDER}" data-action="move-schema-field" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" data-dir="up" ${index === 0 ? "disabled" : ""} title="نقل لأعلى">${iconChevronUp(10, INK)}</button>
+        <button class="icon-btn" style="width:22px;height:15px;border:1px solid ${BORDER}" data-action="move-schema-field" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" data-dir="down" ${index === total - 1 ? "disabled" : ""} title="نقل لأسفل">${iconChevronDown(10, INK)}</button>
+      </span>
+      ${isComputed ? "" : `<button class="icon-btn" style="${btn}" data-action="start-edit-field" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" title="تعديل">${iconPencil(13, INK)}</button>
+      <button class="icon-btn" style="width:30px;height:30px;background:${DANGER_BG}" data-action="remove-schema-field" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" title="حذف">${iconTrash(13, DANGER)}</button>`}
+    </div>
+  </div>`;
+}
+
+function renderFieldSchemasManage() {
+  const sections = fieldSchemaManagedSections();
+  if (!sections.length) {
+    return `<div class="page-wrap"><div class="page-inner narrow">
+      ${topBarHtml({ title: "إدارة حقول الأقسام", subtitle: "تحكّمي بحقول الأقسام المبنية على المحرك العام", backAction: "nav-back-admin" })}
+      <div class="card">لا توجد أقسام قابلة لإدارة الحقول حاليًا.</div>
+    </div></div>`;
+  }
+  const activeSectionId = (S.ui.fieldSchemaSection && sections.some((s) => s.id === S.ui.fieldSchemaSection)) ? S.ui.fieldSchemaSection : sections[0].id;
+  const schema = SECTION_FIELD_SCHEMAS[activeSectionId];
+  const fields = (schema && schema.fields) || [];
+  const editingId = S.ui.editingFieldId;
+  const draft = S.ui.fieldEditDraft || {};
+
+  return `
+  <div class="page-wrap"><div class="page-inner">
+    ${topBarHtml({ title: "إدارة حقول الأقسام", subtitle: "أضف أو عدّل أي من حقول الأقسام التالية، مع إمكانية تحديد الترتيب.", icon: iconPencil(18, ROSE), backAction: "nav-back-admin" })}
+
+    <div style="display:flex;gap:14px;overflow-x:auto;padding:16px 8px 22px;margin-bottom:6px;">
+      ${editingId === "__new__" ? "" : `<button type="button" data-action="start-add-field" data-section="${esc(activeSectionId)}" style="flex-shrink:0;width:110px;min-height:150px;border-radius:22px;border:2px dashed ${BORDER};background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:${SUBTLE};font-size:11.5px;font-weight:700;">${iconPlus(22, SUBTLE)}إضافة حقل</button>`}
+      ${sections.map((sec, n) => { const PAL = bsPalette(); const c = PAL[n % PAL.length]; const on = sec.id === activeSectionId; return `<button type="button" data-action="select-field-schema-section" data-section="${esc(sec.id)}" style="flex-shrink:0;width:170px;min-height:150px;border-radius:22px;border:none;cursor:pointer;text-align:right;padding:16px;display:flex;flex-direction:column;justify-content:space-between;background:${c.bg};box-shadow:${on ? "0 14px 26px rgba(80,40,60,0.20)" : "0 6px 14px rgba(80,40,60,0.08)"};outline:${on ? "3px solid " + ROSE : "none"};outline-offset:2px;transform:${on ? "translateY(-4px)" : "none"};transition:transform .15s ease, box-shadow .15s ease;font-family:inherit;">
+        ${fieldIconTileHtml(["text", "target", "chart", "users", "bulb", "trophy"][n % 6], 32, n)}
+        <span style="font-size:14.5px;font-weight:800;color:${INK};line-height:1.4;">${esc(sec.label)}</span></button>`; }).join("")}
+    </div>
+
+    ${editingId === "__new__" ? fieldEditFormHtml(draft, true) : ""}
+
+    <div style="font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;">${iconLayers(18, ROSE)} حقول (${esc((sections.find((s) => s.id === activeSectionId) || {}).label || activeSectionId)})</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:16px;">
+      ${fields.map((f, i) => editingId === f.id ? fieldEditFormHtml(draft, false) : fieldSchemaRowHtml(f, i, fields.length, activeSectionId)).join("") || `<div class="card" style="color:${SUBTLE};font-size:12.5px;">لا توجد حقول بعد.</div>`}
+    </div>
+
+    ${editingId === "__new__" ? "" : pillBtn("إضافة حقل جديد", { variant: "ghost", icon: iconPlus(15, ROSE), action: "start-add-field", data: { section: activeSectionId } })}
   </div></div>`;
 }
 
@@ -3108,6 +7273,7 @@ function phaseSidebarHtml(report) {
       ${isDone ? iconCheckCircle(13, isActive ? "#fff" : GREEN) : iconDocument(13, isActive ? "#fff" : SUBTLE)}
       <span class="dot" style="background:${isActive ? "#fff" : meta.color}"></span>
       <span class="sec-label" style="flex:1;font-size:12px;font-weight:${isActive ? 700 : 500};color:${isActive ? "#fff" : INK};text-align:right;">${i + 1}. ${esc(section.label)}</span>
+      ${REVIEW_NOTE_STATUSES.includes(report.status) && report.sections && report.sections[section.id] && report.sections[section.id].reviewNote ? `<span style="font-size:9.5px;font-weight:800;background:${DANGER_BG};color:${DANGER};border-radius:999px;padding:1px 7px;">ملاحظة</span>` : ""}
     </button>`;
   }).join("");
 
@@ -3127,106 +7293,107 @@ function phaseSidebarHtml(report) {
 // "التنبيهات" الخاصة بالوحدة، بدون أي مخزن بيانات إضافي أو تجريبي: نفس سجلات
 // التقارير الموجودة فعليًا، فقط نقرأ حالتها.
 function unitHeadReturnedReports(unitId) {
-  return ensureUnitReportsLoaded(unitId).filter((r) => r.status === "head_returned_edit" || r.status === "head_returned_completion");
-}
-
-// شريط جانبي مخصص لصفة "الإدارية" فقط: الرئيسية (لوحة المعلومات) — التقارير
-// (إنشاء تقرير / التقارير / التنبيهات). لا صفحات إضافية غير هذه الثلاث حسب هذي
-// الخطوة بالضبط. صفة "رئيسة الوحدة" ومركز تسجيل الدخول يستمران بنفس الشريط
-// الجانبي العام الموجود مسبقًا (renderMainSidebar الأصلي) بدون أي تغيير عليه.
-function renderUnitAdminSidebar(mobile) {
-  const notifCount = S.currentUnitId ? unitHeadReturnedReports(S.currentUnitId).length : 0;
-  const activeDash = S.view === "unit-dashboard";
-  const activeReports = S.view === "unit-reports";
-  const activeNotif = S.view === "unit-notifications";
-
-  const groupsHtml = `
-    <div class="nav-group open">
-      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("home", 13, SUBTLE)}الرئيسية</div>
-      <div class="nav-list">
-        <button class="nav-item ${activeDash ? "active" : ""}" data-action="nav-to" data-view="unit-dashboard">${sidebarNavIcon("home", 15, activeDash ? "#6b2337" : INK)}<span>لوحة المعلومات</span></button>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("document", 13, SUBTLE)}التقارير</div>
-      <div class="nav-list">
-        <button class="nav-item" data-action="open-or-create-report">${sidebarNavIcon("pencil", 15, INK)}<span>إنشاء تقرير</span></button>
-        <button class="nav-item ${activeReports ? "active" : ""}" data-action="nav-to" data-view="unit-reports">${sidebarNavIcon("document", 15, activeReports ? "#6b2337" : INK)}<span>التقارير</span></button>
-        <button class="nav-item ${activeNotif ? "active" : ""}" data-action="nav-to" data-view="unit-notifications" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="display:flex;align-items:center;gap:10px;">${sidebarNavIcon("bell", 15, activeNotif ? "#6b2337" : INK)}<span>التنبيهات</span></span>
-          ${notifCount > 0 ? `<span style="background:#d65b57;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}
-        </button>
-      </div>
-    </div>`;
-
-  const initial = (S.currentUser && S.currentUser.name ? S.currentUser.name.trim()[0] : "؟");
-  const inner = `
-    <div class="sidebar-head">
-      <div class="sidebar-head-icons-row">
-        <div class="icon-badge">${iconGauge("#6b2337")}</div>
-        <div style="display:flex;gap:6px;">
-          <button class="sidebar-bell" title="الإشعارات">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
-          <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
-        </div>
-      </div>
-      <img src="${ASSOCIATION_LOGO}" class="sidebar-logo" alt="جمعية فرقان" />
-      <div class="prs-title sidebar-title">منصة التقارير</div>
-    </div>
-    <div class="sidebar-user-block">
-      <div class="sidebar-user-avatar">${esc(initial)}</div>
-      <div style="min-width:0;">
-        <div class="sidebar-user-hello">أهلًا وسهلًا</div>
-        <div class="sidebar-user-name">${esc(S.currentUser ? S.currentUser.name : "")}</div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
-    <div class="sidebar-spacer"></div>
-    <div class="sidebar-sep"></div>
-    <button class="logout-btn" data-action="logout">${iconLogout(16, "#6b2337")} تسجيل الخروج</button>
-  `;
-
-  if (!mobile) return `<div class="sidebar">${inner}</div>`;
-  return `
-    <div class="mobile-backdrop" data-action="close-mobile-sidebar"></div>
-    <div class="sidebar-mobile-panel"><div class="sidebar" style="margin:0;border-radius:0;height:100vh;max-height:100vh;">${inner}</div></div>
-  `;
+  return ensureUnitReportsLoaded(unitId).filter((r) => r.status === "head_returned_edit" || r.status === "head_returned_completion" || r.status === "extra_returned_edit" || r.status === "extra_returned_completion");
 }
 
 // صفحة قفل التقرير أثناء وجوده لدى رئيسة الوحدة — نفس نموذج التقرير بدون أي
 // تغيير في حقوله؛ فقط لا يُعرض للتعديل أثناء هذي الحالة تحديدًا.
-function unitReportLockedHtml(entry) {
+const REVIEW_NOTE_STATUSES = ["returned", "needs_completion", "head_returned_edit", "head_returned_completion", "extra_returned_edit", "extra_returned_completion"];
+// بعد الإرسال: الكاتبة تعاين فقط ولا تعدّل. يرجع نص السبب لو التقرير مقفل على الجلسة الحالية، وإلا "".
+function reportLockReason(entry, unit) {
+  if (!entry) return "";
+  const writerSide = (unit && unit.role === "self_report") || !(S.isDepartmentUser || S.isOfficeUser || S.isExecutive || S.isAdmin);
+  if (entry.status === "custom_pending") {
+    const ref = apRefOf(entry.customStageId);
+    if (ref) {
+      const p = apPathById(ref.pathId);
+      const st = p && apStageList(p).find((x) => x.key === entry.customStageId);
+      if (st && st.canEdit && userHoldsApStage(st)) return "";
+      return "بانتظار مرحلة «" + (st ? st.name : "المسار") + "»";
+    }
+    return writerSide ? "قيد المراجعة في المسار الحر" : "";
+  }
+  if (!writerSide) return "";
+  if (entry.status === "under_review") return "بانتظار مراجعة القسم";
+  if (entry.status === "completed") return "مكتمل — بانتظار الاعتماد";
+  if (entry.status === "approved") return "معتمد";
+  return "";
+}
+function reportPreviewOnlyHtml(reason) {
+  return `
+  <div class="card card-lg" style="text-align:center;padding:40px 20px;">
+    <div style="width:56px;height:56px;border-radius:16px;background:${GOLD_BG};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">${iconEye(26, GOLD)}</div>
+    <div style="font-size:15px;font-weight:800;margin-bottom:6px;">${esc(reason)}</div>
+    <div style="font-size:12px;color:${SUBTLE};max-width:380px;margin:0 auto 16px;">أُرسل هذا التقرير، ولا يمكن تعديله الآن — المعاينة فقط.</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      ${pillBtn("عرض كامل", { variant: "ghost", icon: iconLayers(15, INK), action: "nav-to", data: { view: "full-report" } })}
+      ${pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } })}
+    </div>
+  </div>`;
+}
+function unitReportLockedHtml(entry, unit) {
   const sentDateStr = entry.internalSentAt ? new Date(entry.internalSentAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
+  const isExtra = entry.status === "pending_extra_review";
+  const reviewerLabel = isExtra ? ((unit && unit.extraReviewerTitle) || "المراجعة الإضافية") : "رئيسة الوحدة";
   return `
   <div class="card card-lg" style="text-align:center;padding:40px 20px;">
     <div style="width:56px;height:56px;border-radius:16px;background:${GOLD_BG};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">${iconCheckCircle(26, GOLD)}</div>
-    <div style="font-size:15px;font-weight:800;margin-bottom:6px;">التقرير بانتظار مراجعة رئيسة الوحدة</div>
-    <div style="font-size:12px;color:${SUBTLE};max-width:360px;margin:0 auto;">${sentDateStr ? `تم إرسال هذا التقرير بتاريخ ${esc(sentDateStr)} و` : "تم إرسال هذا التقرير و"}لا يمكن تعديله حاليًا حتى تنتهي رئيسة الوحدة من مراجعته.</div>
+    <div style="font-size:15px;font-weight:800;margin-bottom:6px;">التقرير بانتظار مراجعة ${esc(reviewerLabel)}</div>
+    <div style="font-size:12px;color:${SUBTLE};max-width:360px;margin:0 auto;">${sentDateStr ? `تم إرسال هذا التقرير بتاريخ ${esc(sentDateStr)} و` : "تم إرسال هذا التقرير و"}لا يمكن تعديله حاليًا حتى تنتهي ${esc(reviewerLabel)} من مراجعته.</div>
   </div>`;
 }
 
 // صفحة "التنبيهات" الخاصة بالوحدة — تقارير هذي الوحدة فقط التي أعادتها رئيسة
 // الوحدة ولم تُرسَل مجددًا بعد. الضغط على أي تنبيه يفتح التقرير مباشرة.
-function unitPendingHeadReviewReports(unitId) {
-  return ensureUnitReportsLoaded(unitId).filter((r) => r.status === "pending_head_review");
+function unitPendingHeadReviewReports(unitId, statusFilter) {
+  const st = statusFilter || "pending_head_review";
+  return ensureUnitReportsLoaded(unitId).filter((r) => r.status === st);
 }
 
+function renderConfiguredNotifications(unit, cfg) {
+  const list = ensureUnitReportsLoaded(unit.id);
+  const rows = cfg.notify.map((id) => ({ tab: reportTabDef(id), n: list.filter((r) => reportMatchesCatalogTab(r, id)).length })).filter((x) => x.tab && x.n > 0);
+  return `
+  <div class="page-wrap"><div class="page-inner narrow">
+    ${topBarHtml({ title: "التنبيهات", subtitle: "حسب الأزرار المحددة لحسابك", backAction: "nav-to", backData: { view: "unit-dashboard" } })}
+    ${apNotifCardsHtml()}${rows.length === 0 && !apPendingForMe().length ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تنبيهات حاليًا.</div>` :
+      `<div style="display:flex;flex-direction:column;gap:10px;">${rows.map(({ tab, n }) => `
+        <button class="card" data-action="goto-report-tab" data-filter="${tab.id}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;cursor:pointer;">
+          <div style="width:38px;height:38px;border-radius:11px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBell(17, ROSE)}</div>
+          <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">${n} تقرير — ${esc(tab.label)}</div></div>
+          ${iconChevronLeft(14, SUBTLE)}
+        </button>`).join("")}</div>`}
+  </div></div>`;
+}
 function renderUnitNotifications() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
-  if (!unit) return `<div class="page-wrap">تعذر إيجاد الوحدة.</div>`;
-  const isHead = S.currentUnitEntryMode === "head";
-  const items = (isHead ? unitPendingHeadReviewReports(unit.id) : unitHeadReturnedReports(unit.id))
+  if (!unit) {
+    // حساب قسم/مكتب (أو أي جلسة بلا وحدة محددة): نعرض ما ينتظر مرحلتها بمسارات الاعتماد بدل رسالة خطأ.
+    const apHtml = apNotifCardsHtml();
+    return `<div class="page-wrap"><div class="page-inner narrow">
+      ${topBarHtml({ title: "التنبيهات", subtitle: "التقارير بانتظارك", backAction: "nav-to", backData: { view: "dashboard" } })}
+      ${apHtml || `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تنبيهات حاليًا.</div>`}
+    </div></div>`;
+  }
+  const cfgN = effectiveReportTabsConfig();
+  if (cfgN && cfgN.notify.length) return renderConfiguredNotifications(unit, cfgN);
+  const isReviewer = S.currentUnitEntryMode === "head" || S.currentUnitEntryMode === "extra";
+  const statusFilter = S.currentUnitEntryMode === "extra" ? "pending_extra_review" : "pending_head_review";
+  // الكاتبة: المعادة من مسار الاعتماد (returned / needs_completion) تُعدّ وتُعرض بنفس العدّاد — كانت تُعدّ ولا تُعرض.
+  const apReturnedForWriter = isReviewer ? [] : ensureUnitReportsLoaded(unit.id).filter((r) => r.status === "returned" || r.status === "needs_completion");
+  const items = (isReviewer ? unitPendingHeadReviewReports(unit.id, statusFilter) : unitHeadReturnedReports(unit.id).concat(apReturnedForWriter))
     .slice()
-    .sort((a, b) => (isHead ? (b.internalSentAt || 0) - (a.internalSentAt || 0) : (b.internalReturnedAt || 0) - (a.internalReturnedAt || 0)));
+    .sort((a, b) => (isReviewer ? (b.internalSentAt || 0) - (a.internalSentAt || 0) : (b.internalReturnedAt || 0) - (a.internalReturnedAt || 0)));
   return `
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "التنبيهات", subtitle: "تنبيهات هذه الوحدة فقط", backAction: "nav-to", backData: { view: "unit-dashboard" } })}
-    ${items.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تنبيهات حاليًا.</div>` :
+    ${apNotifCardsHtml()}${items.length === 0 && !apPendingForMe().length ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تنبيهات حاليًا.</div>` :
       `<div style="display:flex;flex-direction:column;gap:10px;">${items.map((r) => {
-        const dateVal = isHead ? r.internalSentAt : r.internalReturnedAt;
+        const dateVal = isReviewer ? r.internalSentAt : r.internalReturnedAt;
         const dateStr = dateVal ? new Date(dateVal).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "long", day: "numeric" }) : "";
-        const verb = isHead ? "بانتظار المراجعة" : (r.status === "head_returned_edit" ? "معاد للتعديل" : "معاد للاستكمال");
+        const verb = isReviewer ? "بانتظار المراجعة" : (r.status === "head_returned_edit" || r.status === "extra_returned_edit" || r.status === "returned" ? "معاد للتعديل" : "معاد للاستكمال");
         return `
-        <button class="card" data-action="${isHead ? 'goto-incoming-review-tab' : 'open-report'}" data-unit-id="${esc(unit.id)}" data-report-id="${esc(r.id)}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;">
+        <button class="card" data-action="${isReviewer ? 'goto-incoming-review-tab' : 'open-report'}" data-unit-id="${esc(unit.id)}" data-report-id="${esc(r.id)}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;cursor:pointer;border:1px solid ${BORDER};background:#fff;">
           <div style="width:38px;height:38px;border-radius:11px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconBell(17, ROSE)}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:700;">تقرير ${esc(unit.name)} ${verb}</div>
@@ -3236,78 +7403,6 @@ function renderUnitNotifications() {
         </button>`;
       }).join("")}</div>`}
   </div></div>`;
-}
-
-// ============ واجهة "رئيسة الوحدة" الخاصة بالوحدة (نفس حساب الوحدة، صفة دخول فقط) ==
-// شريط جانبي مخصص لصفة "رئيسة الوحدة": الرئيسية (لوحة المعلومات) — التقارير
-// (التقارير الواردة للمراجعة / التقارير / جميع التقارير) — التنبيهات. صفة
-// "الإدارية" ومركز تسجيل الدخول لا يتأثران بأي شيء هنا.
-function renderUnitHeadSidebar(mobile) {
-  const pendingCount = S.currentUnitId ? unitPendingHeadReviewReports(S.currentUnitId).length : 0;
-  const badgeHtmlSmall = (n) => n > 0 ? `<span style="background:#d65b57;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;">${n > 9 ? "9+" : n}</span>` : "";
-  const activeDash = S.view === "unit-dashboard";
-  const activeReports = S.view === "unit-reports";
-  const activeAll = S.view === "unit-all-reports";
-  const activeNotif = S.view === "unit-notifications";
-
-  const groupsHtml = `
-    <div class="nav-group open">
-      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("home", 13, SUBTLE)}الرئيسية</div>
-      <div class="nav-list">
-        <button class="nav-item ${activeDash ? "active" : ""}" data-action="nav-to" data-view="unit-dashboard">${sidebarNavIcon("home", 15, activeDash ? "#6b2337" : INK)}<span>لوحة المعلومات</span></button>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("document", 13, SUBTLE)}التقارير</div>
-      <div class="nav-list">
-        <button class="nav-item ${activeReports ? "active" : ""}" data-action="nav-to" data-view="unit-reports" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="display:flex;align-items:center;gap:10px;">${sidebarNavIcon("document", 15, activeReports ? "#6b2337" : INK)}<span>التقارير</span></span>
-          ${badgeHtmlSmall(pendingCount)}
-        </button>
-        <button class="nav-item ${activeAll ? "active" : ""}" data-action="nav-to" data-view="unit-all-reports">${sidebarNavIcon("layers", 15, activeAll ? "#6b2337" : INK)}<span>جميع التقارير</span></button>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-label" style="display:flex;align-items:center;gap:6px;">${sidebarNavIcon("bell", 13, SUBTLE)}التنبيهات</div>
-      <div class="nav-list">
-        <button class="nav-item ${activeNotif ? "active" : ""}" data-action="nav-to" data-view="unit-notifications" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="display:flex;align-items:center;gap:10px;">${sidebarNavIcon("bell", 15, activeNotif ? "#6b2337" : INK)}<span>التنبيهات</span></span>
-          ${badgeHtmlSmall(pendingCount)}
-        </button>
-      </div>
-    </div>`;
-
-  const initial = (S.currentUser && S.currentUser.name ? S.currentUser.name.trim()[0] : "؟");
-  const inner = `
-    <div class="sidebar-head">
-      <div class="sidebar-head-icons-row">
-        <div class="icon-badge">${iconGauge("#6b2337")}</div>
-        <div style="display:flex;gap:6px;">
-          <button class="sidebar-bell" title="الإشعارات">${iconBell(15, INK)}${pendingCount > 0 ? `<span class="notif-badge">${pendingCount > 9 ? "9+" : pendingCount}</span>` : ""}</button>
-          <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
-        </div>
-      </div>
-      <img src="${ASSOCIATION_LOGO}" class="sidebar-logo" alt="جمعية فرقان" />
-      <div class="prs-title sidebar-title">منصة التقارير</div>
-    </div>
-    <div class="sidebar-user-block">
-      <div class="sidebar-user-avatar">${esc(initial)}</div>
-      <div style="min-width:0;">
-        <div class="sidebar-user-hello">أهلًا وسهلًا</div>
-        <div class="sidebar-user-name">${esc(S.currentUser ? S.currentUser.name : "")}</div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:16px;">${groupsHtml}</div>
-    <div class="sidebar-spacer"></div>
-    <div class="sidebar-sep"></div>
-    <button class="logout-btn" data-action="logout">${iconLogout(16, "#6b2337")} تسجيل الخروج</button>
-  `;
-
-  if (!mobile) return `<div class="sidebar">${inner}</div>`;
-  return `
-    <div class="mobile-backdrop" data-action="close-mobile-sidebar"></div>
-    <div class="sidebar-mobile-panel"><div class="sidebar" style="margin:0;border-radius:0;height:100vh;max-height:100vh;">${inner}</div></div>
-  `;
 }
 
 // لوحة المراجعة داخل التقرير نفسه — تظهر فقط لرئيسة الوحدة على تقرير بانتظار
@@ -3330,16 +7425,20 @@ function unitReportHeadReviewHtml(unit, entry) {
           ${pillBtn("تأكيد الإعادة", { icon: iconCheckCircle(14, "#fff"), action: "confirm-head-return", data: { mode: returnMode } })}
           ${pillBtn("إلغاء", { variant: "ghost", action: "cancel-head-return" })}
         </div>
-      </div>` : `
+      </div>` : (!platformActionAllowed("approve-report-by-head") && !platformActionAllowed("start-head-return")
+        ? `<div class="hint" style="text-align:center;">لا تملكين صلاحية اتخاذ قرار على هذا التقرير.</div>`
+        : `
+      ${platformActionAllowed("approve-report-by-head") ? `
       <div class="subhead" style="margin-top:0;">اعتماد التقرير</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
         ${pillBtn("معتمد دون ملاحظات", { icon: iconCheckCircle(15, "#fff"), action: "approve-report-by-head", data: { decision: "clean" } })}
         ${pillBtn("معتمد بعد التعديل", { icon: iconCheckCircle(15, "#fff"), action: "approve-report-by-head", data: { decision: "edited" } })}
-      </div>
+      </div>` : ""}
+      ${platformActionAllowed("start-head-return") ? `
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${pillBtn("إعادة للتعديل", { variant: "ghost", icon: iconPencil(15, DANGER), action: "start-head-return", data: { mode: "edit" } })}
         ${pillBtn("إعادة للاستكمال", { variant: "ghost", icon: iconPencil(15, "#c9863a"), action: "start-head-return", data: { mode: "completion" } })}
-      </div>`}
+      </div>` : ""}`)}
   </div>`;
 }
 
@@ -3352,6 +7451,9 @@ const UNIT_ALL_REPORTS_STATUS_OPTIONS = [
   { id: "pending_head_review", label: "بانتظار مراجعة رئيسة الوحدة" },
   { id: "head_returned_edit", label: "معاد للتعديل" },
   { id: "head_returned_completion", label: "معاد للاستكمال" },
+  { id: "pending_extra_review", label: "بانتظار المراجعة الداخلية الإضافية" },
+  { id: "extra_returned_edit", label: "معاد للتعديل (المراجعة الإضافية)" },
+  { id: "extra_returned_completion", label: "معاد للاستكمال (المراجعة الإضافية)" },
   { id: "under_review", label: "قيد مراجعة القسم" },
   { id: "completed", label: "مكتمل" },
   { id: "approved", label: "معتمد" },
@@ -3363,13 +7465,11 @@ function renderUnitAllReportsPage() {
   const list = ensureUnitReportsLoaded(unit.id);
   const yearFilter = S.ui.unitAllReportsYearFilter || "";
   const periodFilter = S.ui.unitAllReportsPeriodFilter || "";
-  const typeFilter = S.ui.unitAllReportsTypeFilter || "";
   const statusFilter = S.ui.unitAllReportsStatusFilter || "";
 
   let filtered = list.slice();
   if (yearFilter) filtered = filtered.filter((r) => (r.sections?.basic?.data?.hijriYear || "") === yearFilter);
   if (periodFilter) filtered = filtered.filter((r) => (r.sections?.basic?.data?.periodType || "") === periodFilter);
-  if (typeFilter) filtered = filtered.filter((r) => (r.reportType || "general") === typeFilter);
   if (statusFilter) filtered = filtered.filter((r) => r.status === statusFilter);
   const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
   const yearOptions = [...new Set(list.map((r) => r.sections?.basic?.data?.hijriYear).filter(Boolean))];
@@ -3380,8 +7480,7 @@ function renderUnitAllReportsPage() {
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <select class="input" style="flex:1;min-width:110px;" data-action="filter-unit-all-reports-year"><option value="">السنة: الكل</option>${yearOptions.map((y) => `<option value="${esc(y)}" ${yearFilter === y ? "selected" : ""}>${esc(y)}</option>`).join("")}</select>
-        <select class="input" style="flex:1;min-width:130px;" data-action="filter-unit-all-reports-period"><option value="">الفترة: الكل</option>${PERIOD_TYPES.map((p) => `<option value="${esc(p)}" ${periodFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
-        <select class="input" style="flex:1;min-width:130px;" data-action="filter-unit-all-reports-type"><option value="">نوع التقرير: الكل</option>${REPORT_TYPES.map((t) => `<option value="${esc(t.id)}" ${typeFilter === t.id ? "selected" : ""}>${esc(t.label)}</option>`).join("")}</select>
+        <select class="input" style="flex:1;min-width:130px;" data-action="filter-unit-all-reports-period"><option value="">الفترة: الكل</option>${periodOptionsFor(list).map((p) => `<option value="${esc(p)}" ${periodFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
         <select class="input" style="flex:1;min-width:150px;" data-action="filter-unit-all-reports-status"><option value="">الحالة: الكل</option>${UNIT_ALL_REPORTS_STATUS_OPTIONS.map((s) => `<option value="${esc(s.id)}" ${statusFilter === s.id ? "selected" : ""}>${esc(s.label)}</option>`).join("")}</select>
       </div>
     </div>
@@ -3405,13 +7504,19 @@ function renderUnitReport() {
     const resumeId = entry.lastSectionId && SECTIONS.some((s) => s.id === entry.lastSectionId) ? entry.lastSectionId : SECTIONS[0].id;
     loadSectionIntoDraft(resumeId);
   }
-  const mainContent = entry.status === "pending_head_review" ? (S.currentUnitEntryMode === "head" ? unitReportHeadReviewHtml(unit, entry) : unitReportLockedHtml(entry)) : sectionEditorHtml(unit, entry);
+  const lockReason = reportLockReason(entry, unit);
+  const mainContent = lockReason ? reportPreviewOnlyHtml(lockReason) : (entry.status === "pending_head_review" || entry.status === "pending_extra_review")
+    ? ((S.currentUnitEntryMode === "head" && entry.status === "pending_head_review") || (S.currentUnitEntryMode === "extra" && entry.status === "pending_extra_review")
+        ? unitReportHeadReviewHtml(unit, entry)
+        : unitReportLockedHtml(entry, unit))
+    : sectionEditorHtml(unit, entry);
 
   return `
   <div class="report-layout">
     <div class="report-main">
       ${topBarHtml({ title: `${unit.name} — ${esc(entry.label)}`, subtitle: `${progress.completed} من ${progress.total} أقسام مكتملة`, backAction: "nav-back-from-report",
         right: badgeHtml(meta.label, meta.color, meta.bg) +
+               pillBtn("مسار الاعتماد", { variant: "ghost", icon: iconTarget(15, INK), action: "nav-to", data: { view: "approval-path-tracking" } }) +
                pillBtn("عرض كامل", { variant: "ghost", icon: iconLayers(15, INK), action: "nav-to", data: { view: "full-report" } }) +
                pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) +
                `<button class="mobile-menu-toggle no-print" data-action="open-mobile-phase-sidebar" title="مراحل التقرير" style="display:none">${iconLayers(17, INK)}</button>` })}
@@ -3456,6 +7561,17 @@ function openSection(sectionId) {
   render();
 }
 function closeSection() { S.activeSectionId = null; S.sectionDraft = null; render(); }
+// عند فتح تقرير معاد (للتعديل/الاستكمال): افتح مباشرة أول قسم عليه ملاحظة مراجِعة، بدل الوقوف على صفحة التقرير العامة.
+function jumpToFirstNotedSection(entry) {
+  try {
+    if (!entry || !REVIEW_NOTE_STATUSES.includes(entry.status)) return;
+    const sec = SECTIONS.find((sc) => entry.sections && entry.sections[sc.id] && entry.sections[sc.id].reviewNote);
+    if (!sec) return;
+    const ph = PHASES.find((p) => (p.sectionIds || []).includes(sec.id));
+    if (ph) S.openPhaseId = ph.id;
+    loadSectionIntoDraft(sec.id);
+  } catch (e) { /* لا تعطّل الفتح العادي */ }
+}
 
 function validateGoalsData(data) {
   const goals = data.goals || [];
@@ -3487,7 +7603,12 @@ function persistSection(sectionId, data, status) {
     S.sectionSaveError = "تعذّر حفظ هذا القسم — التقرير الحالي غير موجود. أعيدي فتح التقرير من صفحة التقارير.";
     return;
   }
-  const updatedSections = { ...current.sections, [sectionId]: { status, data, updatedAt: Date.now() } };
+  if (reportLockReason(current, S.units.find((u) => u.id === unitId))) {
+    S.sectionSaveError = "التقرير مُرسل — المعاينة فقط ولا يمكن حفظ تعديلات عليه.";
+    return;
+  }
+  const prevNote = current.sections && current.sections[sectionId] && current.sections[sectionId].reviewNote;
+  const updatedSections = { ...current.sections, [sectionId]: { status, data, updatedAt: Date.now(), ...(prevNote ? { reviewNote: prevNote } : {}) } };
   let updatedShared = current.shared || {};
   let updatedLabel = current.label;
   if (sectionId === "basic") {
@@ -3561,20 +7682,30 @@ function sectionEditorHtml(unit, report) {
         <div style="width:42px;height:42px;border-radius:12px;background:${color.bg};display:flex;align-items:center;justify-content:center;">${iconLayers(20, color.fg)}</div>
         <div class="prs-title" style="font-size:17px;font-weight:800;">${esc(section.label)}</div>
       </div>
-      <button data-action="toggle-section-completed" style="display:flex;align-items:center;gap:6px;background:${S.sectionCompleted ? GREEN_BG : "#fff"};border:1px solid ${S.sectionCompleted ? GREEN : BORDER};border-radius:999px;padding:6px 12px;cursor:pointer;font-size:11.5px;font-weight:700;color:${S.sectionCompleted ? GREEN : SUBTLE}">
+      ${platformActionAllowed("toggle-section-completed") ? `<button data-action="toggle-section-completed" style="display:flex;align-items:center;gap:6px;background:${S.sectionCompleted ? GREEN_BG : "#fff"};border:1px solid ${S.sectionCompleted ? GREEN : BORDER};border-radius:999px;padding:6px 12px;cursor:pointer;font-size:11.5px;font-weight:700;color:${S.sectionCompleted ? GREEN : SUBTLE}">
         ${S.sectionCompleted ? iconCheckCircle(14, GREEN) : iconCircle(14, SUBTLE)} ${S.sectionCompleted ? "مكتمل" : "تحديد كمكتمل"}
-      </button>
+      </button>` : ""}
     </div>
+    ${(() => { const rn = report.sections && report.sections[section.id] && report.sections[section.id].reviewNote; return rn && REVIEW_NOTE_STATUSES.includes(report.status) ? `<div class="hint bad" style="margin-bottom:14px;text-align:right;line-height:1.9;"><strong>ملاحظة على هذا القسم${rn.by ? " من " + esc(rn.by) : ""}:</strong> ${esc(rn.text)}</div>` : ""; })()}
     ${sharedBar}
     ${fieldsHtml}
     ${S.sectionSaveError ? `<div class="error-box" style="margin-top:16px;">${esc(S.sectionSaveError)}</div>` : ""}
     ${S.ui.showSendPicker ? sendReportPickerHtml(unit) : ""}
+    ${S.ui.showApSendPicker ? apSendPickerHtml(unit, report) : ""}
     <div class="section-editor-nav">
       ${pillBtn("السابق", { variant: "ghost", action: "section-prev", disabled: sectionIndex <= 0 })}
-      <div style="flex:1;">${pillBtn(S.sectionSaveStatus || "حفظ كمسودة", { variant: "soft", icon: iconSave(15, GREEN), action: "section-save-draft" })}</div>
+      <div style="flex:1;">${platformActionAllowed("section-save-draft") ? pillBtn(S.sectionSaveStatus || "حفظ كمسودة", { variant: "soft", icon: iconSave(15, GREEN), action: "section-save-draft" }) : ""}</div>
       ${sectionIndex >= SECTIONS.length - 1
-        ? (report.status === "draft" || report.status === "returned" || report.status === "needs_completion" || report.status === "head_returned_edit" || report.status === "head_returned_completion"
-            ? pillBtn("إرسال للمراجعة", { icon: iconCheckCircle(15, "#fff"), action: S.currentUnitEntryMode === "admin" ? "submit-report-to-head" : "start-send-report" })
+        ? (report.status === "draft" || report.status === "returned" || report.status === "needs_completion" || report.status === "head_returned_edit" || report.status === "head_returned_completion" || report.status === "extra_returned_edit" || report.status === "extra_returned_completion"
+            ? (() => {
+                const apMatched = matchApprovalPath(unit, report);
+                const submitAction = apMatched ? "ap-send" : unitHasCustomPath(unit) ? "start-custom-send" : (S.currentUnitEntryMode === "admin" ? "submit-report-to-head" : "start-send-report");
+                return (submitAction === "ap-send" || submitAction === "start-custom-send" || platformActionAllowed(submitAction))
+                  ? pillBtn("إرسال للمراجعة", { icon: iconCheckCircle(15, "#fff"), action: submitAction })
+                  : pillBtn("لا تملكين صلاحية الإرسال", { variant: "soft", icon: iconCheckCircle(15, SUBTLE), disabled: true });
+              })()
+            : report.status === "custom_pending"
+            ? pillBtn("بانتظار: " + apOrCustomStageName(unit, report), { variant: "soft", icon: iconCheckCircle(15, GOLD), disabled: true })
             : report.status === "under_review"
             ? pillBtn("بانتظار مراجعة القسم", { variant: "soft", icon: iconCheckCircle(15, GOLD), disabled: true })
             : report.status === "completed"
@@ -3591,6 +7722,14 @@ function notesFieldHtml(d) {
 
 /* =============================== Section field renderers ====================== */
 function renderSectionFields(section, d, unit, report) {
+  // المحرك العام يتولى أي قسم له fields schema مُعرَّف بنمط "متكرر" (قائمة عناصر
+  // تُضاف وتُحذف) — قبل الوصول لسويتش الأقسام المكتوبة يدويًا بالأسفل. الأقسام
+  // ذات fixed: true (بيانات ثابتة بمثيل واحد، مثل "البيانات الأساسية" و"المراجعة
+  // النهائية") تُستثنى من هذا التحويل التلقائي وتمر عبر السويتش كالمعتاد، لأن
+  // دالتها اليدوية (basicSectionHtml/reviewSectionHtml) هي اللي تستخدم الحقول
+  // الآن عبر renderSchemaFixedHtml، مع الحفاظ على منطق عرض/زخرفة خاص بها.
+  const schema = SECTION_FIELD_SCHEMAS[section.id];
+  if (schema && !schema.fixed) return renderSchemaRepeaterHtml(schema, d);
   switch (section.id) {
     case "basic": return basicSectionHtml(d, unit);
     case "kpi": return kpiSectionHtml(d, report);
@@ -3618,12 +7757,13 @@ function genericSectionHtml(section, d) {
 }
 
 /* ---- البيانات الأساسية ---- */
+// القسم كامل صار على محرك الحقول العام (SECTION_FIELD_SCHEMAS.basic، fixed: true)
+// — الحقول قابلة للإدارة الذاتية بالكامل (تسمية/نوع/خيارات/ترتيب/حذف) من لوحة
+// "إدارة حقول الأقسام". الشيء الوحيد اللي بقي بكود ثابت هو صندوق "اسم الوحدة"
+// (قراءة فقط، قيمته من سجل الوحدة نفسها وليست إدخالًا من المستخدمة) وملاحظات
+// المطابقة المرفقة به — هذي زخرفة عرض مبنية على قيمة الحقول، مو حقلًا بحد ذاته.
 function basicSectionHtml(d, unit) {
-  const periodType = d.periodType || "";
-  const showMonth = periodType === "شهري", showTerm = periodType === "فصلي";
   const activeDepartments = S.departments.filter((x) => x.status === "active");
-  const departmentOptions = activeDepartments.map((x) => x.name);
-  const showOfficeName = d.reportingEntityType === "مكتب";
   const matchedOfficeUnit = S.units.find((u) => u.name === d.officeName);
   const matchedOfficeDept = matchedOfficeUnit ? activeDepartments.find((x) => x.id === matchedOfficeUnit.departmentId) : null;
   const currentUnitRecord = S.units.find((u) => u.name === unit.name);
@@ -3635,33 +7775,28 @@ function basicSectionHtml(d, unit) {
     else if (currentUnitDept) noteHtml = `<div class="hint bad">⚠ هذه الوحدة تابعة فعليًا لـ ${esc(currentUnitDept.name)}، وليس لـ ${esc(d.entityName)}</div>`;
     else noteHtml = `<div class="hint bad">⚠ هذه الوحدة غير مرتبطة بأي قسم في إدارة الأقسام والوحدات حاليًا</div>`;
   }
+  const officeNameDecorator = (value) => {
+    if (!value) return "";
+    return `<div class="hint">القسم أو المركز التابع له: <strong style="color:${matchedOfficeDept ? INK : SUBTLE}">${matchedOfficeDept ? esc(matchedOfficeDept.name) : "لم يُسجَّل هذا المكتب بعد ضمن إدارة الأقسام والوحدات"}</strong></div>`;
+  };
+
+  const schema = SECTION_FIELD_SCHEMAS.basic;
+  // "اسم الوحدة" (صندوق قراءة فقط) يظهر بموضعه الأصلي بين "officeName" و"periodType"
+  // — نقسم قائمة الحقول لمجموعتين حول هذا الموضع الثابت بدل تعميمه كحقل.
+  const beforeUnitIds = ["mainEntity", "reportingEntityType", "entityName", "officeName"];
+  const fieldsBefore = schema.fields.filter((f) => beforeUnitIds.includes(f.id));
+  const fieldsAfter = schema.fields.filter((f) => !beforeUnitIds.includes(f.id));
+  const dd = { ...d, mainEntity: d.mainEntity !== undefined ? d.mainEntity : "إدارة التعليم النسائي" };
 
   return `
-    ${fieldWrap("الجهة الرئيسية", true, inp(null, null, "mainEntity", d.mainEntity !== undefined ? d.mainEntity : "إدارة التعليم النسائي", "اسم الجهة الرئيسية"))}
-    ${fieldWrap("الجهة التي ترفع التقرير", expandableSelectHtml("reportingEntityType", d.reportingEntityType || "", REPORTING_TYPES_BASE, d.customReportingTypes || [], "اختاري (اختياري)"))}
-    ${fieldWrap("اسم الجهة (القسم أو المركز)", expandableSelectHtml("entityName", d.entityName || "", departmentOptions, [], departmentOptions.length ? "اختاري من إدارة الأقسام والوحدات" : "لا توجد أقسام مضافة بعد", "إضافة قسم أو مركز جديد"))}
-    ${showOfficeName ? fieldWrap("اسم المكتب", expandableSelectHtml("officeName", d.officeName || "", OFFICE_NAMES_BASE, d.customOfficeNames || [], "اختاري اسم المكتب") +
-      (d.officeName ? `<div class="hint">القسم أو المركز التابع له: <strong style="color:${matchedOfficeDept ? INK : SUBTLE}">${matchedOfficeDept ? esc(matchedOfficeDept.name) : "لم يُسجَّل هذا المكتب بعد ضمن إدارة الأقسام والوحدات"}</strong></div>` : "")) : ""}
+    ${renderSchemaFixedHtml({ fields: fieldsBefore }, dd, { decorators: { officeName: officeNameDecorator } })}
     ${fieldWrap("اسم الوحدة", readonlyBox(unit.name) + noteHtml)}
-    ${fieldWrap("الفترة التي يغطيها التقرير", sel(null, null, "periodType", periodType, PERIOD_TYPES, "اختاري (اختياري)"))}
-    <div class="row-flex">
-      ${fieldWrap("تاريخ البداية", inp(null, null, "startDate", d.startDate, "", "date"))}
-      ${fieldWrap("تاريخ النهاية", inp(null, null, "endDate", d.endDate, "", "date"))}
-    </div>
-    ${periodType ? `
-      ${fieldWrap("العام الهجري", sel(null, null, "hijriYear", d.hijriYear, HIJRI_YEARS))}
-      ${showMonth ? fieldWrap("الشهر", sel(null, null, "month", d.month, MONTHS)) : ""}
-      ${showTerm ? fieldWrap("الفصل", expandableSelectHtml("term", d.term || "", TERM_OPTIONS_BASE, d.customTerms || [], "اختاري الفصل")) : ""}
-    ` : ""}
-    <div class="subhead">بيانات معدة التقرير</div>
-    ${fieldWrap("الاسم", true, inp(null, null, "preparerName", d.preparerName, "اسم معدة التقرير"))}
-    ${fieldWrap("المسمى الوظيفي", true, inp(null, null, "preparerTitle", d.preparerTitle, "المسمى الوظيفي"))}
-    ${fieldWrap("اسم الرئيسة المباشرة", true, inp(null, null, "managerName", d.managerName, "اسم الرئيسة المباشرة"))}
+    ${renderSchemaFixedHtml({ fields: fieldsAfter }, dd)}
   `;
 }
 
 /* ---- مؤشرات الأداء ---- */
-function indicatorCardHtml(row, index, def, indicatorHistory) {
+function indicatorCardHtml(row, index, def, indicatorHistory, isOpen, d) {
   const approvedNames = S.indicatorDefinitions.map((x) => x.name);
   const nameSelector = fieldWrap("اسم المؤشر", true, sel("indicators", row.id, "name", row.name, [...approvedNames, NEW_INDICATOR_LABEL], approvedNames.length ? "اختاري من مؤشرات الوحدة المعتمدة" : "لا توجد مؤشرات معتمدة بعد"));
   const isNewFlow = row.name === NEW_INDICATOR_LABEL;
@@ -3674,6 +7809,23 @@ function indicatorCardHtml(row, index, def, indicatorHistory) {
     </div>`;
   }
 
+  // نفس أسلوب الطيّ التلقائي المستخدم بباقي الأقسام: لما تكون مطويّة، نبيّن سطر
+  // خفيف فقط — اسم المؤشر وشارة حالته (متحقق/قريب/يحتاج تدخل...) — وتقدرين
+  // تفتحينها بالضغط عليها. الشارة نفسها موجودة أصلًا داخل البطاقة المفتوحة،
+  // فهذا فقط يسمح بمراجعتها بسرعة بدون فتح كل مؤشر.
+  if (isOpen === false) {
+    const status = computeIndicatorStatus(resolveIndicatorRow(row, def));
+    return `<div class="indicator-card">
+      <div class="repeat-item-head" style="cursor:pointer;margin-bottom:0;" data-action="toggle-repeat-item" data-arr="indicators" data-id="${esc(row.id)}">
+        <span class="repeat-item-title">${esc(row.name)}</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-flex;align-items:center;gap:4px;background:${status.bg};color:${status.color};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;">${status.emoji} ${esc(status.label)}</span>
+          ${removeBtn("indicators", row.id)}
+        </span>
+      </div>
+    </div>`;
+  }
+
   const resolved = resolveIndicatorRow(row, def);
   const baseline = getIndicatorBaseline(indicatorHistory, row.name);
   const status = computeIndicatorStatus(resolved);
@@ -3683,7 +7835,7 @@ function indicatorCardHtml(row, index, def, indicatorHistory) {
   const isEditing = S.ui.indicatorEditingOpen ? !!S.ui.indicatorEditingOpen[row.id] : !row.name;
 
   return `<div class="indicator-card">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;cursor:pointer;" data-action="toggle-repeat-item" data-arr="indicators" data-id="${esc(row.id)}">
       <div style="flex:1;min-width:0;">
         <div style="font-size:15px;font-weight:800;margin-bottom:7px;">${esc(row.name)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">
@@ -3723,12 +7875,7 @@ function indicatorCardHtml(row, index, def, indicatorHistory) {
       ${needsDeviation ? `
         <div style="font-size:11.5px;font-weight:800;color:${DANGER};margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid ${BORDER}">تحليل الانحراف والإجراء التصحيحي</div>
         ${fieldWrap("مقدار الانحراف", readonlyBox(deviation != null ? deviation : "—"))}
-        ${fieldWrap("سبب الانحراف", txt("indicators", row.id, "deviationReason", row.deviationReason, "اشرحي سبب الانحراف عن المستهدف"))}
-        ${fieldWrap("هل السبب داخلي أم خارجي؟", radio("indicators", row.id, "causeType", row.causeType, CAUSE_TYPES))}
-        ${fieldWrap("الإجراء التصحيحي", txt("indicators", row.id, "correctiveAction", row.correctiveAction, "ما الإجراء المتخذ لمعالجة الانحراف"))}
-        ${fieldWrap("المسؤولة عن الإجراء", inp("indicators", row.id, "responsiblePerson", row.responsiblePerson, "اسم المسؤولة"))}
-        ${fieldWrap("موعد إغلاق المعالجة", inp("indicators", row.id, "closureDate", row.closureDate, "", "date"))}
-        ${fieldWrap("الدعم المطلوب", txt("indicators", row.id, "requiredSupport", row.requiredSupport, "أي دعم إضافي مطلوب لإغلاق الانحراف"))}
+        ${renderSchemaFieldsHtml(SECTION_FIELD_SCHEMAS.kpiDeviation.fields, "indicators", row.id, row, d || S.sectionDraft || {})}
       ` : ""}
     </div>` : ""}
   </div>`;
@@ -3755,9 +7902,13 @@ function newIndicatorInlineFormHtml(rowId) {
 }
 function kpiSectionHtml(d, report) {
   const indicators = d.indicators || [];
+  // نفس الطيّ التلقائي: مؤشر واحد يبقى مفتوح دائمًا، وأي مؤشر بلا اسم بعد (لسا ما
+  // اختير) يبقى مفتوح إجباريًا بغض النظر عن حالة الطيّ (ما فيه شيء يُطوى له أصلًا).
+  const expandedId = schemaExpandedItemId("indicators", indicators);
   const rows = indicators.map((row, i) => {
     const def = S.indicatorDefinitions.find((x) => x.name === row.name);
-    return indicatorCardHtml(row, i, def, report.indicatorHistory);
+    const isOpen = indicators.length === 1 || !row.name || row.id === expandedId;
+    return indicatorCardHtml(row, i, def, report.indicatorHistory, isOpen, d);
   }).join("");
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -3769,23 +7920,42 @@ function kpiSectionHtml(d, report) {
 }
 
 /* ---- الأهداف والمستهدفات ---- */
+// هل الهدف محقق بالكامل؟ (كل أهدافه التشغيلية بمستوى "تحقق بالكامل") — نستخدمها
+// لعرض شارة "منجز" تلقائية على بطاقة الهدف، بدون ما تحتاج نجود تعليمها يدويًا.
+function goalOverallAchieved(g) {
+  const ogs = g.operationalGoals || [];
+  return ogs.length > 0 && ogs.every((og) => og.level === "تحقق بالكامل");
+}
 function goalsSectionHtml(d) {
   const goals = d.goals || [];
   const strategicOptions = (S.goalsDefinitions.strategic && S.goalsDefinitions.strategic.length ? S.goalsDefinitions.strategic.map((g) => g.name) : STRATEGIC_GOALS_FALLBACK);
   const operationalOptions = (S.goalsDefinitions.operational && S.goalsDefinitions.operational.length ? S.goalsDefinitions.operational.map((g) => g.name) : OPERATIONAL_GOALS_FALLBACK);
+  // نفس أسلوب الطيّ التلقائي المستخدم بالأقسام الأخرى (البرامج والتوصيات...):
+  // بعد إضافة هدف جديد تنطوي الأهداف السابقة تلقائيًا وتبيّن عنوانها فقط، وتقدرين
+  // ترجعين لأي واحد وتفتحينه للتعديل بالضغط عليه.
+  const expandedId = schemaExpandedItemId("goals", goals);
+  const evSchema = SECTION_FIELD_SCHEMAS.goalsEvidence;
+  const evidenceTypeField = evSchema.fields.find((f) => f.id === "evidenceType");
+  const evidenceAnswerField = evSchema.fields.find((f) => f.id === "evidenceAnswer");
+  const explanationField = evSchema.fields.find((f) => f.id === "explanation");
 
   const goalsHtml = goals.map((g, i) => {
+    const isOpen = goals.length === 1 || g.id === expandedId;
+    const achieved = goalOverallAchieved(g);
+    const achievedBadge = achieved ? `<span style="display:inline-flex;align-items:center;gap:4px;background:${GREEN_BG};color:${GREEN};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;margin-inline-start:8px;">✅ منجز</span>` : "";
+    const head = `<div class="repeat-item-head" style="cursor:pointer;" data-action="toggle-repeat-item" data-arr="goals" data-id="${esc(g.id)}"><span class="repeat-item-title">الهدف ${i + 1}${isOpen ? "" : ` — ${esc(g.strategicGoal || "")}`}</span>${achievedBadge}${removeBtn("goals", g.id)}</div>`;
+    if (!isOpen) return `<div class="repeat-item">${head}</div>`;
     const ogHtml = (g.operationalGoals || []).map((og) => `
       <div class="og-block">
         <div style="font-size:12.5px;font-weight:800;margin-bottom:10px;">${esc(og.name)}</div>
         ${fieldWrap("مستوى تحقق الهدف", true, selSub("goals", g.id, "operationalGoals", og.id, "level", og.level, GOAL_LEVELS, "اختاري مستوى التحقق"))}
         ${fieldWrap("نسبة تحقق الهدف", og.level ? `<div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;">${progressBarHtml(og.percentage || 0, goalLevelMeta(og.level).color)}</div><span style="font-size:13px;font-weight:800;color:${goalLevelMeta(og.level).color};min-width:34px;text-align:left;">${og.percentage}٪</span></div>` : `<div class="hint">تُحسب تلقائيًا بعد اختيار مستوى التحقق</div>`)}
-        ${fieldWrap("دليل تحقق الهدف", true, expandableSelectHtml("evidenceType", og.evidenceType || "", EVIDENCE_TYPES, d.customEvidenceTypes || [], "اختاري نوع الدليل", "أخرى", "goals", g.id, "operationalGoals", og.id))}
-        ${og.evidenceType ? fieldWrap("إجابة الدليل", true, inpSub("goals", g.id, "operationalGoals", og.id, "evidenceAnswer", og.evidenceAnswer, evidenceAnswerPlaceholder(og.evidenceType))) : ""}
-        ${fieldWrap("تفسير مستوى التحقق", txtSub("goals", g.id, "operationalGoals", og.id, "explanation", og.explanation, "اشرحي سبب هذا المستوى من التحقق (٣٠٠ حرف كحد أقصى)") + `<div class="char-count">${(og.explanation || "").length} / 300</div>`)}
+        ${renderSchemaFieldHtml(evidenceTypeField, "goals", g.id, og.evidenceType || "", d.customEvidenceTypes || [], og, "operationalGoals", og.id)}
+        ${og.evidenceType ? renderSchemaFieldHtml({ ...evidenceAnswerField, placeholder: evidenceAnswerPlaceholder(og.evidenceType) }, "goals", g.id, og.evidenceAnswer, undefined, og, "operationalGoals", og.id) : ""}
+        ${renderSchemaFieldHtml(explanationField, "goals", g.id, og.explanation, undefined, og, "operationalGoals", og.id) + `<div class="char-count">${(og.explanation || "").length} / 300</div>`}
       </div>`).join("");
     return `<div class="repeat-item">
-      <div class="repeat-item-head"><span class="repeat-item-title">الهدف ${i + 1}</span>${removeBtn("goals", g.id)}</div>
+      ${head}
       ${fieldWrap("الهدف المرتبط بالخطة الاستراتيجية", true, sel("goals", g.id, "strategicGoal", g.strategicGoal, strategicOptions, "اختاري الهدف الاستراتيجي"))}
       ${fieldWrap("الهدف التشغيلي للوحدة", true, multiSelectDropdownHtml(`goal-og-${g.id}`, operationalOptions, (g.operationalGoals || []).map((og) => og.name), "اختاري هدفًا أو أكثر"))}
       ${ogHtml}
@@ -3876,17 +8046,18 @@ function toolsSectionHtml(d) {
 /* ---- تحليل النتائج ---- */
 function analysisSectionHtml(d) {
   const comparisons = d.comparisons || [];
-  const rows = comparisons.map((c, i) => `
-    <div style="border:1px solid ${BORDER};border-radius:12px;padding:12px 14px;margin-bottom:12px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <span style="font-size:11.5px;font-weight:800;color:${ROSE}">مقارنة ${i + 1}</span>
-        <button type="button" class="icon-remove" style="width:24px;height:24px;" data-action="remove-item" data-arr="comparisons" data-id="${esc(c.id)}">${iconX(11, DANGER)}</button>
-      </div>
-      ${fieldWrap("موضوع المقارنة", inp("comparisons", c.id, "topic", c.topic, "مثال: نسبة الحضور"))}
-      ${fieldWrap("نتيجة المقارنة بالرقم أو النسبة", inp("comparisons", c.id, "resultValue", c.resultValue, "مثال: ارتفعت من 70٪ إلى 85٪"))}
-      ${fieldWrap("الحكم", sel("comparisons", c.id, "judgment", c.judgment, COMPARISON_JUDGMENTS))}
-      ${fieldWrap("سبب التغير", expandableSelectHtml("changeReason", c.changeReason, CHANGE_REASONS, d.customChangeReasons || [], "اختاري سبب التغير", "سبب آخر", "comparisons", c.id))}
-    </div>`).join("");
+  // حقول المقارنة نفسها صارت مُدارة من محرك الحقول العام (SECTION_FIELD_SCHEMAS.
+  // analysisComparisons)، فتقدرين تضيفين/تعدّلين/ترتّبين حقولها من "إدارة حقول
+  // الأقسام" رغم إن باقي القسم (النتيجة الإيجابية/التحسين/الخلاصة) يبقى ثابتًا
+  // بالكود كما هو (حقول فردية، مو قائمة متكررة، فما تحتاج إدارة ذاتية).
+  const comparisonsSchema = SECTION_FIELD_SCHEMAS.analysisComparisons;
+  const expandedId = schemaExpandedItemId("comparisons", comparisons);
+  const rows = comparisons.map((c, i) => {
+    const isOpen = comparisons.length === 1 || c.id === expandedId;
+    const head = `<div class="repeat-item-head" style="cursor:pointer;" data-action="toggle-repeat-item" data-arr="comparisons" data-id="${esc(c.id)}"><span class="repeat-item-title">مقارنة ${i + 1}${isOpen ? "" : ` — ${esc(c.topic || "")}`}</span>${removeBtn("comparisons", c.id)}</div>`;
+    if (!isOpen) return `<div class="repeat-item">${head}</div>`;
+    return `<div class="repeat-item">${head}${renderSchemaFieldsHtml(comparisonsSchema.fields, "comparisons", c.id, c, d)}</div>`;
+  }).join("");
   return `
     <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:18px;">يظهر هذا القسم بعد إدخال المؤشرات وأدوات القياس.</div>
     <div class="subhead" style="color:${GREEN}">أبرز نتيجة إيجابية</div>
@@ -4092,18 +8263,14 @@ function evidenceSectionHtml(d) {
 }
 
 /* ---- الإقرار والمراجعة ---- */
+// القسم صار على محرك الحقول العام (SECTION_FIELD_SCHEMAS.review، fixed: true) —
+// بنود قائمة التحقق نفسها قابلة للإدارة الذاتية (إضافة/حذف/تعديل نص/ترتيب) من
+// لوحة "إدارة حقول الأقسام". "حالة الإرسال الحالية" تبقى بكود ثابت لأنها مُشتقة
+// من report.status (حالة النظام) وليست بيانات يُدخلها المستخدم داخل d.
 function reviewSectionHtml(d, report) {
-  const checklist = d.checklist || {};
-  const checklistHtml = REVIEW_CHECKLIST_ITEMS.map((item) => `
-    <button type="button" class="radio-pill ${checklist[item.key] ? "active" : ""}" style="width:100%;justify-content:flex-start;margin-bottom:6px;" data-action="toggle-review-checklist" data-key="${esc(item.key)}">
-      ${checklist[item.key] ? iconCheck(14, "#fff") : iconCircle(14, SUBTLE)} ${esc(item.label)}
-    </button>`).join("");
   const meta = reportStatusMeta(report.status);
-
   return `
-    <div class="subhead">قائمة التحقق (تضعها معدة التقرير)</div>
-    <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:18px;">${checklistHtml}</div>
-
+    ${renderSchemaFixedHtml(SECTION_FIELD_SCHEMAS.review, d)}
     <div class="subhead">حالة الإرسال الحالية</div>
     ${fieldWrap("الحالة", badgeHtml(meta.label, meta.color, meta.bg) + `<div class="hint">تُغيَّر الحالة من الأزرار أسفل الصفحة (حفظ كمسودة / إرسال للمراجعة / إعادة للتعديل / اعتماد نهائي).</div>`)}
 
@@ -4345,9 +8512,15 @@ function sectionBodyOnly(section, saved, report) {
 
   } else if (section.id === "review") {
     const checklist = d.checklist || {};
-    const doneCount = REVIEW_CHECKLIST_ITEMS.filter((it) => checklist[it.key]).length;
-    body = kvBlock([kv("قائمة التحقق", `${doneCount} من ${REVIEW_CHECKLIST_ITEMS.length}`)]);
-    body += reportTable(["بند التحقق", "الحالة"], REVIEW_CHECKLIST_ITEMS.map((it) => [esc(it.label), checklist[it.key] ? `<span style="color:${GREEN};font-weight:800;">✓ تم</span>` : `<span style="color:${SUBTLE};">لم يتم</span>`]));
+    // قائمة البنود تُقرأ من تعريف الحقل نفسه (SECTION_FIELD_SCHEMAS.review) بدل
+    // الثابت القديم REVIEW_CHECKLIST_ITEMS — عشان لو عدّلت نجود بنود القائمة من
+    // لوحة الإدارة، تنعكس هنا بنفس اللحظة. كل بند يُخزَّن بنص عنوانه مباشرة
+    // (بدون مفتاح إنجليزي منفصل) — بنفس أسلوب كل حقول select/radio الأخرى بهذا
+    // المحرك، اللي تُخزَّن بنص الخيار نفسه.
+    const checklistItems = (SECTION_FIELD_SCHEMAS.review.fields.find((f) => f.id === "checklist") || {}).options || [];
+    const doneCount = checklistItems.filter((label) => checklist[label]).length;
+    body = kvBlock([kv("قائمة التحقق", `${doneCount} من ${checklistItems.length}`)]);
+    body += reportTable(["بند التحقق", "الحالة"], checklistItems.map((label) => [esc(label), checklist[label] ? `<span style="color:${GREEN};font-weight:800;">✓ تم</span>` : `<span style="color:${SUBTLE};">لم يتم</span>`]));
     if (d.managerDecision) body += kvBlock([kv("قرار المراجعة", d.managerDecision)]);
     if (d.managerNotesText) body += textBlock("ملاحظات المديرة المباشرة", d.managerNotesText);
 
@@ -4527,7 +8700,7 @@ function reportApprovalHtml(num, report) {
    التوصيات والتحسين ← الإغلاق والاعتماد ← الأدلة والمرفقات.
    كل قسم من الأقسام الـ15 الأصلية يظهر مرة واحدة بالضبط ضمن هذا الترتيب،
    بدون حذف أو تكرار أي معلومة. */
-function fullReportOrPreviewBody(unit, report) {
+function fullReportOrPreviewBody(unit, report, afterPage) {
   const dept = S.departments.find((x) => x.id === unit.departmentId);
   const pages = [
     `${reportSummaryHtml(report)}`,
@@ -4550,7 +8723,43 @@ function fullReportOrPreviewBody(unit, report) {
         <div class="rpt-spine"></div>
         ${content}
         <div class="rpt-page-number">(${arabicDigits(i + 2)})</div>
-      </section>`).join("")}`;
+      </section>${afterPage ? afterPage(i) : ""}`).join("")}`;
+}
+
+// ===== مراجعة داخل صفحات التقرير: المراجِعة (صاحبة المرحلة) تكتب ملاحظة تحت كل صفحة أثناء القراءة =====
+const FULL_REPORT_PAGE_SECTIONS = [[], ["basic", "goals", "kpi"], ["programs", "tools"], ["analysis", "strengths"], ["initiatives", "impact"], ["challenges", "improvement", "recommendations"], [], ["nextplan", "evidence", "review"]];
+function apReviewItemFor(unitId, reportId) {
+  try { return apPendingForMe().find((it) => it.unit.id === unitId && it.report.id === reportId) || null; } catch (e) { return null; }
+}
+function apDraftGet(key, k) { const d = S.ui.apDraft && S.ui.apDraft[key]; return (d && d[k]) || ""; }
+function apDraftSet(key, k, v) { S.ui.apDraft = S.ui.apDraft || {}; (S.ui.apDraft[key] = S.ui.apDraft[key] || {})[k] = v; }
+function apReviewAfterPageHtml(item) {
+  const key = item.unit.id + ":" + item.report.id;
+  return (i) => {
+    const ids = (FULL_REPORT_PAGE_SECTIONS[i] || []).filter((id) => SECTIONS.some((sc) => sc.id === id));
+    if (!ids.length) return "";
+    return `<div class="no-print" style="margin:-6px 0 18px;padding:12px 14px;border:1.5px dashed ${ROSE};border-radius:14px;background:#fff;">
+      <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin-bottom:8px;">ملاحظاتك على هذه الصفحة (تظهر داخل القسم نفسه عند الإعادة)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">${ids.map((id) => { const sc = SECTIONS.find((x) => x.id === id); return `<textarea id="cp-sec-${esc(key)}-${esc(id)}" class="input" style="width:100%;min-height:44px;" placeholder="ملاحظة على: ${esc(sc.label)}">${esc(apDraftGet(key, id))}</textarea>`; }).join("")}</div>
+    </div>`;
+  };
+}
+function apReviewPanelHtml(item) {
+  const { unit, report, stage, path } = item;
+  const key = unit.id + ":" + report.id;
+  const idx = path.findIndex((x) => x.key === stage.key);
+  const next = path[idx + 1];
+  const advLabel = stage.canApprove ? (next ? "اعتماد وإرسال إلى " + next.name : "اعتماد نهائي") : (next ? "إرسال إلى " + next.name : "إنهاء المرحلة");
+  return `<div class="card no-print" style="margin-top:16px;border:1.5px solid ${ROSE};">
+    <div style="font-size:13.5px;font-weight:800;margin-bottom:4px;">قرارك على التقرير — مرحلتك: ${esc(stage.name)}</div>
+    <div class="hint" style="margin-bottom:10px;">ملاحظاتك على الصفحات مكتوبة تحت كل صفحة أعلاه، وتُرسل كلها مع قرارك.</div>
+    <textarea id="cp-notes-${esc(key)}" class="input" style="width:100%;min-height:56px;margin-bottom:10px;" placeholder="ملاحظات عامة (${stage.noteRequired ? "إلزامية عند الاعتماد" : "اختياري"}${stage.canReturn ? "، وتلزم عند الإعادة إن لم تكتبي ملاحظة على قسم" : ""})...">${esc(apDraftGet(key, "__gen"))}</textarea>
+    ${stage.canReturn ? `<select class="input" id="cp-rtype-${esc(key)}" style="width:100%;margin-bottom:10px;"><option value="returned">عند الإعادة: بحاجة إلى تعديل</option><option value="needs_completion">عند الإعادة: بحاجة إلى استكمال</option></select>` : ""}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${pillBtn(advLabel, { icon: iconCheckCircle(14, "#fff"), action: "ap-advance", data: { unitId: unit.id, reportId: report.id } })}
+      ${stage.canReturn ? pillBtn("إعادة للتعديل", { variant: "ghost", icon: iconX(14, INK), action: "ap-return", data: { unitId: unit.id, reportId: report.id } }) : ""}
+    </div>
+  </div>`;
 }
 
 function renderFullReport() {
@@ -4559,12 +8768,14 @@ function renderFullReport() {
   if (!report) return `<div class="page-wrap">تعذر إيجاد هذا التقرير.</div>`;
   const progress = computeProgress(report);
   const readOnlyVisit = !!S.cameFromAllReports;
+  const rvItem = apReviewItemFor(unit.id, report.id);
   return `
   <div class="page-wrap"><div class="page-inner report">
     ${topBarHtml({ title: "عرض التقرير كاملاً", subtitle: `${unit.name} — ${esc(report.label)} — ${progress.completed} من ${progress.total} أقسام مكتملة`,
-      backAction: readOnlyVisit ? "nav-to" : "nav-to-unit-report", backData: readOnlyVisit ? { view: "all-reports" } : undefined,
+      backAction: rvItem ? "nav-to" : (readOnlyVisit ? "nav-to" : "nav-to-unit-report"), backData: rvItem ? { view: "custom-path-inbox" } : (readOnlyVisit ? { view: "all-reports" } : undefined),
       right: pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) })}
-    <div class="rpt-wrap">${fullReportOrPreviewBody(unit, report)}</div>
+    <div class="rpt-wrap">${fullReportOrPreviewBody(unit, report, rvItem ? apReviewAfterPageHtml(rvItem) : null)}</div>
+    ${rvItem ? apReviewPanelHtml(rvItem) : ""}
     ${readOnlyVisit ? "" : `<div class="hint" style="margin-top:12px;">للتعديل على أي قسم، ارجعي إلى "مسودة التقرير" واختاري القسم من قائمة المراحل.</div>`}
   </div></div>`;
 }
@@ -4606,16 +8817,50 @@ function liveUpdateComputed(el) {
 function attachFormListeners() {
   appEl.addEventListener("input", (e) => {
     const el = e.target;
+    if (el.id && (el.id.indexOf("cp-sec-") === 0 || el.id.indexOf("cp-notes-") === 0)) {
+      // حفظ مسودة ملاحظات المراجِعة محليًا (تبقى عند التنقل بين الوارد وعرض التقرير)
+      const m = el.id.indexOf("cp-sec-") === 0 ? el.id.slice(7) : el.id.slice(9);
+      if (el.id.indexOf("cp-sec-") === 0) { const sc = SECTIONS.find((x) => m.endsWith("-" + x.id)); if (sc) apDraftSet(m.slice(0, m.length - sc.id.length - 1), sc.id, el.value); }
+      else apDraftSet(m, "__gen", el.value);
+    }
     if (el.id === "dashboard-search") {
       const q = el.value.trim().toLowerCase();
       const rows = document.querySelectorAll("#recent-reports-table tbody tr");
       rows.forEach((row) => { row.style.display = !q || (row.dataset.search || "").includes(q) ? "" : "none"; });
       return;
     }
+    if (el.id === "bs-search") {
+      const q = el.value.trim().toLowerCase();
+      document.querySelectorAll("#bs-grid .bs-folder").forEach((c) => { c.style.display = !q || (c.dataset.search || "").toLowerCase().includes(q) ? "" : "none"; });
+      return;
+    }
+    if (el.id === "pu-list-search") {
+      const q = el.value.trim().toLowerCase();
+      document.querySelectorAll("#pu-list-table tbody tr").forEach((row) => { row.style.display = !q || (row.dataset.search || "").includes(q) ? "" : "none"; });
+      return;
+    }
+    if (el.id === "pu-perm-search") {
+      const q = el.value.trim().toLowerCase();
+      const rows = document.querySelectorAll("#pu-perm-list > [data-search]");
+      let visibleCount = 0;
+      rows.forEach((row) => {
+        const match = !q || (row.dataset.search || "").includes(q);
+        row.style.display = match ? "" : "none";
+        if (match) visibleCount++;
+      });
+      const hint = document.getElementById("pu-perm-empty-hint");
+      if (hint) hint.style.display = visibleCount === 0 ? "" : "none";
+      return;
+    }
     if (el.id === "all-reports-search") {
       const q = el.value.trim().toLowerCase();
       const rows = document.querySelectorAll("#all-reports-table tbody tr");
       rows.forEach((row) => { row.style.display = !q || (row.dataset.search || "").includes(q) ? "" : "none"; });
+      return;
+    }
+    if (el.id === "archive-search") {
+      const q = el.value.trim().toLowerCase();
+      document.querySelectorAll("#archive-grid > [data-search]").forEach((card) => { card.style.display = !q || (card.dataset.search || "").includes(q) ? "" : "none"; });
       return;
     }
     if (el.id === "unit-reports-search") {
@@ -4633,6 +8878,80 @@ function attachFormListeners() {
       render();
       return;
     }
+    if (el.id && el.id.indexOf("site-x-") === 0 && el.id.slice(-4) !== "-hex") {
+      const key = el.id.slice(7);
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), [key]: el.value } };
+      S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings);
+      const hx = document.getElementById(el.id + "-hex"); if (hx) hx.textContent = el.value;
+      return;
+    }
+    if (el.id && /^site-bs-[0-4]$/.test(el.id)) {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      const bs = themeOf(S.siteSettings).bs.slice(); bs[Number(el.id.slice(-1))] = el.value;
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), bs } };
+      S.ui.siteSettingsSaved = false;
+      return;
+    }
+    if (el.id && /^site-ts-(nav|sbTitle|bannerTitle|bannerSub)-(color|size)$/.test(el.id)) {
+      const m = el.id.match(/^site-ts-(\w+)-(color|size)$/);
+      const key = m[1] + (m[2] === "color" ? "Color" : "Size");
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), [key]: m[2] === "size" ? Number(el.value) : el.value } };
+      S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings);
+      if (m[2] === "size") { const lb = document.getElementById(el.id + "-label"); if (lb) lb.textContent = el.value + "px"; }
+      return;
+    }
+    if (el.id && /^site-pt-\d+$/.test(el.id)) {
+      const i = Number(el.id.slice(8));
+      const list = PERIOD_TYPES.slice();
+      if (PERIOD_TYPES_LOCKED.includes(list[i])) return;
+      list[i] = el.value;
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), periodTypes: list } };
+      S.ui.siteSettingsSaved = false;
+      return;
+    }
+    if (el.id === "field-draft-iconcolor" || el.id === "field-draft-iconbg") {
+      S.ui.fieldEditDraft = S.ui.fieldEditDraft || {};
+      S.ui.fieldEditDraft[el.id === "field-draft-iconcolor" ? "iconColor" : "iconBg"] = el.value;
+      return;
+    }
+    if (el.id === "site-sidebar-bg-veil") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), sidebarBgVeil: Number(el.value) } };
+      S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings);
+      const lb = document.getElementById("site-sidebar-bg-veil-label"); if (lb) lb.textContent = el.value + "%";
+      return;
+    }
+    if (el.id === "site-tagline-offset" || el.id === "site-tagline-size" || el.id === "site-tagline-imgh" || el.id === "site-tagline-color") {
+      const key = { "site-tagline-offset": "taglineOffset", "site-tagline-size": "taglineSize", "site-tagline-imgh": "taglineImgH", "site-tagline-color": "taglineColor" }[el.id];
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      const val = el.id === "site-tagline-color" ? el.value : Number(el.value);
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), [key]: val } };
+      S.ui.siteSettingsSaved = false;
+      const lb = document.getElementById(el.id + "-label"); if (lb) lb.textContent = val + "px";
+      const pv = document.getElementById("site-tagline-preview"); if (pv) pv.innerHTML = sidebarTaglineBlockHtml(S.siteSettings);
+      return;
+    }
+    if (el.id === "site-logo-size") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, logoSize: Number(el.value) || DEFAULT_BRANDING.logoSize };
+      S.ui.siteSettingsSaved = false;
+      const preview = document.getElementById("site-logo-preview");
+      if (preview) { preview.style.width = `${S.siteSettings.logoSize}px`; preview.style.height = `${S.siteSettings.logoSize}px`; }
+      const sizeLabel = document.getElementById("site-logo-size-label");
+      if (sizeLabel) sizeLabel.textContent = `${S.siteSettings.logoSize}px`;
+      return;
+    }
+    if (el.id === "site-platform-name" || el.id === "site-banner-title" || el.id === "site-banner-sub" || el.id === "site-sidebar-tagline") {
+      const fieldMap = { "site-platform-name": "platformName", "site-banner-title": "bannerTitle", "site-banner-sub": "bannerSub", "site-sidebar-tagline": "sidebarTagline" };
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, [fieldMap[el.id]]: el.value };
+      S.ui.siteSettingsSaved = false;
+      return;
+    }
+    if (el.id && /^(new|edit)-pu-(jobtitle|loginid|password)$/.test(el.id)) { capturePlatformUserFormFields(el.id.indexOf("new-") === 0 ? "new-pu" : "edit-pu"); return; }
     if (el.id === "login-password") { S.ui.loginPasswordVal = el.value; return; }
     if (el.id === "head-return-notes") { S.ui.headReturnNotesVal = el.value; return; }
     if (el.dataset && el.dataset.field && el.tagName !== "SELECT") {
@@ -4648,6 +8967,30 @@ function attachFormListeners() {
 
   appEl.addEventListener("change", (e) => {
     const el = e.target;
+    if (el.id === "site-logo-file" || el.id === "site-banner-file" || el.id === "site-tagline-image-file" || el.id === "site-sidebar-bg-file") {
+      const file = el.files && el.files[0];
+      if (!file) return;
+      if (file.size > 1.5 * 1024 * 1024) {
+        S.ui.siteSettingsFileError = "حجم الصورة كبير — الرجاء اختيار صورة أصغر من 1.5 ميغابايت.";
+        render();
+        return;
+      }
+      const fieldMap = { "site-logo-file": "logo", "site-banner-file": "bannerImage", "site-tagline-image-file": "sidebarTaglineImage" };
+      const reader = new FileReader();
+      reader.onload = () => {
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        if (el.id === "site-sidebar-bg-file") {
+          S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), sidebarBgImage: reader.result } };
+          applySiteColors(S.siteSettings);
+        } else
+        S.siteSettings = { ...S.siteSettings, [fieldMap[el.id]]: reader.result };
+        S.ui.siteSettingsSaved = false;
+        S.ui.siteSettingsFileError = null;
+        render();
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
     if (el.dataset && el.dataset.action === "filter-all-reports-dept") { S.ui.allReportsDept = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-type") { S.ui.unitReportsTypeFilter = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-year") { S.ui.unitReportsYearFilter = el.value; render(); return; }
@@ -4656,6 +8999,22 @@ function attachFormListeners() {
     if (el.dataset && el.dataset.action === "filter-unit-all-reports-type") { S.ui.unitAllReportsTypeFilter = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-all-reports-status") { S.ui.unitAllReportsStatusFilter = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "pick-report-recipient") { S.ui.sendReportRecipientId = el.value; render(); return; }
+    if (el.dataset && el.dataset.action === "set-field-draft") {
+      S.ui.fieldEditDraft = S.ui.fieldEditDraft || {};
+      // تغيير نوع الحقل يحتاج إعادة رسم كاملة (عشان يبين/يخفي صندوق الخيارات)،
+      // فنحفظ أول أي قيم مكتوبة حاليًا في النموذج عشان ما تضيع بإعادة الرسم هذي.
+      const labelEl = document.getElementById("field-draft-label");
+      const optionsEl = document.getElementById("field-draft-options");
+      const placeholderEl = document.getElementById("field-draft-placeholder");
+      const otherLabelEl = document.getElementById("field-draft-other-label");
+      if (labelEl) S.ui.fieldEditDraft.label = labelEl.value;
+      if (optionsEl) S.ui.fieldEditDraft.optionsText = optionsEl.value;
+      if (placeholderEl) S.ui.fieldEditDraft.placeholder = placeholderEl.value;
+      if (otherLabelEl) S.ui.fieldEditDraft.otherLabel = otherLabelEl.value;
+      S.ui.fieldEditDraft[el.dataset.key] = el.value;
+      render();
+      return;
+    }
     if (el.dataset && el.dataset.action === "set-review-decision-choice") {
       const key = `${el.dataset.unitId}:${el.dataset.reportId}`;
       S.ui.reviewDecisionChoice = { ...(S.ui.reviewDecisionChoice || {}), [key]: el.value };
@@ -4692,6 +9051,89 @@ function attachFormListeners() {
     if (el.dataset && el.dataset.action === "assign-unit-dept") {
       const u = S.units.find((x) => x.id === el.dataset.id);
       if (u) { u.departmentId = el.value; dataStore.saveUnits(S.units); }
+      render();
+      return;
+    }
+    // قائمة تبديل القسم/المكتب — تظهر فقط لمديرة النظام بصفحتي "قسمي" ومكتب
+    // الإشراف، تتيح لها الاطّلاع والضبط لأي قسم أو مكتب تختاره بدون أي تنقّل.
+    if (el.dataset && el.dataset.action === "admin-switch-department") {
+      S.currentDepartmentId = el.value; S.adminPreviewOrigin = null; render();
+      return;
+    }
+    if (el.dataset && el.dataset.action === "admin-switch-office") {
+      S.currentOfficeId = el.value; S.adminPreviewOrigin = null; render();
+      return;
+    }
+    // قائمة تبديل الوحدة/المركز — تظهر فقط لمديرة النظام بصفحات "وحدتي"
+    // (unit-home)، تتيح لها معاينة وضبط أي وحدة أو مركز تختاره.
+    if (el.dataset && el.dataset.action === "admin-switch-unit") {
+      S.currentUnitId = el.value; S.adminPreviewOrigin = null; S.currentReportId = null; S.view = "unit-reports";
+      ensureUnitReportsLoaded(S.currentUnitId);
+      render();
+      return;
+    }
+    // نفس فكرة admin-switch-unit، لكن لحساب نطاقه قسم أو مكتب إشراف — يتحقق
+    // فعليًا إن الوحدة المختارة ضمن نطاقه (isUnitInUserScope) قبل تبديلها.
+    if (el.dataset && el.dataset.action === "curation-target") {
+      S.ui.curationTarget = el.value;
+      render();
+      return;
+    }
+    if (el.dataset && el.dataset.action === "scoped-switch-unit") {
+      if (isUnitInUserScope(el.value)) {
+        S.currentUnitId = el.value; S.currentReportId = null; S.view = "unit-reports";
+        ensureUnitReportsLoaded(S.currentUnitId);
+      }
+      render();
+      return;
+    }
+    if (el.id === "site-font-family") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, fontFamily: el.value };
+      S.ui.siteSettingsSaved = false;
+      applySiteColors(S.siteSettings);
+      render();
+      return;
+    }
+    if (el.dataset && el.dataset.action === "change-pu-scopekind") {
+      const prefix = el.dataset.prefix;
+      capturePlatformUserFormFields(prefix);
+      if (prefix === "new-pu") { S.ui.newPuScopeKind = el.value; S.ui.newPuScopeId = ""; }
+      else { S.ui.editPuForm = S.ui.editPuForm || {}; S.ui.editPuForm.scopeKind = el.value; S.ui.editPuForm.scopeId = ""; }
+      render();
+      return;
+    }
+    if (el.dataset && el.dataset.action === "change-pu-templateid") {
+      const prefix = el.dataset.prefix;
+      capturePlatformUserFormFields(prefix);
+      if (prefix === "new-pu") S.ui.newPuTemplateId = el.value;
+      else { S.ui.editPuForm = S.ui.editPuForm || {}; S.ui.editPuForm.templateId = el.value; }
+      render();
+      return;
+    }
+    if (el.dataset && el.dataset.action === "set-base-role") {
+      const rid = el.value || "";
+      if (el.dataset.kind === "department") { S.departments = S.departments.map((d) => d.id === el.dataset.id ? { ...d, baseRoleId: rid } : d); dataStore.saveDepartments(S.departments); }
+      else if (el.dataset.kind === "office") { S.offices = S.offices.map((o) => o.id === el.dataset.id ? { ...o, baseRoleId: rid } : o); dataStore.saveOffices(S.offices); }
+      else { S.units = S.units.map((u) => u.id === el.dataset.id ? { ...u, baseRoleId: rid } : u); dataStore.saveUnits(S.units); }
+      render();
+      return;
+    }
+    if (el.dataset && el.dataset.action === "struct-person-role") {
+      S.persons = personsList().map((p) => p.id === el.dataset.id ? { ...p, roleId: el.value || "" } : p);
+      dataStore.savePersons(S.persons); render(); return;
+    }
+    if (el.dataset && el.dataset.action === "struct-copy-from") {
+      if (S.ui.structCopy) S.ui.structCopy.from = el.value || ""; render(); return;
+    }
+    if (el.dataset && el.dataset.action === "hub-nav-select") {
+      const b = document.createElement("button"); b.dataset.action = "nav-to"; b.dataset.view = el.value;
+      b.style.display = "none"; appEl.appendChild(b); b.click(); if (b.parentNode) b.parentNode.removeChild(b);
+      return;
+    }
+    if (el.dataset && el.dataset.action === "assign-office-parent") {
+      const o = (S.offices || []).find((x) => x.id === el.dataset.id);
+      if (o && officeScopeIds(o.id).indexOf(el.value) === -1) { o.parentOfficeId = el.value; dataStore.saveOffices(S.offices); }
       render();
       return;
     }
@@ -4738,32 +9180,101 @@ function attachClickListener() {
     if (!btn) return;
     const action = btn.dataset.action;
     const ds = btn.dataset;
+    if (buttonBlockedEl(btn)) return;
+    if (adminReportsReadOnly() && ADMIN_READONLY_BLOCKED.includes(action)) { alert("حساب مديرة النظام للاطلاع فقط — لا يمكن تعديل التقارير أو اعتمادها من هنا."); return; }
 
     try {
     switch (action) {
       /* ---------- navigation & shell ---------- */
+      case "set-curation-kind": S.ui.adminCurationKind = ds.kind === "office" ? "office" : "department"; if (S.ui.adminCurationKind === "office" && !(S.offices || []).some((o) => o.id === S.currentOfficeId)) { const fo = (S.offices || []).find((o) => o.status === "active") || (S.offices || [])[0]; S.currentOfficeId = fo ? fo.id : null; } if (S.ui.adminCurationKind === "department" && !(S.departments || []).some((d) => d.id === S.currentDepartmentId)) { const fd = (S.departments || []).find((d) => d.status === "active") || (S.departments || [])[0]; S.currentDepartmentId = fd ? fd.id : null; } render(); break;
       case "nav-to": {
-        S.view = ds.view; if (ds.view !== "unit-report") S.activeSectionId = null; if (isMobileViewport()) S.mobileSidebarOpen = false;
+        // "وحدتي" رابط ثابت لمديرة النظام فقط (بوّابة دخول) — لا يقابله عرض فعلي
+        // باسمه، فنحوّله هنا فعليًا لعرض "تقارير" الوحدة (نفس مسار open-unit-preview)
+        // بعد التأكد من اختيار وحدة/مركز صالح ووضع دخول افتراضي (الإدارية).
+        let navView = ds.view;
+        S.ui.previewDeptId = null;
+        S.view = navView; if (navView !== "unit-report") S.activeSectionId = null; if (isMobileViewport()) S.mobileSidebarOpen = false;
+        // مديرة النظام تدخل "قسمي"/صفحات مكتب الإشراف مباشرة من الشريط الجانبي —
+        // بما إنهم أصلًا مرتبطين بقسم/مكتب واحد، نفعّلهم تلقائيًا لأول قسم أو مكتب
+        // نشط لو ما كان فيه قيمة محفوظة أصلًا (أو كانت محفوظة أصبحت غير موجودة).
+        if (S.isAdmin && (navView === "department-curation") && !(S.departments || []).some((d) => d.id === S.currentDepartmentId)) {
+          const firstDept = (S.departments || []).find((d) => d.status === "active") || (S.departments || [])[0];
+          S.currentDepartmentId = firstDept ? firstDept.id : null;
+        }
+        if (S.isAdmin && ["office-dashboard", "office-archive", "office-summary", "office-curation"].includes(navView) && !(S.offices || []).some((o) => o.id === S.currentOfficeId)) {
+          const firstOffice = (S.offices || []).find((o) => o.status === "active") || (S.offices || [])[0];
+          S.currentOfficeId = firstOffice ? firstOffice.id : null;
+        }
         // نلغي أي طيّ يدوي للمجموعة اللي تحتوي الصفحة الجديدة، عشان تفتح تلقائيًا وتبيّن أين نحن.
-        const targetPage = SIDEBAR_PAGES.find((p) => p.id === ds.view);
+        const targetPage = SIDEBAR_PAGES.find((p) => p.id === navView);
         if (targetPage && S.ui.sidebarGroupState) delete S.ui.sidebarGroupState[targetPage.group];
+        // أي حساب (مديرة نظام/قسم/مكتب/مسمى وظيفي) قد يدخل صفحة من مجموعة
+        // "unit-home" (تقارير/إنشاء تقرير/الإعدادات) مباشرة من الشريط الجانبي
+        // الآن — بما إنها صارت روابط رئيسية ظاهرة دومًا، بلا اشتراط مسبق بوحدة
+        // محدّدة (طلب نجود الصريح). نتأكد هنا من وجود وحدة صالحة قبل الدخول،
+        // بدل أن تبقى الصفحة فارغة/معطّلة.
+        ensureUnitContextForNav(navView);
+        if (navView === "custom-path-inbox" && sheetsConfigured()) {
+          Promise.all((S.units || []).filter((u) => unitHasCustomPath(u) || apOwnerCandidatesForUnit(u).some((o) => approvalPathsList().some((p) => p.status === "active" && p.ownerKind === o.kind && p.ownerId === o.id))).map((u) => refreshReportsFromSheet(u.id))).then(() => { if (S.currentUser && S.view === "custom-path-inbox") render(); });
+        }
+        if (navView === "report-tabs-manage") {
+          S.reportTabs = dataStore.getReportTabs(); S.ui.rtEdit = null; S.ui.rtMsg = ""; S.ui.rtDeleteId = null;
+          if (sheetsConfigured()) refreshReportTabsFromSheet().then(() => { if (S.view === "report-tabs-manage") render(); });
+        }
+        if (navView === "units-manage") { S.roles = dataStore.getRoles(); S.persons = dataStore.getPersons(); S.approvalPaths = dataStore.getApprovalPaths(); S.ui.apEdit = null; S.ui.rolePermEditId = null; }
+        if (navView === "platform-users-manage" || navView === "platform-permissions-manage" || navView === "job-title-templates") {
+          S.platformUsers = dataStore.getPlatformUsers();
+          S.jobTitleTemplates = dataStore.getJobTitleTemplates();
+        }
         render();
         if (sheetsConfigured()) {
-          if (ds.view === "admin-reports" || ds.view === "units-manage" || ds.view === "department-overview") {
-            refreshUnitsAndDepartmentsFromSheet().then(() => { if (S.view === ds.view) render(); });
-          } else if (ds.view === "indicators-manage") {
-            refreshIndicatorDefinitionsFromSheet().then(() => { if (S.view === ds.view) render(); });
-          } else if (ds.view === "goals-manage") {
-            refreshGoalsDefinitionsFromSheet().then(() => { if (S.view === ds.view) render(); });
-          } else if (ds.view === "sections-manage") {
-            refreshReportSectionsFromSheet().then(() => { if (S.view === ds.view) render(); });
-          } else if (ds.view === "unit-reports" && S.currentUnitId) {
-            refreshReportsFromSheet(S.currentUnitId).then(() => { if (S.view === ds.view) render(); });
+          if (navView === "admin-reports" || navView === "units-manage" || navView === "dashboard") {
+            refreshUnitsAndDepartmentsFromSheet().then(() => { if (S.view === navView) render(); });
+          } else if (navView === "indicators-manage") {
+            refreshIndicatorDefinitionsFromSheet().then(() => { if (S.view === navView) render(); });
+          } else if (navView === "goals-manage") {
+            refreshGoalsDefinitionsFromSheet().then(() => { if (S.view === navView) render(); });
+          } else if (navView === "sections-manage") {
+            refreshReportSectionsFromSheet().then(() => { if (S.view === navView) render(); });
+          } else if (navView === "field-schemas-manage") {
+            refreshSectionFieldSchemasFromSheet().then(() => { if (S.view === navView) render(); });
+          } else if (navView === "unit-reports" && S.currentUnitId) {
+            refreshReportsFromSheet(S.currentUnitId).then(() => { if (S.view === navView) render(); });
+          } else if (navView === "platform-users-manage") {
+            refreshPlatformUsersFromSheet().then(() => { if (S.view === navView) render(); });
+          } else if (navView === "job-title-templates") {
+            refreshJobTitleTemplatesFromSheet().then(() => { if (S.view === navView) render(); });
           }
         }
         break;
       }
-      case "nav-back-admin": S.view = "admin-reports"; render(); break;
+      case "nav-back-admin": S.view = "browse-structure"; render(); break;
+      case "dash-toggle": {
+        if (!S.isAdmin) break;
+        const kind = ds.kind, key = ds.key;
+        if (!DASH_KINDS.some((k) => k.id === kind) || !key) break;
+        const cfg = JSON.parse(JSON.stringify(dashConfig()));
+        const cur = (cfg[kind] && Array.isArray(cfg[kind].hidden)) ? cfg[kind].hidden.slice() : [];
+        const i = cur.indexOf(key);
+        const nowHidden = i === -1;
+        if (nowHidden) cur.push(key); else cur.splice(i, 1);
+        cfg[kind] = { ...(cfg[kind] || {}), hidden: cur };
+        S.dashboardConfig = cfg;
+        dataStore.saveDashboardConfig(cfg);
+        const blk = DASH_STD_BLOCKS.concat(DASH_EX_BLOCKS).find((b) => b.key === key);
+        const kl = (DASH_KINDS.find((k) => k.id === kind) || {}).label || kind;
+        addPermLog("dashboard", kind, kl, (nowHidden ? "إخفاء «" : "إظهار «") + (blk ? blk.label : key) + "» من لوحة المعلومات");
+        render();
+        break;
+      }
+      case "dash-reset": {
+        if (!S.isAdmin) break;
+        S.dashboardConfig = {};
+        dataStore.saveDashboardConfig({});
+        addPermLog("dashboard", "all", "كل الجهات", "إظهار كل عناصر لوحة المعلومات");
+        render();
+        break;
+      }
       case "save-site-settings": {
         const settings = S.siteSettings || dataStore.getSiteSettings();
         dataStore.saveSiteSettings(settings);
@@ -4772,15 +9283,97 @@ function attachClickListener() {
         break;
       }
       case "restore-site-settings-defaults": {
-        S.siteSettings = { ...DEFAULT_SITE_COLORS };
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), ...DEFAULT_SITE_COLORS };
         applySiteColors(S.siteSettings);
         dataStore.saveSiteSettings(S.siteSettings);
         S.ui.siteSettingsSaved = true;
         render();
         break;
       }
-      case "nav-back-department": S.view = "department-overview"; render(); break;
+      case "restore-theme-defaults": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), theme: {} };
+        applySiteColors(S.siteSettings);
+        dataStore.saveSiteSettings(S.siteSettings);
+        S.ui.siteSettingsSaved = true;
+        render();
+        break;
+      }
+      case "add-period-type": case "remove-period-type": case "move-period-type": case "restore-period-types": {
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        // نلتقط أي تسمية معدّلة لم تُحفظ بعد، من الحقول الظاهرة
+        let list = PERIOD_TYPES.map((pt, i) => { const inp_ = document.getElementById("site-pt-" + i); return inp_ && !inp_.disabled ? inp_.value : pt; });
+        if (action === "add-period-type") {
+          const nv = ((document.getElementById("site-pt-new") || {}).value || "").trim();
+          if (!nv || list.map((x) => x.trim()).includes(nv)) { if (nv) S.ui.periodTypeDupMsg = true; break; }
+          list.push(nv);
+        } else if (action === "remove-period-type") {
+          const idx = Number(ds.idx); if (PERIOD_TYPES_LOCKED.includes(list[idx])) break; list.splice(idx, 1);
+        } else if (action === "move-period-type") {
+          const idx = Number(ds.idx), to = ds.dir === "up" ? idx - 1 : idx + 1;
+          if (to < 0 || to >= list.length) break; [list[idx], list[to]] = [list[to], list[idx]];
+        } else list = PERIOD_TYPES_DEFAULT.slice();
+        S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), periodTypes: list } };
+        applySiteColors(S.siteSettings);
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "reset-theme-key": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), theme: { ...((S.siteSettings || {}).theme || {}), [ds.key]: "" } };
+        applySiteColors(S.siteSettings);
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "reset-text-color": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), theme: { ...((S.siteSettings || {}).theme || {}), [ds.key + "Color"]: "" } };
+        applySiteColors(S.siteSettings);
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "remove-sidebar-bg-image": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), theme: { ...((S.siteSettings || {}).theme || {}), sidebarBgImage: "" } };
+        applySiteColors(S.siteSettings);
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "reset-tagline-color": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), theme: { ...((S.siteSettings || {}).theme || {}), taglineColor: "" } };
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "restore-site-branding-defaults": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), ...DEFAULT_BRANDING };
+        dataStore.saveSiteSettings(S.siteSettings);
+        applySiteColors(S.siteSettings);
+        S.ui.siteSettingsSaved = true;
+        render();
+        break;
+      }
+      case "remove-site-logo": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), logo: null };
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "remove-site-banner": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), bannerImage: null };
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "remove-site-tagline-image": {
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), sidebarTaglineImage: null };
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "nav-back-department": S.view = "dashboard"; render(); break;
       case "nav-back-from-report": S.view = "unit-reports"; S.activeSectionId = null; render(); break;
+      case "nav-back-to-report": S.view = "unit-report"; render(); break;
       case "nav-to-unit-report": S.view = "unit-report"; render(); break;
       case "open-sidebar": if (isMobileViewport()) S.mobileSidebarOpen = true; else S.sidebarOpen = true; render(); break;
       case "close-sidebar": S.sidebarOpen = false; render(); break;
@@ -4817,33 +9410,60 @@ function attachClickListener() {
       case "set-all-reports-filter": S.ui.allReportsFilter = ds.filter; render(); break;
       case "logout": doLogout(); break;
       case "submit-report-to-head": {
+        if (!platformActionAllowed("submit-report-to-head")) break;
         const entry = getCurrentReportEntry();
         if (!entry) break;
-        saveReportEntry(S.currentUnitId, { ...entry, status: "pending_head_review", internalSentAt: Date.now(), internalSentBy: "admin", updatedAt: Date.now() });
+        const unit = S.units.find((u) => u.id === S.currentUnitId);
+        // لو أعادته المراجعة الإضافية سابقًا، الرجوع يكون لها مباشرة (رئيسة
+        // الوحدة خلاص اعتمدته أول مرة) — غير كذا يتبع أول مستوى بمسار الوحدة.
+        const nextStatus = (entry.status === "extra_returned_edit" || entry.status === "extra_returned_completion")
+          ? "pending_extra_review"
+          : unitHasHead(unit) ? "pending_head_review" : (unitHasExtraReview(unit) ? "pending_extra_review" : "under_review");
+        saveReportEntry(S.currentUnitId, { ...entry, status: nextStatus, internalSentAt: Date.now(), internalSentBy: "admin", updatedAt: Date.now() });
         render();
         break;
       }
       case "goto-incoming-review-tab": {
         S.view = "unit-reports";
-        S.ui.unitReportsFilter = "pending_head_review";
+        S.ui.unitReportsFilter = S.currentUnitEntryMode === "extra" ? "pending_extra_review" : "pending_head_review";
         if (isMobileViewport()) S.mobileSidebarOpen = false;
         render();
         break;
       }
       case "approve-report-by-head": {
+        if (!platformActionAllowed("approve-report-by-head")) break;
         const entry = getCurrentReportEntry();
         if (!entry) break;
         const unit = S.units.find((u) => u.id === S.currentUnitId);
-        const recipients = computeReportRecipients(unit);
-        const deptRecipient = recipients.find((r) => r.id.indexOf("dept:") === 0) || recipients[0] || null;
         const decisionLabel = ds.decision === "edited" ? "معتمد بعد التعديل" : "معتمد دون ملاحظات";
-        saveReportEntry(S.currentUnitId, { ...entry, status: "under_review", sentTo: deptRecipient, sentAt: Date.now(), headReviewedAt: Date.now(), headReviewedBy: "head", headApprovalDecision: decisionLabel, updatedAt: Date.now() });
+        // اعتماد رئيسة الوحدة لتقرير لسا "pending_head_review": لو للوحدة مستوى
+        // مراجعة إضافي، يذهب له أولًا بدل القسم مباشرة.
+        if (entry.status === "pending_head_review" && unitHasExtraReview(unit)) {
+          saveReportEntry(S.currentUnitId, { ...entry, status: "pending_extra_review", headReviewedAt: Date.now(), headReviewedBy: "head", headApprovalDecision: decisionLabel, updatedAt: Date.now() });
+        } else {
+          // إما لا يوجد مستوى إضافي (رئيسة الوحدة ترسل للقسم مباشرة)، أو هذا
+          // اعتماد المستوى الإضافي نفسه لتقرير "pending_extra_review" — بأي
+          // الحالتين، الخطوة التالية هي القسم.
+          const recipients = computeReportRecipients(unit);
+          const deptRecipient = recipients.find((r) => r.id.indexOf("dept:") === 0) || recipients[0] || null;
+          const isExtra = entry.status === "pending_extra_review";
+          saveReportEntry(S.currentUnitId, {
+            ...entry, status: "under_review", sentTo: deptRecipient, sentAt: Date.now(),
+            headReviewedAt: isExtra ? entry.headReviewedAt : Date.now(),
+            headReviewedBy: isExtra ? entry.headReviewedBy : "head",
+            headApprovalDecision: isExtra ? entry.headApprovalDecision : decisionLabel,
+            extraReviewedAt: isExtra ? Date.now() : (entry.extraReviewedAt || null),
+            extraApprovalDecision: isExtra ? decisionLabel : (entry.extraApprovalDecision || null),
+            updatedAt: Date.now(),
+          });
+        }
         S.view = "unit-reports";
-        S.ui.unitReportsFilter = "pending_head_review";
+        S.ui.unitReportsFilter = S.currentUnitEntryMode === "extra" ? "pending_extra_review" : "pending_head_review";
         render();
         break;
       }
       case "start-head-return": {
+        if (!platformActionAllowed("start-head-return")) break;
         S.ui.headReturnMode = ds.mode === "completion" ? "completion" : "edit";
         S.ui.headReturnNotesVal = "";
         S.ui.headReturnError = "";
@@ -4858,6 +9478,7 @@ function attachClickListener() {
         break;
       }
       case "confirm-head-return": {
+        if (!platformActionAllowed("start-head-return")) break;
         const mode = ds.mode === "completion" ? "completion" : "edit";
         const notes = (S.ui.headReturnNotesVal || "").trim();
         if (mode === "edit" && !notes) {
@@ -4867,18 +9488,22 @@ function attachClickListener() {
         }
         const entry = getCurrentReportEntry();
         if (!entry) break;
-        saveReportEntry(S.currentUnitId, { ...entry, status: mode === "edit" ? "head_returned_edit" : "head_returned_completion", internalReviewNotes: notes, internalReturnedAt: Date.now(), updatedAt: Date.now() });
+        const isExtra = entry.status === "pending_extra_review";
+        const nextStatus = isExtra
+          ? (mode === "edit" ? "extra_returned_edit" : "extra_returned_completion")
+          : (mode === "edit" ? "head_returned_edit" : "head_returned_completion");
+        saveReportEntry(S.currentUnitId, { ...entry, status: nextStatus, internalReviewNotes: notes, internalReturnedAt: Date.now(), updatedAt: Date.now() });
         S.ui.headReturnMode = null;
         S.ui.headReturnNotesVal = "";
         S.ui.headReturnError = "";
         S.view = "unit-reports";
-        S.ui.unitReportsFilter = "pending_head_review";
+        S.ui.unitReportsFilter = isExtra ? "pending_extra_review" : "pending_head_review";
         render();
         break;
       }
       case "choose-unit-entry-mode": {
         const unitId = S.pendingUnitLoginId;
-        S.currentUnitEntryMode = ds.mode === "head" ? "head" : "admin";
+        S.currentUnitEntryMode = (ds.mode === "head" || ds.mode === "extra") ? ds.mode : "admin";
         S.reports[unitId] = dataStore.getReports(unitId);
         S.currentUnitId = unitId;
         S.currentReportId = null;
@@ -4888,20 +9513,261 @@ function attachClickListener() {
         if (sheetsConfigured()) { refreshReportsFromSheet(unitId).then(() => { if (S.currentUser) render(); }); }
         break;
       }
-      case "open-office-department": S.ui.officeSelectedDeptId = ds.id; render(); break;
-      case "office-back-to-departments": S.ui.officeSelectedDeptId = null; render(); break;
+      case "toggle-role-perm-page": { const a = rolePermFormState().pages; const i = a.indexOf(ds.id); if (i >= 0) a.splice(i, 1); else a.push(ds.id); render(); break; }
+      case "toggle-role-perm-button": { const a = rolePermFormState().buttons; const i = a.indexOf(ds.id); if (i >= 0) a.splice(i, 1); else a.push(ds.id);
+        if (i < 0 && ds.id.indexOf("notify:") === 0) { const chip = ds.id.slice("notify:".length); if (a.some((x) => x.indexOf("notify:") !== 0) && !a.includes(chip)) a.push(chip); }
+        render(); break; }
+      case "toggle-role-perm-action": { const a = rolePermFormState().actions; const i = a.indexOf(ds.id); if (i >= 0) a.splice(i, 1); else a.push(ds.id); render(); break; }
+      case "role-perm-edit": {
+        const r = rolesList().find((x) => x.id === ds.id); if (!r) break;
+        const p = rolePermsOf(r);
+        S.ui.rolePermForm = { pages: [...p.pages], actions: [], buttons: [...(p.buttons.length ? p.buttons : p.actions.filter((a) => BUTTON_CATALOG.some((b) => b.id === a)))] };
+        S.ui.rolePermEditId = r.id; S.ui.personPermEditId = null; S.ui.rolesBulk = null; render(); break;
+      }
+      case "role-perm-cancel": S.ui.rolePermEditId = null; S.ui.personPermEditId = null; S.ui.rolePermForm = null; render(); break;
+      case "role-perm-save": {
+        const f = rolePermFormState();
+        const r = rolesList().find((x) => x.id === ds.id); if (!r) break;
+        S.roles = rolesList().map((x) => x.id === r.id ? { ...x, permissions: { pages: [...f.pages], actions: [], buttons: [...f.buttons] } } : x);
+        dataStore.saveRoles(S.roles);
+        addPermLog("role", r.id, r.name, `تعديل صلاحيات الدور: ${permSummaryText(f)}`);
+        S.ui.rolePermEditId = null; S.ui.rolePermForm = null; render(); break;
+      }
+      case "person-perm-edit": {
+        const p = personsList().find((x) => x.id === ds.id); if (!p) break;
+        const e = personEffectivePerms(p);
+        S.ui.rolePermForm = { pages: [...e.pages], actions: [], buttons: [...(e.buttons.length ? e.buttons : e.actions.filter((a) => BUTTON_CATALOG.some((b) => b.id === a)))] };
+        S.ui.personPermEditId = p.id; S.ui.rolePermEditId = null; S.ui.rolesBulk = null; render(); break;
+      }
+      case "person-perm-save": {
+        const f = rolePermFormState();
+        const p = personsList().find((x) => x.id === ds.id); if (!p) break;
+        S.persons = personsList().map((x) => x.id === p.id ? { ...x, permsOverride: { pages: [...f.pages], actions: [], buttons: [...f.buttons] } } : x);
+        dataStore.savePersons(S.persons);
+        addPermLog("person", p.id, p.name, `استثناء خاص: ${permSummaryText(f)}`);
+        S.ui.personPermEditId = null; S.ui.rolePermForm = null; render(); break;
+      }
+      case "person-perm-clear": {
+        const p = personsList().find((x) => x.id === ds.id); if (!p) break;
+        S.persons = personsList().map((x) => x.id === p.id ? { ...x, permsOverride: {} } : x);
+        dataStore.savePersons(S.persons);
+        addPermLog("person", p.id, p.name, "إلغاء الاستثناء (عاد لصلاحيات الدور)");
+        S.ui.personPermEditId = null; S.ui.rolePermForm = null; render(); break;
+      }
+      case "roles-bulk-start": S.ui.rolesBulk = { confirm: false }; S.ui.rolePermForm = { pages: [], actions: [], buttons: [] }; S.ui.rolePermEditId = null; S.ui.personPermEditId = null; render(); break;
+      case "roles-bulk-preset": rolePermFormState().pages = [...BULK_PERM_PRESETS.unit]; render(); break;
+      case "roles-bulk-confirm": if (S.ui.rolesBulk) S.ui.rolesBulk.confirm = true; render(); break;
+      case "roles-bulk-cancel": S.ui.rolesBulk = null; S.ui.rolePermForm = null; render(); break;
+      case "roles-bulk-apply": {
+        const f = rolePermFormState();
+        S.roles = rolesList().map((x) => ({ ...x, permissions: { pages: [...f.pages], actions: [], buttons: [...f.buttons] } }));
+        dataStore.saveRoles(S.roles);
+        addPermLog("role", "*", "كل الأدوار", `تطبيق على الكل (${S.roles.length}): ${permSummaryText(f)}`);
+        S.ui.rolesBulk = null; S.ui.rolePermForm = null; render(); break;
+      }
+      case "struct-persons-toggle": {
+        S.ui.structPersonsOpen = S.ui.structPersonsOpen || {};
+        S.ui.structPersonsOpen[ds.key] = !S.ui.structPersonsOpen[ds.key];
+        if (!S.roles) S.roles = dataStore.getRoles();
+        if (!S.persons) S.persons = dataStore.getPersons();
+        render();
+        if (S.ui.structPersonsOpen[ds.key] && sheetsConfigured()) refreshRolesPersonsFromSheet().then(() => { if (S.view === "units-manage") render(); });
+        break;
+      }
+      case "struct-person-add": {
+        const g = (id) => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
+        const name = g("sp-name-" + ds.key), roleId = g("sp-role-" + ds.key), pin = g("sp-pin-" + ds.key);
+        if (!name || !roleId) { S.ui.structPersonError = { key: ds.key, msg: "اكتبي الاسم واختاري الدور" }; render(); break; }
+        S.persons = [...personsList(), { id: uid("person"), name, ownerKind: ds.kind, ownerId: ds.id, roleId, pin, permsOverride: {}, status: "active", createdAt: Date.now() }];
+        dataStore.savePersons(S.persons);
+        S.ui.structPersonError = null; render(); break;
+      }
+      case "struct-person-save": {
+        const g = (id) => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
+        const name = g("sp-ename-" + ds.id), roleId = g("sp-erole-" + ds.id), pin = g("sp-epin-" + ds.id);
+        if (!name || !roleId) break;
+        S.persons = personsList().map((p) => p.id === ds.id ? { ...p, name, roleId, pin } : p);
+        dataStore.savePersons(S.persons);
+        S.ui.personEditId = null; render(); break;
+      }
+      case "ap-new": S.ui.apEdit = { id: null, error: "", draft: { name: "", ownerKind: "", ownerId: "", periodType: "", authorRoleId: "", stages: [] } }; S.ui.apMsg = null; render(); break;
+      case "ap-edit": {
+        const a = approvalPathsList().find((x) => x.id === ds.id); if (!a) break;
+        S.ui.apEdit = { id: a.id, error: "", draft: JSON.parse(JSON.stringify(a)) }; S.ui.apMsg = null; render(); break;
+      }
+      case "ap-cancel": S.ui.apEdit = null; render(); break;
+      case "ap-stage-add": apCaptureForm(); S.ui.apEdit.draft.stages.push({ id: uid("stg"), name: "", approver: "", canApprove: true, canReturn: true, canEdit: false, noteRequired: false }); render(); break;
+      case "ap-stage-remove": apCaptureForm(); S.ui.apEdit.draft.stages.splice(Number(ds.idx), 1); render(); break;
+      case "ap-stage-move": {
+        apCaptureForm();
+        const st = S.ui.apEdit.draft.stages, i = Number(ds.idx), to = ds.dir === "up" ? i - 1 : i + 1;
+        if (to >= 0 && to < st.length) { [st[i], st[to]] = [st[to], st[i]]; }
+        render(); break;
+      }
+      case "ap-add-period": {
+        apCaptureForm();
+        const el = document.getElementById("ap-new-period"); const nv = el ? String(el.value || "").trim() : "";
+        if (!nv || PERIOD_TYPES.includes(nv)) { render(); break; }
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        const list = [...PERIOD_TYPES, nv];
+        S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), periodTypes: list } };
+        applySiteColors(S.siteSettings);
+        dataStore.saveSiteSettings(S.siteSettings);
+        if (S.ui.apEdit) S.ui.apEdit.draft.periodType = nv;
+        render(); break;
+      }
+      case "ap-save": {
+        apCaptureForm();
+        const ed = S.ui.apEdit; const d = ed.draft;
+        if (!d.ownerKind || !d.ownerId) { ed.error = "اختاري الجهة"; render(); break; }
+        if (!d.stages.length) { ed.error = "أضيفي مرحلة واحدة على الأقل"; render(); break; }
+        if (d.stages.some((st) => !String(st.name || "").trim() || !st.approver)) { ed.error = "كل مرحلة تحتاج اسمًا وجهة تقوم بها"; render(); break; }
+        const list = approvalPathsList();
+        const clean = { ...d, name: String(d.name || "").trim(), stages: d.stages.map((st) => ({ ...st, name: String(st.name).trim() })) };
+        if (ed.id) {
+          const old = list.find((x) => x.id === ed.id);
+          const keepActive = old && old.status === "active";
+          S.approvalPaths = list.map((x) => x.id === ed.id ? { ...x, ...clean, status: keepActive ? "draft" : x.status, activatedAt: keepActive ? null : x.activatedAt } : x);
+          addPermLog("approval-path", ed.id, clean.name || apOwnerName(clean.ownerKind, clean.ownerId), keepActive ? "تعديل مسار مفعّل (عاد مسودة ويحتاج تفعيلًا جديدًا)" : "تعديل مسار اعتماد");
+        } else {
+          const id = uid("apath");
+          S.approvalPaths = [...list, { ...clean, id, status: "draft", createdAt: Date.now(), activatedAt: null }];
+          addPermLog("approval-path", id, clean.name || apOwnerName(clean.ownerKind, clean.ownerId), `إنشاء مسار اعتماد (مسودة) — ${clean.stages.length} مرحلة`);
+        }
+        dataStore.saveApprovalPaths(S.approvalPaths);
+        S.ui.apEdit = null; render(); break;
+      }
+      case "ap-toggle": {
+        const list = approvalPathsList(); const a = list.find((x) => x.id === ds.id); if (!a) break;
+        if (a.status !== "active") {
+          const clash = list.find((x) => x.id !== a.id && x.status === "active" && x.ownerKind === a.ownerKind && x.ownerId === a.ownerId && (x.periodType || "") === (a.periodType || "") && (x.authorRoleId || "") === (a.authorRoleId || "") && String(x.name || "").trim() === String(a.name || "").trim());
+          if (clash) { S.ui.apMsg = { id: a.id, msg: "يوجد مسار مفعّل بنفس الاسم لنفس الجهة والفترة — غيّري الاسم حتى يظهر مختلفًا في قائمة الإرسال" }; render(); break; }
+        }
+        S.ui.apMsg = null;
+        S.approvalPaths = list.map((x) => x.id === a.id ? { ...x, status: x.status === "active" ? "draft" : "active", activatedAt: x.status === "active" ? null : Date.now() } : x);
+        dataStore.saveApprovalPaths(S.approvalPaths);
+        addPermLog("approval-path", a.id, a.name || apOwnerName(a.ownerKind, a.ownerId), a.status === "active" ? "إيقاف المسار" : "تفعيل المسار");
+        render(); break;
+      }
+      case "ap-delete-ask": S.ui.apConfirmDeleteId = ds.id; render(); break;
+      case "ap-delete-cancel": S.ui.apConfirmDeleteId = null; render(); break;
+      case "ap-delete": {
+        const a = approvalPathsList().find((x) => x.id === ds.id);
+        S.approvalPaths = approvalPathsList().filter((x) => x.id !== ds.id);
+        dataStore.saveApprovalPaths(S.approvalPaths);
+        if (a) addPermLog("approval-path", a.id, a.name || apOwnerName(a.ownerKind, a.ownerId), "حذف مسار اعتماد");
+        S.ui.apConfirmDeleteId = null; render(); break;
+      }
+      case "choose-entity-account": if (S.pendingEntityLogin) enterEntityAsPerson(null); break;
+      case "choose-base-role": {
+        const role = rolesList().find((r) => r.id === ds.role);
+        if (!role) break;
+        if (S.pendingEntityLogin) { enterEntityAsPerson(null, role); break; }
+        const unitId = S.pendingUnitLoginId;
+        if (!unitId) break;
+        S.currentUnitEntryMode = (role.mode === "head" || role.mode === "extra") ? role.mode : "admin";
+        S.currentPersonId = null; S.currentPersonName = ""; S.currentEntryRoleName = role.name;
+        applyPersonPerms({ roleId: role.id, permsOverride: null });
+        S.reports[unitId] = dataStore.getReports(unitId);
+        S.currentUnitId = unitId;
+        S.currentReportId = null;
+        S.pendingUnitLoginId = null;
+        S.view = "unit-dashboard";
+        if (S.platformUserAllowedPages && S.platformUserAllowedPages.length && !S.platformUserAllowedPages.includes(S.view)) {
+          const t = SIDEBAR_PAGES.find((x) => S.platformUserAllowedPages.includes(x.id));
+          if (t) S.view = t.id;
+        }
+        render();
+        if (sheetsConfigured()) { refreshReportsFromSheet(unitId).then(() => { if (S.currentUser) render(); }); }
+        break;
+      }
+      case "choose-person": {
+        const p = personsList().find((x) => x.id === ds.id);
+        if (!p) break;
+        if (personEffectivePin(p)) { S.ui.pinPersonId = p.id; S.ui.pinError = ""; render(); break; }
+        enterUnitAsPerson(p);
+        break;
+      }
+      case "confirm-person-pin": {
+        const p = personsList().find((x) => x.id === ds.id);
+        const el = document.getElementById("person-pin-input");
+        if (!p) break;
+        if (String(el ? el.value : "").trim() !== personEffectivePin(p)) { S.ui.pinError = "الرمز غير صحيح"; render(); break; }
+        enterUnitAsPerson(p);
+        break;
+      }
+      case "cancel-person-pin": S.ui.pinPersonId = null; S.ui.pinError = ""; render(); break;
+      case "role-save": {
+        const g = (id) => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
+        const name = g("role-name");
+        if (!name) { S.ui.roleError = "اكتبي اسم الدور"; render(); break; }
+        const list = rolesList();
+        const dup = list.find((r) => r.name === name && r.id !== S.ui.roleEditId);
+        if (dup) { S.ui.roleError = "يوجد دور بنفس الاسم"; render(); break; }
+        const mode = ["admin", "head", "extra", "entity"].includes(g("role-mode")) ? g("role-mode") : "admin";
+        const pin = g("role-pin");
+        if (S.ui.roleEditId) {
+          S.roles = list.map((r) => r.id === S.ui.roleEditId ? { ...r, name, mode, pin, description: g("role-desc") } : r);
+        } else {
+          S.roles = [...list, { id: uid("role"), name, mode, pin, description: g("role-desc"), permissions: {}, status: "active", createdAt: Date.now() }];
+        }
+        dataStore.saveRoles(S.roles);
+        S.ui.roleEditId = null; S.ui.roleError = ""; S.ui.roleShowAdd = false;
+        render(); break;
+      }
+      case "role-show-add": S.ui.roleShowAdd = true; S.ui.roleEditId = null; S.ui.roleError = ""; render(); break;
+      case "role-edit": S.ui.roleEditId = ds.id; S.ui.roleShowAdd = true; S.ui.roleError = ""; render(); break;
+      case "role-cancel": S.ui.roleEditId = null; S.ui.roleShowAdd = false; S.ui.roleError = ""; render(); break;
+      case "role-delete-ask": S.ui.roleConfirmDeleteId = ds.id; render(); break;
+      case "role-delete-cancel": S.ui.roleConfirmDeleteId = null; render(); break;
+      case "role-delete": {
+        if (personsList().some((p) => p.roleId === ds.id)) { S.ui.roleError = "لا يمكن حذف دور مرتبط بأشخاص — غيّري دورهم أولًا"; S.ui.roleConfirmDeleteId = null; render(); break; }
+        S.roles = rolesList().filter((r) => r.id !== ds.id);
+        dataStore.saveRoles(S.roles);
+        S.ui.roleConfirmDeleteId = null; render(); break;
+      }
+      case "person-save": {
+        const g = (id) => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
+        const name = g("person-name"), ownerId = g("person-owner"), roleId = g("person-role"), pin = g("person-pin");
+        if (!name || !ownerId || !roleId) { S.ui.personError = "الاسم والجهة والدور مطلوبة"; render(); break; }
+        const list = personsList();
+        if (S.ui.personEditId) {
+          S.persons = list.map((p) => p.id === S.ui.personEditId ? { ...p, name, ownerId, roleId, pin } : p);
+        } else {
+          S.persons = [...list, { id: uid("person"), name, ownerKind: "unit", ownerId, roleId, pin, permsOverride: {}, status: "active", createdAt: Date.now() }];
+        }
+        dataStore.savePersons(S.persons);
+        S.ui.personEditId = null; S.ui.personError = ""; S.ui.personShowAdd = false;
+        render(); break;
+      }
+      case "person-show-add": S.ui.personShowAdd = true; S.ui.personEditId = null; S.ui.personError = ""; render(); break;
+      case "person-edit": S.ui.personEditId = ds.id; S.ui.personShowAdd = true; S.ui.personError = ""; render(); break;
+      case "person-cancel": S.ui.personEditId = null; S.ui.personShowAdd = false; S.ui.personError = ""; render(); break;
+      case "person-toggle": {
+        S.persons = personsList().map((p) => p.id === ds.id ? { ...p, status: p.status === "disabled" ? "active" : "disabled" } : p);
+        dataStore.savePersons(S.persons); render(); break;
+      }
+      case "person-delete-ask": S.ui.personConfirmDeleteId = ds.id; render(); break;
+      case "person-delete-cancel": S.ui.personConfirmDeleteId = null; render(); break;
+      case "person-delete": {
+        S.persons = personsList().filter((p) => p.id !== ds.id);
+        dataStore.savePersons(S.persons);
+        S.ui.personConfirmDeleteId = null; render(); break;
+      }
+      case "choose-platform-user": {
+        const chosen = (S.pendingPlatformUserMatches || []).find((pu) => pu.id === ds.id);
+        if (chosen) doLoginPlatformUser(chosen);
+        break;
+      }
       case "departments-page-open": S.ui.departmentsPageSelectedId = ds.id; render(); break;
       case "departments-page-back": S.ui.departmentsPageSelectedId = null; render(); break;
-      case "offices-manage-open-office": S.ui.officesManageOfficeId = ds.id; S.ui.officesManageDeptId = null; render(); break;
-      case "offices-manage-back-to-list": S.ui.officesManageOfficeId = null; S.ui.officesManageDeptId = null; render(); break;
-      case "offices-manage-open-department": S.ui.officesManageDeptId = ds.id; render(); break;
-      case "offices-manage-back-to-departments": S.ui.officesManageDeptId = null; render(); break;
       case "confirm-delete-report": S.ui.confirmDeleteReportId = ds.id; render(); break;
       case "cancel-delete-report": S.ui.confirmDeleteReportId = null; render(); break;
       case "toggle-report-notes": S.ui.showReportNotesId = S.ui.showReportNotesId === ds.id ? null : ds.id; render(); break;
       case "submit-department-review-decision": {
         // تحقق فعلي من الصلاحية على مستوى البيانات: قرار المراجعة فقط لمديرة القسم أو النظام.
         if (!(S.isDepartmentUser || S.isAdmin) || !isUnitInUserScope(ds.unitId)) break;
+        if (!platformActionAllowed("submit-department-review-decision")) break;
         const key = `${ds.unitId}:${ds.reportId}`;
         const choiceId = S.ui.reviewDecisionChoice?.[key];
         const decision = REVIEW_DECISIONS.find((d) => d.id === choiceId);
@@ -4917,6 +9783,7 @@ function attachClickListener() {
         break;
       }
       case "delete-report": {
+        if (!platformActionAllowed("delete-report")) break;
         const unitId = ds.unitId, reportId = ds.reportId;
         S.reports[unitId] = dataStore.deleteOneReport(unitId, reportId);
         S.ui.confirmDeleteReportId = null;
@@ -4934,26 +9801,159 @@ function attachClickListener() {
         if (sheetsConfigured()) refreshReportsFromSheet(unitId).then(() => { if (S.currentUnitId === unitId) render(); });
         break;
       }
+      case "bs-open": {
+        const cur = S.ui.bsPath || [];
+        S.ui.bsPath = cur.concat([{ k: ds.kind, id: ds.id || "" }]);
+        render();
+        break;
+      }
+      case "bs-up": {
+        const idx = Number(ds.index);
+        if (idx < 0) S.ui.bsPath = [];
+        else S.ui.bsPath = (S.ui.bsPath || []).slice(0, idx + 1);
+        render();
+        break;
+      }
+      case "bs-open-dept-ui": {
+        S.adminPreviewOrigin = "browse-structure";
+        S.currentDepartmentId = ds.id;
+        S.ui.previewDeptId = ds.id;
+        S.view = "dashboard";
+        render();
+        break;
+      }
+      case "bs-open-office-ui": {
+        S.adminPreviewOrigin = "browse-structure";
+        S.currentOfficeId = ds.id;
+        S.view = ds.view === "office-archive" ? "office-archive" : "office-summary";
+        render();
+        break;
+      }
+      case "bs-open-unit-ui": {
+        const unit = S.units.find((u) => u.id === ds.id);
+        if (!unit) break;
+        S.adminPreviewOrigin = "browse-structure";
+        ensureUnitReportsLoaded(unit.id);
+        S.currentUnitId = unit.id; S.currentReportId = null; S.view = "unit-reports"; S.openPhaseId = null; S.activeSectionId = null;
+        if (S.currentUnitEntryMode !== "admin" && S.currentUnitEntryMode !== "head") S.currentUnitEntryMode = "admin";
+        render();
+        break;
+      }
       case "open-unit-preview": {
         // اطلاع مديرة النظام على واجهة "تقاريري" الحقيقية لوحدة أو مركز — نفس الصفحة تمامًا.
         const unit = S.units.find((u) => u.id === ds.id);
         if (!unit) break;
-        S.adminPreviewOrigin = unit.role === "center" ? "centers-list" : "units-list";
+        S.adminPreviewOrigin = "browse-structure";
         ensureUnitReportsLoaded(unit.id);
-        S.currentUnitId = unit.id; S.currentReportId = null; S.view = "unit-reports"; S.openPhaseId = null; S.activeSectionId = null; render();
+        S.currentUnitId = unit.id; S.currentReportId = null; S.view = "unit-reports"; S.openPhaseId = null; S.activeSectionId = null;
+        // وضع دخول افتراضي ("الإدارية") لو ما كان عندها اختيار صالح أصلًا — يتيح
+        // تبديله لاحقًا من الصفحة نفسها (adminUnitSwitcherHtml) لمنظور "رئيسة الوحدة".
+        if (S.currentUnitEntryMode !== "admin" && S.currentUnitEntryMode !== "head") S.currentUnitEntryMode = "admin";
+        render();
         if (sheetsConfigured()) refreshReportsFromSheet(unit.id).then(() => { if (S.currentUnitId === unit.id) render(); });
+        break;
+      }
+      case "admin-set-unit-entry-mode": {
+        // تبديل منظور مديرة النظام وهي تعاين وحدة: "الإدارية" (موظفة الوحدة) أو
+        // "رئيسة الوحدة" (صلاحية اعتماد/إعادة فعلية على pending_head_review).
+        // هذا المفتاح نفسه (S.currentUnitEntryMode) يُستخدم أصلًا لحسابات الوحدة
+        // الحقيقية؛ لا يمس أي سلوك لها لأنه لا يُستدعى إلا من صفحات معاينة مديرة النظام.
+        if (S.isAdmin) { S.currentUnitEntryMode = ds.mode === "head" ? "head" : ds.mode === "extra" ? "extra" : "admin"; render(); }
+        break;
+      }
+      /* ===== مخطط الهيكل التنظيمي (تخطيط حر — راجع renderOrgChartPage) ===== */
+      case "org-chart-start-add-root": S.ui.orgChartAddingRoot = true; render(); break;
+      case "org-chart-cancel-add-root": S.ui.orgChartAddingRoot = false; render(); break;
+      case "org-chart-save-add-root": {
+        const el = document.getElementById("org-chart-new-root");
+        const title = (el && el.value || "").trim();
+        if (!title) break;
+        const nodes = currentOrgChart();
+        S.orgChart = [...nodes, { id: uid("node"), title, children: [] }];
+        dataStore.saveOrgChart(S.orgChart);
+        S.ui.orgChartAddingRoot = false;
+        render();
+        break;
+      }
+      case "org-chart-start-add-child": S.ui.orgChartAddingParentId = ds.id; render(); break;
+      case "org-chart-cancel-add-child": S.ui.orgChartAddingParentId = null; render(); break;
+      case "org-chart-save-add-child": {
+        const el = document.getElementById(`org-chart-new-child-${ds.id}`);
+        const title = (el && el.value || "").trim();
+        if (!title) break;
+        const parentNode = orgChartFindNode(currentOrgChart(), ds.id);
+        if (!parentNode) break;
+        parentNode.children = [...(parentNode.children || []), { id: uid("node"), title, children: [] }];
+        dataStore.saveOrgChart(S.orgChart);
+        S.ui.orgChartAddingParentId = null;
+        render();
+        break;
+      }
+      case "org-chart-start-edit": {
+        const node = orgChartFindNode(currentOrgChart(), ds.id);
+        if (!node) break;
+        S.ui.orgChartEditingId = ds.id; S.ui.orgChartEditValue = node.title; render();
+        break;
+      }
+      case "org-chart-cancel-edit": S.ui.orgChartEditingId = null; render(); break;
+      case "org-chart-save-edit": {
+        const el = document.getElementById(`org-chart-edit-${ds.id}`);
+        const title = (el && el.value || "").trim();
+        if (!title) break;
+        const node = orgChartFindNode(currentOrgChart(), ds.id);
+        if (!node) break;
+        node.title = title;
+        dataStore.saveOrgChart(S.orgChart);
+        S.ui.orgChartEditingId = null;
+        render();
+        break;
+      }
+      case "org-chart-confirm-delete": S.ui.orgChartConfirmDeleteId = ds.id; render(); break;
+      case "org-chart-cancel-delete": S.ui.orgChartConfirmDeleteId = null; render(); break;
+      case "org-chart-delete": {
+        const nodes = currentOrgChart();
+        const arr = orgChartFindParentArray(nodes, ds.id);
+        if (arr) {
+          const idx = arr.findIndex((n) => n.id === ds.id);
+          if (idx !== -1) arr.splice(idx, 1);
+        }
+        dataStore.saveOrgChart(S.orgChart);
+        S.ui.orgChartConfirmDeleteId = null;
+        render();
+        break;
+      }
+      case "org-chart-toggle-collapse": {
+        S.ui.orgChartCollapsed = S.ui.orgChartCollapsed || {};
+        S.ui.orgChartCollapsed[ds.id] = !S.ui.orgChartCollapsed[ds.id];
+        render();
         break;
       }
       case "open-department-preview": {
         // اطلاع مديرة النظام على واجهة "قسمي" الحقيقية لقسم معيّن — نفس الصفحة تمامًا.
         S.adminPreviewOrigin = "departments-list";
         S.currentDepartmentId = ds.id;
-        S.view = "department-overview";
+        S.ui.previewDeptId = ds.id;
+        S.view = "dashboard";
         render();
         break;
       }
       case "set-unit-reports-filter": S.ui.unitReportsFilter = ds.filter; render(); break;
       case "open-or-create-report": {
+        if (!platformActionAllowed("open-or-create-report")) break;
+        // زر "إنشاء تقرير" صار رابطًا رئيسيًا بالشريط الجانبي يُضغط مباشرة بلا
+        // اشتراط مسبق بوحدة محدّدة (نفس مبدأ "نav-to" أعلاه) — نتأكد هنا من
+        // وجود وحدة صالحة أولًا، بدل الدخول بوحدة غير موجودة (رسالة "تعذر إيجاد
+        // الوحدة").
+        ensureUnitContextForNav("unit-report");
+        // حساب نطاقه قسم أو مكتب إشراف له أكثر من وحدة — نوجّهه أولًا لصفحة
+        // "تقارير" (نفس renderUnitReportsHub) ليختار/يتأكد من الوحدة عبر
+        // قائمة التبديل (scopedUnitSwitcherHtml) قبل إنشاء التقرير، بدل إنشاء
+        // تقرير فورًا لوحدة قد لا تكون مقصودة. حساب الوحدة نفسها (وحدة واحدة
+        // فقط) يبقى بسلوكه الأصلي: إنشاء/استكمال فوري بلا أي اختيار وسيط.
+        if ((S.isDepartmentUser || S.isOfficeUser) && S.view !== "unit-reports") {
+          S.view = "unit-reports"; render();
+          break;
+        }
         // إنشاء تقرير: تكمل آخر تقرير لسا شغّالة عليه (مسودة/بحاجة لتعديل أو استكمال)،
         // أو تنشئ تقرير جديد فورًا بدون أي اختيار وسيط.
         const list = ensureUnitReportsLoaded(S.currentUnitId);
@@ -4961,25 +9961,117 @@ function attachClickListener() {
         const inProgress = [...list].reverse().find((r) => openStatuses.includes(r.status));
         const entry = inProgress || createNewReportEntry(S.currentUnitId);
         S.currentReportId = entry.id; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
+        jumpToFirstNotedSection(entry);
         render();
         break;
       }
       case "open-report": {
         if (!isUnitInUserScope(ds.unitId)) break;
-        S.currentUnitId = ds.unitId; S.currentReportId = ds.reportId; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
-        S.cameFromAllReports = false;
+        S.currentUnitId = ds.unitId; S.currentReportId = ds.reportId; S.view = adminReportsReadOnly() ? "full-report" : "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
+        S.cameFromAllReports = adminReportsReadOnly();
+        if (S.view === "unit-report") jumpToFirstNotedSection(getReportEntry(ds.unitId, ds.reportId));
         render();
         break;
       }
       case "view-report-pdf": {
         // عرض للقراءة فقط — بعد تحقق فعلي من الصلاحية على مستوى البيانات
-        if (!isUnitInUserScope(ds.unitId)) break;
+        if (!isUnitInUserScope(ds.unitId) && !canViewReportViaCustomPath(ds.unitId)) break;
         S.currentUnitId = ds.unitId; S.currentReportId = ds.reportId; S.view = "full-report";
         S.cameFromAllReports = true;
         render();
         break;
       }
+      case "goto-report-tab": {
+        S.ui.unitReportsFilter = ds.filter; S.view = "unit-reports";
+        if (isMobileViewport()) S.mobileSidebarOpen = false;
+        render();
+        break;
+      }
+      case "toggle-rtab": {
+        const holder = ds.scope === "template" && S.ui.editingTemplateId == null ? (S.ui.__newTplHolder = { get reportTabs() { return S.ui.newTemplateReportTabs || (S.ui.newTemplateReportTabs = []); }, set reportTabs(v) { S.ui.newTemplateReportTabs = v; }, get reportNotify() { return S.ui.newTemplateReportNotify || (S.ui.newTemplateReportNotify = []); }, set reportNotify(v) { S.ui.newTemplateReportNotify = v; } }) : ds.scope === "template" ? (S.ui.editTemplateForm = S.ui.editTemplateForm || {}) : (S.ui.editAccountPermForm = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] });
+        const key = ds.mode === "notify" ? "reportNotify" : "reportTabs";
+        const arr = holder[key] || (holder[key] = []);
+        const i = arr.indexOf(ds.id);
+        if (i >= 0) arr.splice(i, 1); else arr.push(ds.id);
+        // التنبيه يتطلب ظهور الزر: لو فعّلنا "ينبّه" نفعّل "يظهر" تلقائيًا
+        if (ds.mode === "notify" && i < 0) { const t = holder.reportTabs || (holder.reportTabs = []); if (!t.includes(ds.id)) t.push(ds.id); }
+        if (ds.scope === "template") captureJobTitleTemplateFormFields(S.ui.editingTemplateId == null ? "new-template" : "edit-template");
+        render();
+        break;
+      }
+      case "create-new-report": {
+        if (!platformActionAllowed("create-new-report")) break;
+        if (!S.currentUnitId) break;
+        const entry = createNewReportEntry(S.currentUnitId);
+        if (!entry) break;
+        S.currentReportId = entry.id; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
+        render();
+        break;
+      }
+      case "ap-send": { S.ui.showApSendPicker = true; S.ui.apSendPathId = ""; render(); break; }
+      case "ap-send-cancel": { S.ui.showApSendPicker = false; render(); break; }
+      case "ap-send-confirm": {
+        const entry = getCurrentReportEntry();
+        if (!entry) break;
+        const sel = document.getElementById("ap-send-path");
+        const pathId = sel ? sel.value : "";
+        if (!pathId) { alert("اختاري الجهة اللي يُرسل لها التقرير."); break; }
+        const notes = ((document.getElementById("ap-send-notes") || {}).value || "").trim();
+        if (!apSendReport(S.currentUnitId, entry, pathId, notes)) break;
+        S.ui.showApSendPicker = false;
+        render();
+        break;
+      }
+      case "ap-advance":
+      case "ap-return": {
+        const isReturn = ds.action === "ap-return";
+        const key = ds.unitId + ":" + ds.reportId;
+        const notes = ((document.getElementById("cp-notes-" + key) || {}).value || "").trim();
+        const secNotes = {};
+        SECTIONS.forEach((sc) => { const el = document.getElementById("cp-sec-" + key + "-" + sc.id); if (el && el.value.trim()) secNotes[sc.id] = el.value.trim(); });
+        const typeEl = document.getElementById("cp-rtype-" + key);
+        const err = apAdvanceOrReturn(ds.unitId, ds.reportId, isReturn, notes, { sectionNotes: secNotes, type: typeEl ? typeEl.value : "returned" });
+        if (err) { alert(err); break; }
+        if (S.ui.apDraft) delete S.ui.apDraft[key];
+        if (S.view === "full-report") S.view = "custom-path-inbox";
+        render();
+        break;
+      }
+      case "ap-open-edit": {
+        const entry = getReportEntry(ds.unitId, ds.reportId);
+        const ref = entry && apRefOf(entry.customStageId);
+        const path = ref && apPathById(ref.pathId);
+        const st = path && apStageList(path).find((x) => x.key === entry.customStageId);
+        if (!st || !st.canEdit || !userHoldsApStage(st)) break;
+        S.currentUnitId = ds.unitId; S.currentReportId = ds.reportId; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
+        render();
+        break;
+      }
+      case "rt-new": S.ui.rtEdit = { id: null, draft: { label: "", statuses: [], adminStatuses: [], special: "", mode: "", enabled: true } }; S.ui.rtError = ""; S.ui.rtMsg = ""; render(); break;
+      case "rt-edit": { const t = reportTabsList().find((x) => x.id === ds.id); if (!t) break; S.ui.rtEdit = { id: t.id, draft: { ...t, statuses: [...(t.statuses || [])], adminStatuses: [...(t.adminStatuses || [])] } }; S.ui.rtError = ""; S.ui.rtMsg = ""; render(); break; }
+      case "rt-cancel": S.ui.rtEdit = null; S.ui.rtError = ""; render(); break;
+      case "rt-toggle-status": { rtCapture(); const d = S.ui.rtEdit && S.ui.rtEdit.draft; if (!d) break; const i = d.statuses.indexOf(ds.id); if (i >= 0) d.statuses.splice(i, 1); else d.statuses.push(ds.id); render(); break; }
+      case "rt-save": {
+        rtCapture();
+        const ed = S.ui.rtEdit; if (!ed) break;
+        const d = ed.draft;
+        if (!String(d.label || "").trim()) { S.ui.rtError = "اكتبي اسم الزر"; render(); break; }
+        if (!d.special && !(d.statuses || []).length) { S.ui.rtError = "اختاري حالة واحدة على الأقل يعرضها الزر"; render(); break; }
+        const list = rtMaterialize();
+        const clean = { ...d, label: d.label.trim() };
+        if (ed.id) { const i = list.findIndex((x) => x.id === ed.id); if (i >= 0) list[i] = { ...list[i], ...clean }; }
+        else list.push({ ...clean, id: "tab_" + uid("t").replace(/[^a-zA-Z0-9_]/g, ""), createdAt: Date.now() });
+        rtSave(list);
+        addPermLog("report-tab", ed.id || "new", clean.label, ed.id ? "تعديل زر في صفحة التقارير" : "إضافة زر في صفحة التقارير");
+        S.ui.rtEdit = null; S.ui.rtError = ""; S.ui.rtMsg = "تم الحفظ"; render(); break;
+      }
+      case "rt-move": { const list = rtMaterialize(); const i = Number(ds.idx), j = ds.dir === "up" ? i - 1 : i + 1; if (j < 0 || j >= list.length) break; [list[i], list[j]] = [list[j], list[i]]; rtSave(list); S.ui.rtMsg = ""; render(); break; }
+      case "rt-toggle-enabled": { const list = rtMaterialize(); const t = list.find((x) => x.id === ds.id); if (!t) break; t.enabled = t.enabled === false; rtSave(list); addPermLog("report-tab", t.id, t.label, t.enabled ? "تفعيل زر" : "تعطيل زر"); S.ui.rtMsg = ""; render(); break; }
+      case "rt-delete-ask": S.ui.rtDeleteId = ds.id; render(); break;
+      case "rt-delete-cancel": S.ui.rtDeleteId = null; render(); break;
+      case "rt-delete": { const list = rtMaterialize(); const t = list.find((x) => x.id === ds.id); rtSave(list.filter((x) => x.id !== ds.id)); if (t) addPermLog("report-tab", t.id, t.label, "حذف زر من صفحة التقارير"); S.ui.rtDeleteId = null; S.ui.rtMsg = list.length <= 1 ? "حذفتِ كل الأزرار، فرجعت القائمة الافتراضية" : "تم الحذف"; render(); break; }
       case "start-send-report": {
+        if (!platformActionAllowed("start-send-report")) break;
         S.ui.showSendPicker = true;
         S.ui.sendReportRecipientId = "";
         render();
@@ -4991,6 +10083,7 @@ function attachClickListener() {
         break;
       }
       case "confirm-send-report": {
+        if (!platformActionAllowed("start-send-report")) break;
         const entry = getCurrentReportEntry();
         if (!entry) break;
         const unit = S.units.find((u) => u.id === S.currentUnitId);
@@ -5029,15 +10122,30 @@ function attachClickListener() {
         break;
       }
       case "toggle-review-checklist": {
+        // ds.field اختياري (يدعم أي حقل نوعه "checklist" مستقبلًا) — بدونه يفترض
+        // "checklist" افتراضيًا، نفس الاسم القديم قبل التعميم لحقل schema عام.
+        const fieldId = ds.field || "checklist";
         const key = ds.key;
-        const current = S.sectionDraft.checklist || {};
-        S.sectionDraft.checklist = { ...current, [key]: !current[key] };
+        const current = S.sectionDraft[fieldId] || {};
+        S.sectionDraft[fieldId] = { ...current, [key]: !current[key] };
         render();
         break;
       }
       case "toggle-dept-curation": {
-        const dept = S.departments.find((d) => d.id === S.currentDepartmentId);
+        const dept = S.departments.find((d) => d.id === (ds.dept || S.currentDepartmentId));
         if (dept) toggleDeptCuration(dept, ds.key);
+        render();
+        break;
+      }
+      case "toggle-office-curation": {
+        const office = (S.offices || []).find((o) => o.id === (ds.office || S.currentOfficeId));
+        if (office) toggleOfficeCuration(office, ds.key);
+        render();
+        break;
+      }
+      case "office-archive-nav": {
+        S.ui.officeArchiveYear = ds.year || null;
+        S.ui.officeArchivePeriod = ds.period || null;
         render();
         break;
       }
@@ -5054,15 +10162,173 @@ function attachClickListener() {
       }
 
       /* ---------- departments management ---------- */
+      /* ---------- نقطة الإضافة الموحدة (إدارة عليا/مديرة نظام/مكتب/قسم/وحدة/مركز) ---------- */
+      case "start-add-entity": S.ui.addEntityStep = "choose"; render(); break;
+      case "cancel-add-entity": S.ui.addEntityStep = null; render(); break;
+      case "choose-add-entity-type": {
+        S.ui.addEntityStep = ds.type;
+        const typeInfo = ADD_ENTITY_TYPES.find((t) => t.key === ds.type);
+        if (typeInfo) {
+          S.ui.usersSectionState = { ...(S.ui.usersSectionState || {}), [typeInfo.sectionKey]: true };
+        }
+        render();
+        break;
+      }
+
+      case "struct-set-base-role": {
+        // اختيار متعدد: الضغط على دور يضيفه/يزيله من القائمة، و«بلا دور» تفرّغها.
+        const holder0 = ds.kind === "department" ? (S.departments || []).find((d) => d.id === ds.id) : ds.kind === "office" ? (S.offices || []).find((o) => o.id === ds.id) : (S.units || []).find((u) => u.id === ds.id);
+        let rid = "";
+        if (ds.role) {
+          const cur = baseRoleIdsRaw(holder0);
+          const i = cur.indexOf(ds.role);
+          if (i === -1) cur.push(ds.role); else cur.splice(i, 1);
+          rid = cur.join(",");
+        }
+        if (ds.kind === "department") { S.departments = S.departments.map((d) => d.id === ds.id ? { ...d, baseRoleId: rid } : d); dataStore.saveDepartments(S.departments); }
+        else if (ds.kind === "office") { S.offices = S.offices.map((o) => o.id === ds.id ? { ...o, baseRoleId: rid } : o); dataStore.saveOffices(S.offices); }
+        else { S.units = S.units.map((u) => u.id === ds.id ? { ...u, baseRoleId: rid } : u); dataStore.saveUnits(S.units); }
+        render(); break;
+      }
+      case "struct-menu": S.ui.structMenu = S.ui.structMenu === ds.key ? null : ds.key; render(); break;
+      case "struct-person-menu": S.ui.structPersonMenu = S.ui.structPersonMenu === ds.id ? null : ds.id; S.ui.personConfirmDeleteId = null; render(); break;
+      case "struct-person-add-open": S.ui.structPersonAdd = ds.key; S.ui.structPersonError = null; render(); break;
+      case "struct-person-add-cancel": S.ui.structPersonAdd = null; S.ui.structPersonError = null; render(); break;
+      case "struct-people-filter": S.ui.structPeopleFilter = ds.f; render(); break;
+      case "struct-open-entity": S.ui.structSel = ds.key; S.ui.structSection = "struct"; render(); break;
+      case "struct-copy-open": S.ui.structCopy = { key: ds.key, from: "" }; render(); break;
+      case "struct-copy-cancel": S.ui.structCopy = null; render(); break;
+      case "struct-copy-confirm": {
+        const c = S.ui.structCopy; if (!c || !c.from) break;
+        const [type, ...rest] = String(ds.key).split(":"); const toId = rest.join(":");
+        const from = treeEntity(type, c.from); if (!from) break;
+        const kind = STRUCT_OWNER_KIND[type];
+        const patch = { baseRoleId: from.baseRoleId || "" };
+        if (kind === "department") { S.departments = S.departments.map((d) => d.id === toId ? { ...d, ...patch } : d); dataStore.saveDepartments(S.departments); }
+        else if (kind === "office") { S.offices = S.offices.map((o) => o.id === toId ? { ...o, ...patch } : o); dataStore.saveOffices(S.offices); }
+        else { S.units = S.units.map((u) => u.id === toId ? { ...u, ...patch } : u); dataStore.saveUnits(S.units); }
+        const clones = approvalPathsList().filter((a) => a.ownerKind === type && a.ownerId === c.from).map((a) => ({ ...JSON.parse(JSON.stringify(a)), id: uid("apath"), ownerId: toId, status: "draft", createdAt: Date.now(), activatedAt: null, stages: (a.stages || []).map((st) => ({ ...st, id: uid("stg") })) }));
+        if (clones.length) { S.approvalPaths = [...approvalPathsList(), ...clones]; dataStore.saveApprovalPaths(S.approvalPaths); }
+        addPermLog("copy-config", toId, apOwnerName(type, toId), `نسخ إعداد من «${from.name}»: الدور الأساسي + ${clones.length} مسار (مسودات)`);
+        S.ui.structCopy = null; render(); break;
+      }
+      case "struct-select": S.ui.structSel = ds.key; S.ui.rolePermEditId = null; S.ui.personPermEditId = null; S.ui.rolePermForm = null; S.ui.apEdit = null; render(); break;
+      case "struct-section": {
+        S.ui.structSection = ds.section;
+        S.ui.apEdit = null; S.ui.rolePermEditId = null; S.ui.personPermEditId = null; S.ui.rolePermForm = null;
+        if (ds.section === "roles") {
+          S.roles = dataStore.getRoles(); S.persons = dataStore.getPersons();
+          if (sheetsConfigured()) Promise.all([refreshRolesPersonsFromSheet(), refreshPermLogFromSheet()]).then(() => { if (S.ui.structSection === "roles") render(); });
+        }
+        if (ds.section === "paths") {
+          S.roles = dataStore.getRoles(); S.persons = dataStore.getPersons(); S.approvalPaths = dataStore.getApprovalPaths();
+          if (sheetsConfigured()) Promise.all([refreshRolesPersonsFromSheet(), refreshApprovalPathsFromSheet()]).then(() => { if (S.ui.structSection === "paths") render(); });
+        }
+        render(); break;
+      }
+      case "struct-ap-new": S.ui.apEdit = { id: null, error: "", draft: { name: "", ownerKind: ds.kind, ownerId: ds.id, periodType: "", authorRoleId: "", stages: [] } }; S.ui.apMsg = null; render(); break;
+      case "tree-add-start": S.ui.treeAddFor = { type: ds.type, id: ds.id }; S.ui.treeEditFor = null; S.ui.treeAddKind = null; render(); break;
+      case "tree-add-cancel": S.ui.treeAddFor = null; render(); break;
+      case "tree-add-kind": S.ui.treeAddKind = ds.kind; render(); break;
+      case "tree-toggle": { const c = { ...(S.ui.treeCollapsed || {}) }; c[ds.key] = !c[ds.key]; S.ui.treeCollapsed = c; render(); break; }
+      case "tree-edit-start": S.ui.treeEditFor = { type: ds.type, id: ds.id }; S.ui.treeAddFor = null; render(); break;
+      case "tree-edit-cancel": S.ui.treeEditFor = null; render(); break;
+      case "tree-edit-save": {
+        const nm = (document.getElementById("tree-edit-name").value || "").trim();
+        const em = (document.getElementById("tree-edit-email").value || "").trim();
+        const pw = (document.getElementById("tree-edit-password").value || "").trim();
+        if (!nm) break;
+        const patch = { name: nm, email: em }; if (pw) patch.password = pw;
+        treeSetEntity(ds.type, ds.id, patch);
+        S.ui.treeEditFor = null; render();
+        break;
+      }
+      case "tree-confirm-delete": S.ui.treeConfirmDel = { type: ds.type, id: ds.id }; render(); break;
+      case "tree-cancel-delete": S.ui.treeConfirmDel = null; render(); break;
+      case "tree-delete": {
+        if (ds.type === "office") {
+          S.offices = (S.offices || []).filter((o) => o.id !== ds.id).map((o) => o.parentOfficeId === ds.id ? { ...o, parentOfficeId: "" } : o);
+          S.departments = S.departments.map((d) => d.officeId === ds.id ? { ...d, officeId: "" } : d);
+          dataStore.saveOffices(S.offices); dataStore.saveDepartments(S.departments);
+        } else if (ds.type === "dept") {
+          S.departments = S.departments.filter((d) => d.id !== ds.id);
+          S.units = S.units.map((u) => u.departmentId === ds.id ? { ...u, departmentId: "" } : u);
+          dataStore.saveDepartments(S.departments); dataStore.saveUnits(S.units);
+        } else {
+          S.units = S.units.filter((u) => u.id !== ds.id); delete S.reports[ds.id];
+          dataStore.saveUnits(S.units); dataStore.deleteReports(ds.id);
+        }
+        S.ui.treeConfirmDel = null; render();
+        break;
+      }
+      case "tree-add-root": S.ui.treeAddRoot = ds.type; render(); break;
+      case "tree-root-cancel": S.ui.treeAddRoot = null; render(); break;
+      case "tree-root-save": {
+        const nm = (document.getElementById("tree-root-name").value || "").trim();
+        if (!nm) break;
+        const perms0 = resolveJobTitleForEntity(nm);
+        const base = { password: (document.getElementById("tree-root-password").value || "").trim(), email: (document.getElementById("tree-root-email").value || "").trim(), status: "active", createdAt: Date.now(), allowedPages: perms0.allowedPages, allowedActions: perms0.allowedActions, name: nm };
+        if (ds.type === "exec") { S.units = [...S.units, { ...base, id: uid("exec"), role: "executive", departmentId: "" }]; dataStore.saveUnits(S.units); }
+        else if (ds.type === "dept") { S.departments = [...S.departments, { ...base, id: uid("dept"), officeId: "" }]; dataStore.saveDepartments(S.departments); }
+        else { S.offices = [...(S.offices || []), { ...base, id: uid("office"), parentOfficeId: "" }]; dataStore.saveOffices(S.offices); }
+        S.ui.treeAddRoot = null; render();
+        break;
+      }
+      case "tree-add-save": {
+        const f = S.ui.treeAddFor; const el = document.getElementById("tree-add-name");
+        const name = el ? (el.value || "").trim() : "";
+        if (!f || !name) break;
+        const perms1 = resolveJobTitleForEntity(name);
+        const base = { password: (document.getElementById("tree-add-password").value || "").trim(), email: (document.getElementById("tree-add-email").value || "").trim(), status: "active", createdAt: Date.now(), allowedPages: perms1.allowedPages, allowedActions: perms1.allowedActions };
+        if (f.type === "exec" && ds.kind === "child-office") {
+          S.offices = [...(S.offices || []), { ...base, id: uid("office"), name, parentOfficeId: f.id }];
+          dataStore.saveOffices(S.offices);
+        } else if (f.type === "office" && ds.kind === "parent-exec") {
+          const eid = uid("exec");
+          S.units = [...S.units, { ...base, id: eid, name, role: "executive", departmentId: "" }];
+          S.offices = (S.offices || []).map((o) => o.id === f.id ? { ...o, parentOfficeId: eid } : o);
+          dataStore.saveUnits(S.units); dataStore.saveOffices(S.offices);
+        } else if (f.type === "office" && ds.kind === "child") {
+          S.departments = [...S.departments, { ...base, id: uid("dept"), name, officeId: f.id }];
+          dataStore.saveDepartments(S.departments);
+        } else if (f.type === "office" && ds.kind === "child-office") {
+          S.offices = [...(S.offices || []), { ...base, id: uid("office"), name, parentOfficeId: f.id }];
+          dataStore.saveOffices(S.offices);
+        } else if (f.type === "office" && ds.kind === "parent") {
+          const o0 = (S.offices || []).find((o) => o.id === f.id);
+          const oid = uid("office");
+          S.offices = [...(S.offices || []).map((o) => o.id === f.id ? { ...o, parentOfficeId: oid } : o), { ...base, id: oid, name, parentOfficeId: o0 ? (o0.parentOfficeId || "") : "" }];
+          dataStore.saveOffices(S.offices);
+        } else if (f.type === "dept" && ds.kind === "child") {
+          S.units = [...S.units, { ...base, id: uid("unit"), name, role: "unit", departmentId: f.id }];
+          dataStore.saveUnits(S.units);
+        } else if (f.type === "dept" && ds.kind === "parent") {
+          const oid = uid("office");
+          S.offices = [...(S.offices || []), { ...base, id: oid, name, parentOfficeId: "" }];
+          S.departments = S.departments.map((d) => d.id === f.id ? { ...d, officeId: oid } : d);
+          dataStore.saveOffices(S.offices); dataStore.saveDepartments(S.departments);
+        } else if (f.type === "unit" && ds.kind === "parent") {
+          const u0 = S.units.find((u) => u.id === f.id);
+          const old = u0 && S.departments.find((d) => d.id === u0.departmentId);
+          const did = uid("dept");
+          S.departments = [...S.departments, { ...base, id: did, name, officeId: old ? (old.officeId || "") : "" }];
+          S.units = S.units.map((u) => u.id === f.id ? { ...u, departmentId: did } : u);
+          dataStore.saveDepartments(S.departments); dataStore.saveUnits(S.units);
+        }
+        S.ui.treeAddFor = null; render();
+        break;
+      }
       case "add-department": {
         const nameEl = document.getElementById("new-dept-name");
         const name = (nameEl.value || "").trim();
         const password = (document.getElementById("new-dept-password").value || "").trim();
         const email = (document.getElementById("new-dept-email").value || "").trim();
+        const jobTitle = (document.getElementById("new-dept-jobtitle").value || "").trim();
         if (!name) break;
-        S.departments = [...S.departments, { id: uid("dept"), name, password, email, status: "active", createdAt: Date.now() }];
+        const perms = resolveJobTitleForEntity(jobTitle);
+        S.departments = [...S.departments, { id: uid("dept"), name, password, email, status: "active", createdAt: Date.now(), allowedPages: perms.allowedPages, allowedActions: perms.allowedActions }];
         dataStore.saveDepartments(S.departments);
-        S.ui.newDeptName = ""; S.ui.newDeptPassword = ""; S.ui.newDeptEmail = "";
+        S.ui.newDeptName = ""; S.ui.newDeptPassword = ""; S.ui.newDeptEmail = ""; S.ui.addEntityStep = null;
         render();
         break;
       }
@@ -5104,10 +10370,14 @@ function attachClickListener() {
       case "add-office": {
         const nameEl = document.getElementById("new-office-name");
         const name = (nameEl.value || "").trim();
+        const password = (document.getElementById("new-office-password").value || "").trim();
+        const email = (document.getElementById("new-office-email").value || "").trim();
+        const jobTitle = (document.getElementById("new-office-jobtitle").value || "").trim();
         if (!name) break;
-        S.offices = [...(S.offices || []), { id: uid("office"), name, password: "", status: "active", createdAt: Date.now() }];
+        const perms = resolveJobTitleForEntity(jobTitle);
+        S.offices = [...(S.offices || []), { id: uid("office"), name, password, email, status: "active", createdAt: Date.now(), allowedPages: perms.allowedPages, allowedActions: perms.allowedActions }];
         dataStore.saveOffices(S.offices);
-        S.ui.newOfficeName = "";
+        S.ui.newOfficeName = ""; S.ui.newOfficePassword = ""; S.ui.newOfficeEmail = ""; S.ui.addEntityStep = null;
         render();
         break;
       }
@@ -5151,10 +10421,12 @@ function attachClickListener() {
         const password = (document.getElementById("new-unit-password").value || "").trim();
         const email = (document.getElementById("new-unit-email").value || "").trim();
         const deptId = document.getElementById("new-unit-dept").value;
+        const jobTitle = (document.getElementById("new-unit-jobtitle").value || "").trim();
         if (!name) break;
-        S.units = [...S.units, { id: uid("unit"), name, password, email, role: "unit", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
+        const perms = resolveJobTitleForEntity(jobTitle);
+        S.units = [...S.units, { id: uid("unit"), name, password, email, role: "unit", status: "active", departmentId: deptId || "", createdAt: Date.now(), allowedPages: perms.allowedPages, allowedActions: perms.allowedActions }];
         dataStore.saveUnits(S.units);
-        S.ui.newUnitName = ""; S.ui.newUnitPassword = ""; S.ui.newUnitEmail = ""; S.ui.newUnitDept = "";
+        S.ui.newUnitName = ""; S.ui.newUnitPassword = ""; S.ui.newUnitEmail = ""; S.ui.newUnitDept = ""; S.ui.addEntityStep = null;
         render();
         break;
       }
@@ -5163,20 +10435,25 @@ function attachClickListener() {
         const password = (document.getElementById("new-center-password").value || "").trim();
         const email = (document.getElementById("new-center-email").value || "").trim();
         const deptId = document.getElementById("new-center-dept").value;
+        const jobTitle = (document.getElementById("new-center-jobtitle").value || "").trim();
         if (!name) break;
-        S.units = [...S.units, { id: uid("center"), name, password, email, role: "center", status: "active", departmentId: deptId || "", createdAt: Date.now() }];
+        const perms = resolveJobTitleForEntity(jobTitle);
+        S.units = [...S.units, { id: uid("center"), name, password, email, role: "center", status: "active", departmentId: deptId || "", createdAt: Date.now(), allowedPages: perms.allowedPages, allowedActions: perms.allowedActions }];
         dataStore.saveUnits(S.units);
-        S.ui.newCenterName = ""; S.ui.newCenterPassword = ""; S.ui.newCenterEmail = ""; S.ui.newCenterDept = "";
+        S.ui.newCenterName = ""; S.ui.newCenterPassword = ""; S.ui.newCenterEmail = ""; S.ui.newCenterDept = ""; S.ui.addEntityStep = null;
         render();
         break;
       }
       case "add-executive": {
         const name = (document.getElementById("new-executive-name").value || "").trim();
         const password = (document.getElementById("new-executive-password").value || "").trim();
+        const email = (document.getElementById("new-executive-email").value || "").trim();
+        const jobTitle = (document.getElementById("new-executive-jobtitle").value || "").trim();
         if (!name) break;
-        S.units = [...S.units, { id: uid("exec"), name, password, role: "executive", status: "active", departmentId: "", createdAt: Date.now() }];
+        const perms = resolveJobTitleForEntity(jobTitle);
+        S.units = [...S.units, { id: uid("exec"), name, password, email, role: "executive", status: "active", departmentId: "", createdAt: Date.now(), allowedPages: perms.allowedPages, allowedActions: perms.allowedActions }];
         dataStore.saveUnits(S.units);
-        S.ui.newExecutiveName = ""; S.ui.newExecutivePassword = "";
+        S.ui.newExecutiveName = ""; S.ui.newExecutivePassword = ""; S.ui.newExecutiveEmail = ""; S.ui.addEntityStep = null;
         render();
         break;
       }
@@ -5184,10 +10461,12 @@ function attachClickListener() {
         const name = (document.getElementById("new-sysadmin-name").value || "").trim();
         const password = (document.getElementById("new-sysadmin-password").value || "").trim();
         const email = (document.getElementById("new-sysadmin-email").value || "").trim();
+        const jobTitle = (document.getElementById("new-sysadmin-jobtitle").value || "").trim();
         if (!name) break;
-        S.units = [...S.units, { id: uid("admin"), name, password, email, role: "admin", status: "active", departmentId: "", createdAt: Date.now() }];
+        const perms = resolveJobTitleForEntity(jobTitle);
+        S.units = [...S.units, { id: uid("admin"), name, password, email, role: "admin", status: "active", departmentId: "", createdAt: Date.now(), allowedPages: perms.allowedPages, allowedActions: perms.allowedActions }];
         dataStore.saveUnits(S.units);
-        S.ui.newSysadminName = ""; S.ui.newSysadminPassword = ""; S.ui.newSysadminEmail = "";
+        S.ui.newSysadminName = ""; S.ui.newSysadminPassword = ""; S.ui.newSysadminEmail = ""; S.ui.addEntityStep = null;
         render();
         break;
       }
@@ -5205,6 +10484,43 @@ function attachClickListener() {
         const val = document.getElementById("edit-unit-password").value.trim();
         if (val) { S.units = S.units.map((u) => u.id === ds.id ? { ...u, password: val } : u); dataStore.saveUnits(S.units); }
         S.ui.editingUnitPasswordId = null; render();
+        break;
+      }
+      case "start-unit-approval-edit": {
+        const unit = S.units.find((u) => u.id === ds.id);
+        if (!unit) break;
+        S.ui.editingUnitApprovalId = unit.id;
+        S.ui.editUnitHasHead = unitHasHead(unit);
+        S.ui.editUnitExtraReviewerTitle = unit.extraReviewerTitle || "";
+        S.ui.editUnitPathMode = (unit.approvalPath && unit.approvalPath.length) ? "custom" : "legacy";
+        S.ui.editUnitPathStages = unit.approvalPath && unit.approvalPath.length ? unit.approvalPath.map((s) => ({ ...s })) : [];
+        // قائمة القوالب تُستخدم بمنتقي كل مرحلة — نحمّلها لو ما كانت محمّلة أصلًا.
+        S.jobTitleTemplates = (S.jobTitleTemplates && S.jobTitleTemplates.length) ? S.jobTitleTemplates : dataStore.getJobTitleTemplates();
+        render();
+        break;
+      }
+      case "cancel-unit-approval-edit": {
+        S.ui.editingUnitApprovalId = null; S.ui.editUnitHasHead = undefined; S.ui.editUnitExtraReviewerTitle = undefined;
+        S.ui.editUnitPathMode = undefined; S.ui.editUnitPathStages = undefined;
+        render();
+        break;
+      }
+      case "set-unit-approval-hashead": {
+        const extraEl = document.getElementById("edit-unit-extra-reviewer");
+        if (extraEl) S.ui.editUnitExtraReviewerTitle = extraEl.value;
+        S.ui.editUnitHasHead = ds.value === "true";
+        render();
+        break;
+      }
+      case "save-unit-approval-edit": {
+        const extraEl = document.getElementById("edit-unit-extra-reviewer");
+        const extraVal = extraEl ? extraEl.value.trim() : (S.ui.editUnitExtraReviewerTitle || "");
+        const hasHeadVal = !!S.ui.editUnitHasHead;
+        S.units = S.units.map((u) => u.id === ds.id ? { ...u, hasHead: hasHeadVal, extraReviewerTitle: extraVal, approvalPath: [] } : u);
+        dataStore.saveUnits(S.units);
+        S.ui.editingUnitApprovalId = null; S.ui.editUnitHasHead = undefined; S.ui.editUnitExtraReviewerTitle = undefined;
+        S.ui.editUnitPathMode = undefined; S.ui.editUnitPathStages = undefined;
+        render();
         break;
       }
       case "start-unit-email": S.ui.editingUnitEmailId = ds.id; S.ui.editUnitEmailValue = ds.email || ""; render(); break;
@@ -5228,6 +10544,319 @@ function attachClickListener() {
         delete S.reports[ds.id];
         dataStore.saveUnits(S.units); dataStore.deleteReports(ds.id);
         S.ui.confirmDeleteUnitId = null; render();
+        break;
+      }
+
+      /* ---------- حسابات إضافية (platform_users) ---------- */
+      case "set-pu-logintype": {
+        capturePlatformUserFormFields(ds.prefix);
+        if (ds.prefix === "new-pu") S.ui.newPuLoginType = ds.value;
+        else { S.ui.editPuForm = S.ui.editPuForm || {}; S.ui.editPuForm.loginType = ds.value; }
+        render();
+        break;
+      }
+      case "toggle-new-pu-page": {
+        capturePlatformUserFormFields("new-pu");
+        const arr = S.ui.newPuAllowedPages || (S.ui.newPuAllowedPages = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-edit-pu-page": {
+        capturePlatformUserFormFields("edit-pu");
+        S.ui.editPuForm = S.ui.editPuForm || {};
+        const arr = S.ui.editPuForm.allowedPages || (S.ui.editPuForm.allowedPages = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-new-pu-action": {
+        capturePlatformUserFormFields("new-pu");
+        const arr = S.ui.newPuAllowedActions || (S.ui.newPuAllowedActions = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-edit-pu-action": {
+        capturePlatformUserFormFields("edit-pu");
+        S.ui.editPuForm = S.ui.editPuForm || {};
+        const arr = S.ui.editPuForm.allowedActions || (S.ui.editPuForm.allowedActions = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-new-template-page": {
+        captureJobTitleTemplateFormFields("new-template");
+        const arr = S.ui.newTemplateAllowedPages || (S.ui.newTemplateAllowedPages = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-edit-template-page": {
+        captureJobTitleTemplateFormFields("edit-template");
+        S.ui.editTemplateForm = S.ui.editTemplateForm || {};
+        const arr = S.ui.editTemplateForm.allowedPages || (S.ui.editTemplateForm.allowedPages = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-new-template-action": {
+        captureJobTitleTemplateFormFields("new-template");
+        const arr = S.ui.newTemplateAllowedActions || (S.ui.newTemplateAllowedActions = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-edit-template-action": {
+        captureJobTitleTemplateFormFields("edit-template");
+        S.ui.editTemplateForm = S.ui.editTemplateForm || {};
+        const arr = S.ui.editTemplateForm.allowedActions || (S.ui.editTemplateForm.allowedActions = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "add-job-title-template": {
+        captureJobTitleTemplateFormFields("new-template");
+        const name = (S.ui.newTemplateName || "").trim();
+        if (!name) { S.ui.templateFormError = "الرجاء كتابة اسم المسمى الوظيفي."; render(); break; }
+        const list = [...(S.jobTitleTemplates || []), {
+          id: uid("tpl"), name, parentId: S.ui.newTemplateParentId || "", allowedPages: S.ui.newTemplateAllowedPages || [], allowedActions: S.ui.newTemplateAllowedActions || [],
+          reportTabs: ((S.ui.newTemplateReportTabs || []).length || (S.ui.newTemplateReportNotify || []).length) ? { tabs: [...(S.ui.newTemplateReportTabs || [])], notify: [...(S.ui.newTemplateReportNotify || [])] } : null,
+          status: "active", createdAt: Date.now(),
+        }];
+        S.jobTitleTemplates = list;
+        dataStore.saveJobTitleTemplates(list);
+        S.ui.newTemplateName = ""; S.ui.newTemplateParentId = ""; S.ui.newTemplateReportTabs = []; S.ui.newTemplateReportNotify = []; S.ui.newTemplateAllowedPages = []; S.ui.newTemplateAllowedActions = []; S.ui.templateFormError = "";
+        render();
+        break;
+      }
+      case "start-job-title-template-edit": {
+        const t = (S.jobTitleTemplates || []).find((x) => x.id === ds.id);
+        if (!t) break;
+        S.ui.editingTemplateId = t.id;
+        S.ui.editTemplateForm = { name: t.name, parentId: t.parentId || "", reportTabs: [...((t.reportTabs && t.reportTabs.tabs) || [])], reportNotify: [...((t.reportTabs && t.reportTabs.notify) || [])], allowedPages: [...(t.allowedPages || [])], allowedActions: [...(t.allowedActions || [])] };
+        S.ui.templateFormError = "";
+        render();
+        break;
+      }
+      case "cancel-job-title-template-edit": S.ui.editingTemplateId = null; S.ui.editTemplateForm = null; S.ui.templateFormError = ""; render(); break;
+      case "save-job-title-template-edit": {
+        captureJobTitleTemplateFormFields("edit-template");
+        const editForm = S.ui.editTemplateForm || {};
+        const name = (editForm.name || "").trim();
+        if (!name) { S.ui.templateFormError = "الرجاء كتابة اسم المسمى الوظيفي."; render(); break; }
+        let parentId = editForm.parentId || "";
+        if (parentId && (parentId === ds.id || jobTitleTemplateDescendantIds(ds.id).has(parentId))) {
+          // حماية إضافية من حلقة (القائمة بالواجهة مستبعدة أصلًا، لكن نحتاط هنا برضه)
+          parentId = "";
+        }
+        S.jobTitleTemplates = (S.jobTitleTemplates || []).map((x) => x.id === ds.id ? {
+          ...x, name, parentId, allowedPages: editForm.allowedPages || [], allowedActions: editForm.allowedActions || [],
+          reportTabs: ((editForm.reportTabs || []).length || (editForm.reportNotify || []).length) ? { tabs: editForm.reportTabs || [], notify: editForm.reportNotify || [] } : null,
+        } : x);
+        dataStore.saveJobTitleTemplates(S.jobTitleTemplates);
+        S.ui.editingTemplateId = null; S.ui.editTemplateForm = null; S.ui.templateFormError = "";
+        render();
+        break;
+      }
+      case "confirm-remove-job-title-template": S.ui.confirmRemoveTemplateId = ds.id; render(); break;
+      case "cancel-remove-job-title-template": S.ui.confirmRemoveTemplateId = null; render(); break;
+      case "delete-job-title-template": {
+        S.jobTitleTemplates = (S.jobTitleTemplates || [])
+          .filter((x) => x.id !== ds.id)
+          // أي مسمى كان يتفرع من القالب المحذوف يصير مستقلًا بدل ما يشير لقالب غير موجود
+          .map((x) => x.parentId === ds.id ? { ...x, parentId: "" } : x);
+        dataStore.saveJobTitleTemplates(S.jobTitleTemplates);
+        // أي حساب كان مربوطًا بهذا القالب يرجع فورًا بلا صلاحيات صفحات/إجراءات
+        // (مصفوفات فاضية) بدل ما يختفي أو يتعطّل — نفس سلوك حساب جديد بلا قالب.
+        S.platformUsers = (S.platformUsers || []).map((x) => x.templateId === ds.id ? { ...x, templateId: "" } : x);
+        dataStore.savePlatformUsers(S.platformUsers);
+        S.ui.confirmRemoveTemplateId = null;
+        render();
+        break;
+      }
+      // فتح/قفل القائمة المنسدلة لصلاحيات الصفحات/الإجراءات — حالة عرض بحتة.
+      // نلتقط حقول نموذج "حساب إضافي" أولًا (لو كانت هذي القائمة تابعة له)، لأن
+      // render() بعدها يعيد بناء كل النموذج من S.ui، وبدون الالتقاط تنمسح القيم
+      // المكتوبة بالحقول اللي ما لها معالج خاص (مثل اختيار النطاق).
+      case "toggle-perm-dropdown": {
+        if (ds.key === "toggle-new-pu-page" || ds.key === "toggle-new-pu-action") capturePlatformUserFormFields("new-pu");
+        else if (ds.key === "toggle-edit-pu-page" || ds.key === "toggle-edit-pu-action") capturePlatformUserFormFields("edit-pu");
+        else if (ds.key === "toggle-new-template-page" || ds.key === "toggle-new-template-action") captureJobTitleTemplateFormFields("new-template");
+        else if (ds.key === "toggle-edit-template-page" || ds.key === "toggle-edit-template-action") captureJobTitleTemplateFormFields("edit-template");
+        S.ui.permDropdownOpen = S.ui.permDropdownOpen || {};
+        S.ui.permDropdownOpen[ds.key] = !S.ui.permDropdownOpen[ds.key];
+        render();
+        break;
+      }
+      // "تحديد الكل" / "إلغاء الكل" داخل أي قائمة منسدلة صلاحيات (صفحات أو إجراءات)
+      case "select-all-perm": {
+        if (ds.key === "toggle-new-pu-page" || ds.key === "toggle-new-pu-action") capturePlatformUserFormFields("new-pu");
+        else if (ds.key === "toggle-edit-pu-page" || ds.key === "toggle-edit-pu-action") capturePlatformUserFormFields("edit-pu");
+        else if (ds.key === "toggle-new-template-page" || ds.key === "toggle-new-template-action") captureJobTitleTemplateFormFields("new-template");
+        else if (ds.key === "toggle-edit-template-page" || ds.key === "toggle-edit-template-action") captureJobTitleTemplateFormFields("edit-template");
+        const arr = permDropdownTargetArray(ds.key);
+        const isPage = ds.key.indexOf("page") !== -1;
+        const allIds = ds.key.indexOf("button") !== -1 ? BUTTON_CATALOG.map((b) => b.id) : isPage ? SIDEBAR_PAGES.filter((p) => p.group !== "unit-home" && MERGED_DASHBOARD_IDS.indexOf(p.id) === -1).map((p) => p.id) : ACTION_CATALOG.map((a) => a.id);
+        if (ds.mode === "all") {
+          allIds.forEach((id) => { if (arr.indexOf(id) < 0) arr.push(id); });
+        } else {
+          arr.length = 0;
+        }
+        render();
+        break;
+      }
+      // تعديل صلاحيات (صفحات/إجراءات) حساب أساسي (وحدة/مركز/قسم/مكتب) مباشرة
+      // من صفحة "صلاحيات الحسابات" — دمج حقيقي مع نفس نظام الحسابات الإضافية.
+      case "start-bulk-perm": {
+        S.ui.editingAccountPerm = null;
+        S.ui.bulkPerm = { type: ds.type, confirm: false };
+        S.ui.editAccountPermForm = { allowedPages: [], allowedActions: [], reportTabs: [], reportNotify: [] };
+        render();
+        break;
+      }
+      case "bulk-perm-preset": {
+        const b = S.ui.bulkPerm; if (!b) break;
+        S.ui.editAccountPermForm = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+        S.ui.editAccountPermForm.allowedPages = [...(BULK_PERM_PRESETS[b.type] || [])];
+        render();
+        break;
+      }
+      case "confirm-bulk-perm": { if (S.ui.bulkPerm) S.ui.bulkPerm.confirm = true; render(); break; }
+      case "cancel-bulk-perm": { S.ui.bulkPerm = null; S.ui.editAccountPermForm = null; render(); break; }
+      case "apply-bulk-perm": {
+        const b = S.ui.bulkPerm; if (!b) break;
+        const form = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+        const allowedPages = normalizeDashboardPages([...(form.allowedPages || [])]);
+        const allowedActions = [...(form.allowedActions || [])];
+        const reportTabs = (form.reportTabs && form.reportTabs.length) || (form.reportNotify && form.reportNotify.length) ? { tabs: [...(form.reportTabs || [])], notify: [...(form.reportNotify || [])] } : null;
+        const ids = new Set(bulkPermTargets(b.type).map((x) => x.id));
+        if (b.type === "department") {
+          S.departments = S.departments.map((d) => ids.has(d.id) ? { ...d, allowedPages, allowedActions, reportTabs } : d);
+          dataStore.saveDepartments(S.departments);
+        } else if (b.type === "office") {
+          S.offices = S.offices.map((o) => ids.has(o.id) ? { ...o, allowedPages, allowedActions, reportTabs } : o);
+          dataStore.saveOffices(S.offices);
+        } else {
+          S.units = S.units.map((u) => ids.has(u.id) ? { ...u, allowedPages, allowedActions, reportTabs } : u);
+          dataStore.saveUnits(S.units);
+        }
+        S.ui.bulkPerm = null; S.ui.editAccountPermForm = null;
+        render();
+        break;
+      }
+      case "start-account-perm-edit": {
+        const list = collectPermissionAccounts();
+        const rec = list.find((r) => r.kind === ds.kind && r.id === ds.id);
+        if (!rec) break;
+        S.ui.bulkPerm = null;
+        S.ui.editingAccountPerm = { kind: ds.kind, id: ds.id };
+        S.ui.editAccountPermForm = { allowedPages: [...(rec.entity.allowedPages || [])], allowedActions: [...(rec.entity.allowedActions || [])], reportTabs: [...((rec.entity.reportTabs && rec.entity.reportTabs.tabs) || [])], reportNotify: [...((rec.entity.reportTabs && rec.entity.reportTabs.notify) || [])] };
+        render();
+        break;
+      }
+      case "cancel-account-perm-edit": {
+        S.ui.editingAccountPerm = null; S.ui.editAccountPermForm = null;
+        render();
+        break;
+      }
+      case "toggle-account-perm-page": {
+        S.ui.editAccountPermForm = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+        const arr = S.ui.editAccountPermForm.allowedPages || (S.ui.editAccountPermForm.allowedPages = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "toggle-account-perm-action": {
+        S.ui.editAccountPermForm = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+        const arr = S.ui.editAccountPermForm.allowedActions || (S.ui.editAccountPermForm.allowedActions = []);
+        const idx = arr.indexOf(ds.id);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ds.id);
+        render();
+        break;
+      }
+      case "save-account-perm-edit": {
+        const form = S.ui.editAccountPermForm || { allowedPages: [], allowedActions: [] };
+        const allowedPages = form.allowedPages || [];
+        const allowedActions = form.allowedActions || [];
+        const reportTabs = (form.reportTabs && form.reportTabs.length) || (form.reportNotify && form.reportNotify.length) ? { tabs: form.reportTabs || [], notify: form.reportNotify || [] } : null;
+        if (ds.kind === "unit") {
+          S.units = S.units.map((u) => (u.id === ds.id ? { ...u, allowedPages, allowedActions, reportTabs } : u));
+          dataStore.saveUnits(S.units);
+        } else if (ds.kind === "department") {
+          S.departments = S.departments.map((d) => (d.id === ds.id ? { ...d, allowedPages, allowedActions, reportTabs } : d));
+          dataStore.saveDepartments(S.departments);
+        } else if (ds.kind === "office") {
+          S.offices = S.offices.map((o) => (o.id === ds.id ? { ...o, allowedPages, allowedActions, reportTabs } : o));
+          dataStore.saveOffices(S.offices);
+        }
+        S.ui.editingAccountPerm = null; S.ui.editAccountPermForm = null;
+        render();
+        break;
+      }
+      case "add-platform-user": {
+        const form = readPlatformUserFormFromDom("new-pu", S.ui.newPuLoginType, S.ui.newPuAllowedPages, S.ui.newPuAllowedActions);
+        if (!form.jobTitle || !form.loginId || !form.password) { capturePlatformUserFormFields("new-pu"); S.ui.puFormError = "الناقص: " + [!form.jobTitle ? "المسمى الوظيفي" : "", !form.loginId ? "معرّف الدخول" : "", !form.password ? "كلمة المرور" : ""].filter(Boolean).join("، ") + "."; render(); break; }
+        if (["department", "office", "unit"].includes(form.scopeKind) && !form.scopeId) { capturePlatformUserFormFields("new-pu"); S.ui.puFormError = "الرجاء اختيار الجهة المرتبطة بهذا النطاق."; render(); break; }
+        const list = [...(S.platformUsers || []), {
+          id: uid("pu"), jobTitle: form.jobTitle, loginType: form.loginType, loginId: form.loginId, password: form.password,
+          allowedPages: form.allowedPages, allowedActions: form.allowedActions, scopeKind: form.scopeKind, scopeId: form.scopeId,
+          templateId: form.templateId || "", status: "active", createdAt: Date.now(),
+        }];
+        S.platformUsers = list;
+        dataStore.savePlatformUsers(list);
+        S.ui.newPuJobTitle = ""; S.ui.newPuLoginType = "job_title"; S.ui.newPuLoginId = ""; S.ui.newPuPassword = "";
+        S.ui.newPuScopeKind = "none"; S.ui.newPuScopeId = ""; S.ui.newPuTemplateId = ""; S.ui.newPuAllowedPages = []; S.ui.newPuAllowedActions = []; S.ui.puFormError = ""; S.ui.puShowAdd = false;
+        render();
+        break;
+      }
+      case "start-platform-user-edit": {
+        const pu = (S.platformUsers || []).find((x) => x.id === ds.id);
+        if (!pu) break;
+        S.ui.editingPuId = pu.id;
+        S.ui.editPuForm = { jobTitle: pu.jobTitle, loginType: pu.loginType, loginId: pu.loginId, password: pu.password, scopeKind: pu.scopeKind, scopeId: pu.scopeId, templateId: pu.templateId || "", allowedPages: [...(pu.allowedPages || [])], allowedActions: [...(pu.allowedActions || [])] };
+        S.ui.puFormError = "";
+        render();
+        break;
+      }
+      case "toggle-pu-add": S.ui.puShowAdd = !S.ui.puShowAdd; render(); break;
+      case "cancel-platform-user-edit": S.ui.editingPuId = null; S.ui.editPuForm = null; S.ui.puFormError = ""; render(); break;
+      case "save-platform-user-edit": {
+        const editForm = S.ui.editPuForm || {};
+        const form = readPlatformUserFormFromDom("edit-pu", editForm.loginType, editForm.allowedPages, editForm.allowedActions);
+        if (!form.jobTitle || !form.loginId || !form.password) { capturePlatformUserFormFields("edit-pu"); S.ui.puFormError = "الناقص: " + [!form.jobTitle ? "المسمى الوظيفي" : "", !form.loginId ? "معرّف الدخول" : "", !form.password ? "كلمة المرور" : ""].filter(Boolean).join("، ") + "."; render(); break; }
+        if (["department", "office", "unit"].includes(form.scopeKind) && !form.scopeId) { capturePlatformUserFormFields("edit-pu"); S.ui.puFormError = "الرجاء اختيار الجهة المرتبطة بهذا النطاق."; render(); break; }
+        S.platformUsers = (S.platformUsers || []).map((x) => x.id === ds.id ? {
+          ...x, jobTitle: form.jobTitle, loginType: form.loginType, loginId: form.loginId, password: form.password,
+          scopeKind: form.scopeKind, scopeId: form.scopeId, templateId: form.templateId || "", allowedPages: form.allowedPages, allowedActions: form.allowedActions,
+        } : x);
+        dataStore.savePlatformUsers(S.platformUsers);
+        S.ui.editingPuId = null; S.ui.editPuForm = null; S.ui.puFormError = "";
+        render();
+        break;
+      }
+      case "toggle-platform-user": {
+        S.platformUsers = (S.platformUsers || []).map((x) => x.id === ds.id ? { ...x, status: x.status === "active" || !x.status ? "disabled" : "active" } : x);
+        dataStore.savePlatformUsers(S.platformUsers);
+        render();
+        break;
+      }
+      case "confirm-remove-platform-user": S.ui.confirmRemovePuId = ds.id; render(); break;
+      case "cancel-remove-platform-user": S.ui.confirmRemovePuId = null; render(); break;
+      case "delete-platform-user": {
+        S.platformUsers = (S.platformUsers || []).filter((x) => x.id !== ds.id);
+        dataStore.savePlatformUsers(S.platformUsers);
+        S.ui.confirmRemovePuId = null;
+        render();
         break;
       }
 
@@ -5266,6 +10895,7 @@ function attachClickListener() {
         break;
       }
       case "load-sample-data": {
+        S.__adminAllowWrite = true;
         const merged = [...S.indicatorDefinitions];
         SAMPLE_INDICATOR_DEFINITIONS.forEach((def) => { if (!merged.some((d) => d.name === def.name)) merged.push({ id: `ind-sample-${def.name}`, ...def }); });
         S.indicatorDefinitions = merged; dataStore.saveIndicatorDefinitions(merged);
@@ -5277,6 +10907,7 @@ function attachClickListener() {
             indicatorHistory: { ...existing.indicatorHistory, ...buildSampleIndicatorHistory() } };
           saveReportEntry(targetUnit.id, updated);
         }
+        S.__adminAllowWrite = false;
         S.ui.sampleStatus = "تم تحميل البيانات التجريبية ✓";
         render();
         setTimeout(() => { S.ui.sampleStatus = ""; if (S.view === "indicators-manage") render(); }, 2500);
@@ -5339,6 +10970,114 @@ function attachClickListener() {
         dataStore.saveReportSectionDefs(list);
         render(); break;
       }
+
+      /* ---- section field-schema management (الخطوة ٢) ---- */
+      case "select-field-schema-section": {
+        S.ui.fieldSchemaSection = ds.section;
+        S.ui.editingFieldId = null; S.ui.fieldEditDraft = null;
+        render(); break;
+      }
+      case "start-add-field": {
+        S.ui.fieldSchemaSection = ds.section;
+        S.ui.editingFieldId = "__new__";
+        S.ui.fieldEditDraft = { type: "text", label: "", required: false, placeholder: "", optionsText: "", otherLabel: "أخرى" };
+        render(); break;
+      }
+      case "start-edit-field": {
+        const schema = SECTION_FIELD_SCHEMAS[ds.section];
+        const field = schema && schema.fields.find((f) => f.id === ds.id);
+        if (!field || field.type === "computed") break;
+        S.ui.fieldSchemaSection = ds.section;
+        S.ui.editingFieldId = field.id;
+        S.ui.fieldEditDraft = { ...field, optionsText: (field.options || field.baseOptions || []).join("\n") };
+        render(); break;
+      }
+      case "reset-field-draft-colors": {
+        S.ui.fieldEditDraft = S.ui.fieldEditDraft || {};
+        const g2_ = (id) => document.getElementById(id);
+        if (g2_("field-draft-label")) S.ui.fieldEditDraft.label = g2_("field-draft-label").value;
+        if (g2_("field-draft-options")) S.ui.fieldEditDraft.optionsText = g2_("field-draft-options").value;
+        if (g2_("field-draft-placeholder")) S.ui.fieldEditDraft.placeholder = g2_("field-draft-placeholder").value;
+        S.ui.fieldEditDraft.iconColor = ""; S.ui.fieldEditDraft.iconBg = "";
+        render(); break;
+      }
+      case "set-field-draft-icon": {
+        S.ui.fieldEditDraft = S.ui.fieldEditDraft || {};
+        const d_ = S.ui.fieldEditDraft;
+        const g_ = (id) => document.getElementById(id);
+        if (g_("field-draft-label")) d_.label = g_("field-draft-label").value;
+        if (g_("field-draft-options")) d_.optionsText = g_("field-draft-options").value;
+        if (g_("field-draft-placeholder")) d_.placeholder = g_("field-draft-placeholder").value;
+        if (g_("field-draft-other-label")) d_.otherLabel = g_("field-draft-other-label").value;
+        d_.icon = ds.icon;
+        render(); break;
+      }
+      case "cancel-field-edit": { S.ui.editingFieldId = null; S.ui.fieldEditDraft = null; render(); break; }
+      case "toggle-field-draft-required": {
+        S.ui.fieldEditDraft = S.ui.fieldEditDraft || {};
+        S.ui.fieldEditDraft.required = !S.ui.fieldEditDraft.required;
+        render(); break;
+      }
+      case "save-schema-field": {
+        const sectionId = S.ui.fieldSchemaSection;
+        const schema = SECTION_FIELD_SCHEMAS[sectionId];
+        if (!schema) break;
+        const draft = S.ui.fieldEditDraft || {};
+        const labelEl = document.getElementById("field-draft-label");
+        const label = (labelEl && labelEl.value || "").trim();
+        if (!label) break;
+        const type = draft.type || "text";
+        const optionsEl = document.getElementById("field-draft-options");
+        const optionsList = optionsEl ? optionsEl.value.split("\n").map((s) => s.trim()).filter(Boolean) : [];
+        const placeholderEl = document.getElementById("field-draft-placeholder");
+        const placeholder = (placeholderEl && placeholderEl.value || "").trim();
+        const otherLabelEl = document.getElementById("field-draft-other-label");
+        const isNew = S.ui.editingFieldId === "__new__";
+        const fieldId = isNew ? uid("fld") : S.ui.editingFieldId;
+        const newField = { id: fieldId, type, label, required: !!draft.required, placeholder };
+        if (draft.icon && FIELD_SVG[draft.icon]) newField.icon = draft.icon;
+        if (draft.iconColor) newField.iconColor = draft.iconColor;
+        if (draft.iconBg) newField.iconBg = draft.iconBg;
+        if (type === "select" || type === "radio" || type === "checklist") newField.options = optionsList;
+        if (type === "expandableSelect") {
+          newField.baseOptions = optionsList;
+          newField.otherLabel = (otherLabelEl && otherLabelEl.value.trim()) || "أخرى";
+          newField.customKey = draft.customKey || `custom_${fieldId}`;
+        }
+        // تنسيق بصري (عنوان فرعي/محاذاة صف) أو شرط ظهور شرطي موجود على الحقل
+        // الأصلي وقت التعديل — ما فيه واجهة لتعديلها حاليًا، فنحافظ عليها كما هي
+        // بدل ما تضيع بصمت (نفس الخطأ اللي أُصلح سابقًا لـ hint/minItems/maxItems).
+        if (!isNew && draft.subheadBefore) newField.subheadBefore = draft.subheadBefore;
+        if (!isNew && draft.rowGroup) newField.rowGroup = draft.rowGroup;
+        if (!isNew && draft.visibleWhen) newField.visibleWhen = draft.visibleWhen;
+        const fields = isNew ? [...schema.fields, newField] : schema.fields.map((f) => f.id === fieldId ? newField : f);
+        setSectionFieldsLive(sectionId, fields);
+        dataStore.saveSectionFieldSchemas({ ...dataStore.getSectionFieldSchemas(), [sectionId]: fields });
+        S.ui.editingFieldId = null; S.ui.fieldEditDraft = null;
+        render(); break;
+      }
+      case "remove-schema-field": {
+        const sectionId = ds.section;
+        const schema = SECTION_FIELD_SCHEMAS[sectionId];
+        if (!schema) break;
+        const fields = schema.fields.filter((f) => f.id !== ds.id);
+        setSectionFieldsLive(sectionId, fields);
+        dataStore.saveSectionFieldSchemas({ ...dataStore.getSectionFieldSchemas(), [sectionId]: fields });
+        render(); break;
+      }
+      case "move-schema-field": {
+        const sectionId = ds.section;
+        const schema = SECTION_FIELD_SCHEMAS[sectionId];
+        if (!schema) break;
+        const fields = schema.fields.slice();
+        const i = fields.findIndex((f) => f.id === ds.id);
+        const j = ds.dir === "up" ? i - 1 : i + 1;
+        if (i < 0 || j < 0 || j >= fields.length) break;
+        const tmp = fields[i]; fields[i] = fields[j]; fields[j] = tmp;
+        setSectionFieldsLive(sectionId, fields);
+        dataStore.saveSectionFieldSchemas({ ...dataStore.getSectionFieldSchemas(), [sectionId]: fields });
+        render(); break;
+      }
       default: handleDynamicGoalAction(action, ds) || handleReportEditorAction(action, ds, e) ;
     }
     } catch (err) {
@@ -5397,12 +11136,14 @@ function handleReportEditorAction(action, ds) {
       return true;
     }
     case "toggle-section-completed": {
+      if (!platformActionAllowed("toggle-section-completed")) return true;
       const next = !S.sectionCompleted;
       if (trySaveSectionWithStatus(next ? "completed" : "draft")) S.sectionCompleted = next;
       render();
       return true;
     }
     case "section-save-draft": {
+      if (!platformActionAllowed("section-save-draft")) return true;
       if (trySaveSectionWithStatus(S.sectionCompleted ? "completed" : "draft")) {
         S.sectionSaveStatus = "تم الحفظ ✓";
         render();
@@ -5426,7 +11167,33 @@ function handleReportEditorAction(action, ds) {
     /* ---- repeatable items ---- */
     case "add-item": {
       const factory = EMPTY_ITEM_FACTORY[ds.arr];
-      if (factory) getItemList(ds.arr).push(factory());
+      if (factory) {
+        // في الأقسام المبنية على المحرك العام (SECTION_FIELD_SCHEMAS)، نطوي العناصر
+        // السابقة تلقائيًا ونخلي العنصر الجديد بس هو المفتوح. نبحث عن التعريف بمطابقة
+        // arrayKey مباشرة (لا عبر S.activeSectionId ولا معرّف القسم)، لأن بعض الأقسام
+        // اسم مصفوفتها مختلف عن معرّف القسم نفسه (مثال: "improvement" ← d.opportunities)،
+        // وبعض المصفوفات (مثل "comparisons") مُدارة ذاتيًا من داخل قسم مكتوب يدويًا
+        // (analysis) وليست القسم كامل، فما تكون مفتاحها بالتعريف مطابقًا لأي معرّف قسم.
+        const schema = Object.values(SECTION_FIELD_SCHEMAS).find((s) => s.arrayKey === ds.arr) || null;
+        const list = getItemList(ds.arr);
+        // شبكة أمان: تمنع تجاوز الحد الأقصى (maxItems) حتى لو انضغط الزر بالغلط وهو
+        // معطّل بالواجهة (مثال: قسم "نقاط القوة" بحد أقصى 5).
+        if (!schema || schema.maxItems == null || list.length < schema.maxItems) {
+          const item = factory();
+          list.push(item);
+          if (schema) {
+            S.ui.expandedRepeatItem = S.ui.expandedRepeatItem || {};
+            S.ui.expandedRepeatItem[ds.arr] = item.id;
+          }
+        }
+      }
+      render();
+      return true;
+    }
+    case "toggle-repeat-item": {
+      S.ui.expandedRepeatItem = S.ui.expandedRepeatItem || {};
+      const current = S.ui.expandedRepeatItem[ds.arr];
+      S.ui.expandedRepeatItem[ds.arr] = current === ds.id ? null : ds.id;
       render();
       return true;
     }
@@ -5442,8 +11209,20 @@ function handleReportEditorAction(action, ds) {
       render();
       return true;
     }
-    case "add-goal": { getItemList("goals").push(EMPTY_ITEM_FACTORY.goals()); render(); return true; }
-    case "add-indicator": { getItemList("indicators").push(EMPTY_ITEM_FACTORY.indicators()); render(); return true; }
+    case "add-goal": {
+      const g = EMPTY_ITEM_FACTORY.goals();
+      getItemList("goals").push(g);
+      S.ui.expandedRepeatItem = S.ui.expandedRepeatItem || {};
+      S.ui.expandedRepeatItem.goals = g.id;
+      render(); return true;
+    }
+    case "add-indicator": {
+      const ind = EMPTY_ITEM_FACTORY.indicators();
+      getItemList("indicators").push(ind);
+      S.ui.expandedRepeatItem = S.ui.expandedRepeatItem || {};
+      S.ui.expandedRepeatItem.indicators = ind.id;
+      render(); return true;
+    }
 
     /* ---- indicator card toggles ---- */
     case "toggle-indicator-details": {
@@ -5539,18 +11318,42 @@ function applySiteColors(settings) {
   root.style.setProperty("--rose", settings.primary);
   root.style.setProperty("--rose-dark", settings.primary);
   root.style.setProperty("--blush-bg", settings.background);
+  const th = themeOf(settings);
+  INK = th.ink; SUBTLE = th.subtle; BORDER = th.border; GREEN = th.green; GOLD = th.gold; DANGER = th.danger; BLUE = th.blue;
+  GREEN_BG = th.green === DEFAULT_THEME.green ? DEFAULT_THEME_BG.green : mixHex(th.green, "#ffffff", 0.88);
+  GOLD_BG = th.gold === DEFAULT_THEME.gold ? DEFAULT_THEME_BG.gold : mixHex(th.gold, "#ffffff", 0.88);
+  DANGER_BG = th.danger === DEFAULT_THEME.danger ? DEFAULT_THEME_BG.danger : mixHex(th.danger, "#ffffff", 0.88);
+  BLUE_BG = th.blue === DEFAULT_THEME.blue ? DEFAULT_THEME_BG.blue : mixHex(th.blue, "#ffffff", 0.88);
+  [["--ink", INK], ["--subtle", SUBTLE], ["--border", BORDER], ["--green", GREEN], ["--green-bg", GREEN_BG], ["--gold", GOLD], ["--gold-bg", GOLD_BG],
+   ["--danger", DANGER], ["--danger-bg", DANGER_BG], ["--blue", BLUE], ["--blue-bg", BLUE_BG], ["--sidebar-bg", th.sidebarBg], ["--nav-active-bg", th.navActive === "#6b2337" ? "linear-gradient(135deg, #8B4A73, #6b2337)" : `linear-gradient(135deg, ${mixHex(th.navActive, "#ffffff", 0.25)}, ${th.navActive})`]]
+    .forEach(([k, v]) => root.style.setProperty(k, v));
+  TEXT_STYLE_FIELDS.forEach((f) => {
+    const cssName = { nav: "--nav", sbTitle: "--sb-title", bannerTitle: "--banner-title", bannerSub: "--banner-sub" }[f.k];
+    if (th[f.k + "Color"]) root.style.setProperty(cssName + "-color", th[f.k + "Color"]); else root.style.removeProperty(cssName + "-color");
+    root.style.setProperty(cssName + "-size", (Number(th[f.k + "Size"]) || f.def) + "px");
+  });
+  ICON_OVERRIDE = th.iconColor || "";
+  applyPeriodTypes(th.periodTypes);
+  const veil = Math.max(0, Math.min(90, Number(th.sidebarBgVeil) || 0)) / 100;
+  root.style.setProperty("--sidebar-bg-image", th.sidebarBgImage ? `linear-gradient(rgba(255,255,255,${veil}),rgba(255,255,255,${veil})), url("${String(th.sidebarBgImage).replace(/"/g, "")}")` : "none");
+  const font = settings.fontFamily || DEFAULT_BRANDING.fontFamily;
+  root.style.setProperty("--font-main", `'${font}'`);
+  root.style.setProperty("--font-heading", `'${font}'`);
 }
 function afterRender() {
+  applyButtonPermissions();
   const loginUserEl = document.getElementById("login-username");
   if (loginUserEl) loginUserEl.focus();
 }
 
 function boot() {
-  applySiteColors(dataStore.getSiteSettings());
+  S.siteSettings = dataStore.getSiteSettings();
+  applySiteColors(S.siteSettings);
   attachFormListeners();
   attachClickListener();
   render();
   if (sheetsConfigured()) refreshSiteSettingsFromSheet().then(() => render());
+  if (sheetsConfigured()) refreshDashboardConfigFromSheet().then(() => render()).catch(() => {});
 }
 
 document.addEventListener("DOMContentLoaded", boot);
