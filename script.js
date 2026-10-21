@@ -148,6 +148,14 @@ const TERM_OPTIONS_BASE = ["الأول", "الثاني", "الثالث", "صيف
 const WORK_TYPES_BASE = ["حلقة قرآنية", "برنامج تعليمي", "برنامج تربوي", "دورة تدريبية", "لقاء", "ورشة عمل", "زيارة إشرافية", "اختبار", "مبادرة", "مشروع", "دراسة", "استبانة", "اجتماع", "خدمة للمستفيدات", "إنتاج دليل أو أداة"];
 const DELIVERY_MODES = ["حضوري", "عن بُعد", "مدمج"];
 const EXECUTION_STATUSES = ["مكتمل", "مستمر", "متعثر", "مؤجل", "ملغى"];
+// "وحدة العدّ" لإحصائية الإنجاز — ماذا يُعدّ في هذا العمل (مثال: زيارة إشرافية ← مركز)
+const COUNT_UNITS_BASE = ["مركز", "حلقة", "طالبة", "معلمة", "موظفة", "زيارة", "لقاء", "دورة", "اختبار", "أسرة"];
+// حقلا إحصائية الإنجاز بقسم الأعمال والبرامج — يُضافان تلقائيًا حتى لو كانت حقول
+// القسم مخصّصة ومحفوظة مسبقًا من صفحة إدارة الحقول (انظري applyFieldSchemaOverrides).
+const PROGRAM_ACHIEVEMENT_FIELDS = [
+  { id: "countUnit", type: "expandableSelect", label: "وحدة العدّ (ماذا نعدّ؟)", baseOptions: COUNT_UNITS_BASE, customKey: "customCountUnits", otherLabel: "أخرى", placeholder: "مثال: مركز", rowGroup: "achieve", subheadBefore: "إحصائية الإنجاز" },
+  { id: "achievedCount", type: "number", label: "العدد المنجز فعليًا", placeholder: "مثال: عدد المراكز التي تمت زيارتها", rowGroup: "achieve" },
+];
 const STRENGTH_AREAS_BASE = ["القيادة", "التخطيط", "الكادر", "جودة التعليم", "البرامج", "البيئة", "التقنية", "التواصل", "الشراكات", "رضا المستفيدات", "سرعة الإنجاز", "الابتكار", "قياس الأثر"];
 const CONTINUITY_OPTIONS = ["مستمرة", "مرتبطة بفترة"];
 const EVIDENCE_TYPES_LIST = ["صورة", "كشف حضور", "نتيجة استبانة", "تقرير مالي", "محضر اجتماع", "رابط لوحة مؤشرات", "نموذج من المخرجات", "خطاب", "قصة نجاح", "فيديو موثق وفق السياسة", "ملف آخر"];
@@ -206,6 +214,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "targetGroup", type: "text", label: "الفئة المستهدفة", placeholder: "مثال: طالبات المرحلة المتوسطة" },
       { id: "targetCount", type: "number", label: "العدد المستهدف", placeholder: "0", rowGroup: "target" },
       { id: "actualBeneficiaries", type: "number", label: "عدد المستفيدات الفعلي", placeholder: "0", rowGroup: "target" },
+      ...PROGRAM_ACHIEVEMENT_FIELDS,
       { id: "startDate", type: "date", label: "تاريخ البداية", rowGroup: "dates" },
       { id: "endDate", type: "date", label: "تاريخ النهاية", rowGroup: "dates" },
       { id: "location", type: "text", label: "مقر التنفيذ", placeholder: "مكان التنفيذ" },
@@ -2935,8 +2944,15 @@ function setSectionFieldsLive(sectionId, fields) {
 // بعد) يبقى بتعريفه الافتراضي كما هو تمامًا.
 function applyFieldSchemaOverrides(map) {
   Object.keys(map || {}).forEach((sectionId) => {
-    const fields = map[sectionId];
+    let fields = map[sectionId];
     if (!Array.isArray(fields) || !fields.length) return;
+    if (sectionId === "programs") {
+      const missing = PROGRAM_ACHIEVEMENT_FIELDS.filter((nf) => !fields.some((f) => f.id === nf.id));
+      if (missing.length) {
+        const at = fields.findIndex((f) => f.id === "actualBeneficiaries");
+        fields = at === -1 ? [...fields, ...missing] : [...fields.slice(0, at + 1), ...missing, ...fields.slice(at + 1)];
+      }
+    }
     setSectionFieldsLive(sectionId, fields);
   });
 }
@@ -3302,6 +3318,8 @@ const DASH_STD_BLOCKS = [
   { key: "bars", label: "نسبة الإنجاز حسب الوحدة", not: ["unit"] },
   { key: "indPie", label: "توزيع حالات المؤشرات" }, { key: "goalPie", label: "توزيع مستويات تحقق الأهداف" },
   { key: "indicators", label: "جدول مؤشرات الأداء" }, { key: "goals", label: "جدول الأهداف التشغيلية" },
+  { key: "achieve", label: "إحصائية الإنجاز" }, { key: "yearCompare", label: "مقارنة آخر 3 سنوات (المستهدف والمتحقق)" },
+  { key: "programs", label: "جدول الأعمال والبرامج" },
 ];
 const DASH_STD_KINDS = ["admin", "office", "dept", "unit"];
 // لوحة الإشراف (الإدارة العليا، وصفحة لوحة المكتب القديمة)
@@ -3309,6 +3327,8 @@ const DASH_EX_BLOCKS = [
   { key: "exStats", label: "بطاقات الأرقام الأربع" }, { key: "exCompletion", label: "نسبة إنجاز التقارير إجمالًا" },
   { key: "exDeptPerf", label: "ملخص أداء الأقسام" }, { key: "exStatus", label: "توزيع حالات التقارير" },
   { key: "exUnitPerf", label: "نسبة الإنجاز حسب الوحدة" }, { key: "exPeriod", label: "مقارنة عدد التقارير حسب الفترة" },
+  { key: "achieve", label: "إحصائية الإنجاز" }, { key: "yearCompare", label: "مقارنة آخر 3 سنوات (المستهدف والمتحقق)" },
+  { key: "programs", label: "جدول الأعمال والبرامج" },
 ];
 const DASH_EX_KINDS = ["executive", "office"];
 function dashConfig() { return S.dashboardConfig || (S.dashboardConfig = dataStore.getDashboardConfig()); }
@@ -3506,6 +3526,8 @@ function renderDashboardBody(activeUnits, opts) {
       ${statIconCardHtml("تقرير قيد المراجعة", underReviewReportsCount, iconDocument(18, GOLD), GOLD_BG)}
       ${statIconCardHtml("عدد الوحدات", activeUnits.length, iconBuilding(ROSE, 18), BLUE_BG)}
     </div>`)}
+    ${dashHidden(dkind, "achieve") ? "" : achievementCardHtml(activeUnits)}
+    ${dashHidden(dkind, "yearCompare") ? "" : yearCompareCardHtml(activeUnits)}
 
     ${dashRecentGrid(dkind, `
       <div class="card">
@@ -3545,6 +3567,7 @@ function renderDashboardBody(activeUnits, opts) {
         <th style="color:${ROSE}">الوحدة</th><th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
+    ${dashHidden(dkind, "programs") ? "" : `<div style="margin-top:18px;">${programsCardHtml(activeUnits)}</div>`}
     ${opts.extraBottom || ""}
   </div></div>`;
 }
@@ -3683,6 +3706,11 @@ function renderUnitDashboard() {
         <th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
+    ${unit ? `<div style="margin-top:18px;">
+      ${dashHidden("unit", "achieve") ? "" : achievementCardHtml([unit])}
+      ${dashHidden("unit", "yearCompare") ? "" : yearCompareCardHtml([unit])}
+      ${dashHidden("unit", "programs") ? "" : programsCardHtml([unit])}
+    </div>` : ""}
   </div></div>`;
 }
 
@@ -4838,6 +4866,364 @@ function hijriMonthLabel(ts) {
   catch (e) { return "—"; }
 }
 
+/* =============================== مقارنة آخر 3 سنوات + الأعمال والبرامج + إحصائية الإنجاز ==
+   ثلاث كتل تُعرض في "لوحة المعلومات" (مديرة النظام/المكتب/القسم/الوحدة) وفي لوحة
+   الإدارة العليا، ويمكن إخفاء أي منها من إعدادات لوحة المعلومات كباقي الكتل:
+   - yearCompare : مقارنة المستهدف بالمتحقق للمؤشرات، ونسب تحقق الأهداف، لآخر 3 سنوات هجرية.
+   - achieve     : إحصائية أعداد الإنجاز (مثال: عدد المراكز التي تمت زيارتها) حسب نوع العمل.
+   - programs    : قائمة الأعمال والبرامج المنفذة بكل تفاصيلها الأساسية.
+   السنة تُؤخذ من "العام الهجري" المختار بالبيانات الأساسية للتقرير، وإن لم يُختر
+   فمن تاريخ إنشاء التقرير. لا جداول ولا أعمدة جديدة بقاعدة البيانات. */
+function hijriYearFromTs(ts) {
+  const d = new Date(ts || Date.now());
+  try {
+    const s = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", { year: "numeric" }).format(d);
+    const n = parseInt(s, 10);
+    if (n > 1300 && n < 1700) return n;
+  } catch (e) { /* fallback below */ }
+  const start = new Date(d.getFullYear(), 0, 1).getTime();
+  const frac = d.getFullYear() + (d.getTime() - start) / (365.25 * 864e5);
+  return Math.floor((frac - 621.5774) * 1.030684);
+}
+function reportHijriYearNum(r) {
+  if (!r) return null;
+  const raw = (r.sections && r.sections.basic && r.sections.basic.data && r.sections.basic.data.hijriYear) || (r.shared && r.shared.hijriYear) || "";
+  const m = String(raw).replace(/[٠-٩]/g, (c) => String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).match(/\d{4}/);
+  if (m) return Number(m[0]);
+  return r.createdAt ? hijriYearFromTs(r.createdAt) : null;
+}
+function hijriYearLabel(n) { return `${n}هـ`; }
+function lastThreeHijriYears() { const c = hijriYearFromTs(Date.now()); return [c - 2, c - 1, c]; }
+function numOrNull(v) { if (v === "" || v == null) return null; const n = Number(v); return isNaN(n) ? null : n; }
+function fmtNum(n) { if (n == null) return "—"; const r = Math.round(n * 10) / 10; return r.toLocaleString("en-US"); }
+
+// آخر تقرير لكل وحدة داخل كل سنة (يمثّل وضع الوحدة بنهاية تلك السنة).
+function latestReportsPerUnitByYear(units, years) {
+  const out = {}; years.forEach((y) => { out[y] = []; });
+  units.forEach((u) => {
+    const best = {};
+    ensureUnitReportsLoaded(u.id).forEach((r) => {
+      const y = reportHijriYearNum(r);
+      if (!(y in out)) return;
+      if (!best[y] || (r.createdAt || 0) >= (best[y].createdAt || 0)) best[y] = r;
+    });
+    Object.keys(best).forEach((y) => out[y].push({ unit: u, report: best[y] }));
+  });
+  return out;
+}
+
+function yearlyComparisonData(units) {
+  const years = lastThreeHijriYears();
+  const byYear = latestReportsPerUnitByYear(units, years);
+  const indMap = {}; // name -> { def, years: { y: { actuals: [], ratios: [] } } }
+  const goalMap = {}; // strategic goal -> { y: [pct] }
+  const summary = {}; // y -> { indRatios: [], goalPcts: [], reports: n }
+  years.forEach((y) => {
+    summary[y] = { indRatios: [], goalPcts: [], reports: byYear[y].length };
+    byYear[y].forEach(({ report }) => {
+      (report.sections?.kpi?.data?.indicators || []).forEach((row) => {
+        const name = (row.name || "").trim();
+        if (!name) return;
+        const def = S.indicatorDefinitions.find((x) => x.name === name);
+        const resolved = resolveIndicatorRow(row, def);
+        const actual = numOrNull(row.actual);
+        if (actual == null) return;
+        // المستهدف من تعريف المؤشر، وإن لم يوجد فمن المستهدف المكتوب بالتقرير نفسه
+        const tgt = numOrNull(resolved.target) != null ? numOrNull(resolved.target) : numOrNull(row.target);
+        if (tgt != null) resolved.target = tgt;
+        const e = indMap[name] || (indMap[name] = { def, years: {} });
+        const ye = e.years[y] || (e.years[y] = { actuals: [], targets: [], ratios: [] });
+        ye.actuals.push(actual);
+        if (tgt != null) ye.targets.push(tgt);
+        const st = computeIndicatorStatus(resolved);
+        if (st.ratio != null && isFinite(st.ratio)) { ye.ratios.push(st.ratio); summary[y].indRatios.push(Math.min(1, Math.max(0, st.ratio))); }
+      });
+      (report.sections?.goals?.data?.goals || []).forEach((g) => {
+        const sg = (g.strategicGoal || "").trim() || "بدون هدف استراتيجي";
+        (g.operationalGoals || []).forEach((og) => {
+          const pct = numOrNull(og.percentage);
+          if (pct == null) return;
+          const gm = goalMap[sg] || (goalMap[sg] = {});
+          (gm[y] || (gm[y] = [])).push(pct);
+          summary[y].goalPcts.push(pct);
+        });
+      });
+    });
+  });
+  const avg = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : null);
+  const indicators = Object.keys(indMap).map((name) => {
+    const { def, years: ys } = indMap[name];
+    const isCount = def && def.unit === "عدد";
+    const cells = years.map((y) => {
+      const ye = ys[y];
+      if (!ye || !ye.actuals.length) return null;
+      const n = ye.actuals.length;
+      const actual = isCount ? ye.actuals.reduce((s, v) => s + v, 0) : avg(ye.actuals);
+      const target = !ye.targets.length ? null : (isCount ? ye.targets.reduce((s, v) => s + v, 0) : avg(ye.targets));
+      const ratio = avg(ye.ratios);
+      return { actual, target, pct: ratio == null ? null : Math.round(ratio * 100), units: n };
+    });
+    return { name, unit: def ? def.unit : "", cells };
+  }).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  const goals = Object.keys(goalMap).map((sg) => ({ name: sg, cells: years.map((y) => { const a = avg(goalMap[sg][y] || []); return a == null ? null : Math.round(a); }) }));
+  const sum = years.map((y) => ({
+    year: y,
+    indPct: summary[y].indRatios.length ? Math.round(avg(summary[y].indRatios) * 100) : null,
+    goalPct: summary[y].goalPcts.length ? Math.round(avg(summary[y].goalPcts)) : null,
+    reports: summary[y].reports,
+  }));
+  return { years, indicators, goals, summary: sum };
+}
+
+function trendHtml(prev, cur) {
+  if (prev == null || cur == null) return `<span style="color:${SUBTLE}">—</span>`;
+  if (cur > prev) return `<span style="color:${GREEN};font-weight:800;" title="تحسن">▲ ${cur - prev}٪</span>`;
+  if (cur < prev) return `<span style="color:${DANGER};font-weight:800;" title="تراجع">▼ ${prev - cur}٪</span>`;
+  return `<span style="color:${SUBTLE};font-weight:800;" title="ثابت">= ثابت</span>`;
+}
+// آخر سنتين فيهما بيانات (للاتجاه)
+function lastTwoWithData(cells, pick) {
+  const vals = cells.map((c) => (c == null ? null : (pick ? pick(c) : c))).filter((v) => v != null);
+  return vals.length >= 2 ? [vals[vals.length - 2], vals[vals.length - 1]] : [null, null];
+}
+function pctColor(p) { return p == null ? SUBTLE : p >= 100 ? GREEN : p >= 90 ? GOLD : p >= 70 ? "#c9863a" : DANGER; }
+
+// رسم أعمدة مجمّعة: لكل سنة عمودان (المؤشرات / الأهداف). الأقدم يمينًا كقراءة عربية.
+function svgYearGroupedBars(summary) {
+  const w = 640, h = 220, padTop = 22, padBottom = 34, padSide = 34;
+  const chartH = h - padTop - padBottom, chartW = w - padSide * 2;
+  const n = summary.length, groupW = chartW / n, barW = Math.min(46, groupW / 3.2);
+  const yFor = (v) => padTop + chartH - (Math.max(0, Math.min(100, v)) / 100) * chartH;
+  const grid = [0, 25, 50, 75, 100].map((g) => `<line x1="${padSide}" y1="${yFor(g)}" x2="${w - padSide}" y2="${yFor(g)}" stroke="${BORDER}" stroke-dasharray="3,3" /><text x="${w - padSide + 6}" y="${yFor(g) + 3}" font-size="9" fill="${SUBTLE}">${g}</text>`).join("");
+  const series = [{ key: "indPct", color: ROSE }, { key: "goalPct", color: GOLD }];
+  const bars = summary.map((s, i) => {
+    const cx = w - padSide - groupW * (i + 0.5);
+    const parts = series.map((se, j) => {
+      const v = s[se.key];
+      const x = cx - barW - 3 + j * (barW + 6);
+      if (v == null) return `<text x="${(x + barW / 2).toFixed(1)}" y="${(padTop + chartH - 6).toFixed(1)}" font-size="9.5" fill="${SUBTLE}" text-anchor="middle">لا بيانات</text>`;
+      const y = yFor(v);
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${(padTop + chartH - y).toFixed(1)}" rx="4" fill="${se.color}"><title>${v}٪</title></rect><text x="${(x + barW / 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" font-size="10.5" font-weight="800" fill="${INK}" text-anchor="middle">${v}٪</text>`;
+    }).join("");
+    return parts + `<text x="${cx.toFixed(1)}" y="${h - padBottom + 17}" font-size="11.5" font-weight="800" fill="${INK}" text-anchor="middle">${hijriYearLabel(s.year)}</text>`;
+  }).join("");
+  const legend = `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;margin-top:4px;">
+    <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:${ROSE}"></span>متوسط تحقق المؤشرات (المتحقق ÷ المستهدف)</span>
+    <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:${GOLD}"></span>متوسط تحقق الأهداف التشغيلية</span></div>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:100%;height:auto;">${grid}${bars}</svg>${legend}`;
+}
+
+function yearCompareCardHtml(units) {
+  const data = yearlyComparisonData(units);
+  const yrs = data.years;
+  const hasAny = data.indicators.length || data.goals.length;
+  const yearHead = (span) => yrs.map((y) => `<th colspan="${span}" style="text-align:center;border-right:1px solid ${BORDER};">${hijriYearLabel(y)}</th>`).join("");
+  const indTable = data.indicators.length ? `
+    <div class="subhead">المؤشرات — المستهدف مقابل المتحقق</div>
+    <div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:640px;"><thead>
+      <tr style="background:${GOLD_BG}"><th rowspan="2" style="color:#8a6a35">المؤشر</th>${yearHead(3)}<th rowspan="2" style="text-align:center;color:#8a6a35">الاتجاه</th></tr>
+      <tr style="background:${GOLD_BG}">${yrs.map(() => `<th style="text-align:center;font-weight:700;color:#8a6a35;border-right:1px solid ${BORDER};">المستهدف</th><th style="text-align:center;font-weight:700;color:#8a6a35">المتحقق</th><th style="text-align:center;font-weight:700;color:#8a6a35">النسبة</th>`).join("")}</tr>
+    </thead><tbody>${data.indicators.map((ind) => {
+      const [p, c] = lastTwoWithData(ind.cells, (x) => x.pct);
+      return `<tr><td style="font-weight:700">${esc(ind.name)}${ind.unit ? `<div style="font-size:10px;color:${SUBTLE};font-weight:400">${esc(ind.unit)}</div>` : ""}</td>${ind.cells.map((cell) => cell
+        ? `<td style="text-align:center;border-right:1px solid ${BORDER};">${fmtNum(cell.target)}</td><td style="text-align:center">${fmtNum(cell.actual)}</td><td style="text-align:center;font-weight:800;color:${pctColor(cell.pct)}">${cell.pct == null ? "—" : cell.pct + "٪"}</td>`
+        : `<td colspan="3" style="text-align:center;color:${SUBTLE};border-right:1px solid ${BORDER};">لا بيانات</td>`).join("")}<td style="text-align:center">${trendHtml(p, c)}</td></tr>`;
+    }).join("")}</tbody></table></div>` : "";
+  const goalTable = data.goals.length ? `
+    <div class="subhead">الأهداف — متوسط نسبة التحقق</div>
+    <div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:480px;"><thead>
+      <tr style="background:${GREEN_BG}"><th style="color:${ROSE}">الهدف الاستراتيجي</th>${yearHead(1)}<th style="text-align:center;color:${ROSE}">الاتجاه</th></tr>
+    </thead><tbody>${data.goals.map((g) => {
+      const [p, c] = lastTwoWithData(g.cells);
+      return `<tr><td style="font-weight:700">${esc(g.name)}</td>${g.cells.map((v) => `<td style="text-align:center;font-weight:800;color:${v == null ? SUBTLE : pctColor(v)};border-right:1px solid ${BORDER};">${v == null ? "—" : v + "٪"}</td>`).join("")}<td style="text-align:center">${trendHtml(p, c)}</td></tr>`;
+    }).join("")}</tbody></table></div>` : "";
+  return `<div class="card" style="margin-bottom:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;">مقارنة آخر 3 سنوات — المستهدف والمتحقق</div>
+      <span style="font-size:11px;color:${SUBTLE}">${yrs.map(hijriYearLabel).join(" · ")}</span>
+    </div>
+    <div class="hint" style="margin:0 0 10px;">تُحسب كل سنة من آخر تقرير لكل وحدة في تلك السنة (حسب "العام الهجري" في البيانات الأساسية).</div>
+    ${hasAny ? svgYearGroupedBars(data.summary) + indTable + goalTable : emptyHint("لا توجد مؤشرات أو أهداف مُدخلة في تقارير آخر 3 سنوات بعد.")}
+  </div>`;
+}
+
+/* ---- الأعمال والبرامج + إحصائية الإنجاز ---- */
+// كل الأعمال والبرامج في تقارير الوحدات — بدون تكرار نفس العمل لو تكرر في
+// أكثر من تقرير (يُعتمد آخر إصدار له: نفس الوحدة + الاسم + النوع + تاريخ البداية).
+function collectProgramsForUnits(units, yearFilter) {
+  const map = new Map();
+  units.forEach((u) => {
+    const dept = S.departments.find((d) => d.id === u.departmentId);
+    ensureUnitReportsLoaded(u.id).slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((r) => {
+      const y = reportHijriYearNum(r);
+      if (yearFilter && y !== yearFilter) return;
+      (r.sections?.programs?.data?.programs || []).forEach((p) => {
+        if (!p || !String(p.name || "").trim()) return;
+        const key = [u.id, String(p.name).trim(), p.workType || "", p.startDate || ""].join("|");
+        map.delete(key);
+        map.set(key, { unit: u, dept, report: r, year: y, p });
+      });
+    });
+  });
+  return [...map.values()];
+}
+function programAchievedValue(p) {
+  const a = numOrNull(p.achievedCount);
+  return a != null ? a : numOrNull(p.actualBeneficiaries);
+}
+function programCountUnit(p) {
+  const cu = String(p.countUnit || "").trim();
+  if (cu) return cu;
+  return numOrNull(p.achievedCount) != null ? "" : "مستفيدة";
+}
+function achievementStats(progs) {
+  const groups = {};
+  progs.forEach(({ p }) => {
+    const wt = p.workType || "غير محدد", cu = programCountUnit(p);
+    const key = wt + "|" + cu;
+    const g = groups[key] || (groups[key] = { workType: wt, countUnit: cu, works: 0, target: 0, achieved: 0, hasTarget: false, hasAchieved: false, completed: 0 });
+    g.works++;
+    const t = numOrNull(p.targetCount); if (t != null) { g.target += t; g.hasTarget = true; }
+    const a = programAchievedValue(p); if (a != null) { g.achieved += a; g.hasAchieved = true; }
+    if (p.executionStatus === "مكتمل") g.completed++;
+  });
+  return Object.values(groups).sort((a, b) => b.works - a.works || b.achieved - a.achieved);
+}
+function programsYearOptions(units) {
+  const set = new Set(lastThreeHijriYears());
+  units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => { if ((r.sections?.programs?.data?.programs || []).length) { const y = reportHijriYearNum(r); if (y) set.add(y); } }));
+  return [...set].sort((a, b) => b - a);
+}
+// السنة المختارة لكتلتي البرامج والإحصائية: "all" = كل السنوات؛ افتراضيًا أحدث سنة
+// فيها أعمال مُدخلة فعلًا (وإن لم توجد أي أعمال: السنة الهجرية الحالية).
+function latestProgramsYear(units) {
+  let best = null;
+  units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => {
+    if (!(r.sections?.programs?.data?.programs || []).some((p) => p && String(p.name || "").trim())) return;
+    const y = reportHijriYearNum(r);
+    if (y && (best == null || y > best)) best = y;
+  }));
+  return best;
+}
+function dashProgramsYear(units) {
+  const v = S.ui.dashProgYear;
+  if (v === "all") return null;
+  if (v) return Number(v);
+  return latestProgramsYear(units || []) || hijriYearFromTs(Date.now());
+}
+function dashYearSelectHtml(units) {
+  const cur = S.ui.dashProgYear || String(dashProgramsYear(units));
+  const opts = programsYearOptions(units);
+  return `<select class="input" data-action="dash-prog-year" style="width:auto;padding:6px 10px;font-size:12px;">
+    <option value="all" ${cur === "all" ? "selected" : ""}>كل السنوات</option>
+    ${opts.map((y) => `<option value="${y}" ${String(y) === cur ? "selected" : ""}>${hijriYearLabel(y)}</option>`).join("")}
+  </select>`;
+}
+
+function achievementCardHtml(units) {
+  const year = dashProgramsYear(units);
+  const progs = collectProgramsForUnits(units, year);
+  const stats = achievementStats(progs);
+  const completed = progs.filter((x) => x.p.executionStatus === "مكتمل").length;
+  const beneficiaries = progs.reduce((s, x) => s + (numOrNull(x.p.actualBeneficiaries) || 0), 0);
+  // بطاقات بارزة: كل نوع عمل له "وحدة عدّ" محددة (مثال: زيارة إشرافية — مركز)
+  const highlight = stats.filter((g) => g.hasAchieved && g.countUnit && g.countUnit !== "مستفيدة").slice(0, 4);
+  const tile = (value, label, sub) => `<div class="stat-card"><div class="value" style="color:${ROSE}">${esc(value)}</div><div class="label" style="font-weight:700;color:${INK}">${esc(label)}</div>${sub ? `<div class="label">${esc(sub)}</div>` : ""}</div>`;
+  const rows = stats.map((g) => {
+    const pct = g.hasTarget && g.target > 0 && g.hasAchieved ? Math.round((g.achieved / g.target) * 100) : null;
+    return `<tr>
+      <td style="font-weight:700">${esc(g.workType)}</td>
+      <td style="text-align:center">${g.works}</td>
+      <td style="text-align:center">${g.completed}</td>
+      <td style="text-align:center;color:${SUBTLE}">${esc(g.countUnit || "—")}</td>
+      <td style="text-align:center">${g.hasTarget ? fmtNum(g.target) : "—"}</td>
+      <td style="text-align:center;font-weight:800">${g.hasAchieved ? fmtNum(g.achieved) : "—"}</td>
+      <td style="min-width:120px">${pct == null ? `<span style="color:${SUBTLE}">—</span>` : `<div style="display:flex;align-items:center;gap:6px;"><div style="flex:1">${progressBarHtml(Math.min(100, pct), pctColor(pct))}</div><b style="color:${pctColor(pct)};font-size:11.5px">${pct}٪</b></div>`}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="card" style="margin-bottom:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;">إحصائية الإنجاز</div>
+      ${dashYearSelectHtml(units)}
+    </div>
+    ${progs.length === 0 ? emptyHint(year ? `لا توجد أعمال مُدخلة لعام ${hijriYearLabel(year)}.` : "لا توجد أعمال مُدخلة بعد.") : `
+    <div class="stat-grid">
+      ${tile(progs.length, "عمل وبرنامج منفذ", "")}
+      ${tile(completed, "عمل مكتمل", progs.length ? `${Math.round((completed / progs.length) * 100)}٪ من الأعمال` : "")}
+      ${tile(fmtNum(beneficiaries), "إجمالي المستفيدات", "")}
+      ${highlight.map((g) => tile(fmtNum(g.achieved) + " " + g.countUnit, g.workType, g.hasTarget ? `من ${fmtNum(g.target)} مستهدف` : "")).join("")}
+    </div>
+    <div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:600px;"><thead><tr style="background:${GRAY_BG}">
+      <th>نوع العمل</th><th style="text-align:center">عدد الأعمال</th><th style="text-align:center">المكتمل</th><th style="text-align:center">وحدة العدّ</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المنجز</th><th>نسبة الإنجاز</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="hint">"المنجز" = حقل "العدد المنجز" في قسم الأعمال والبرامج (مثال: عدد المراكز التي تمت زيارتها)، وإن كان فارغًا يُحتسب "عدد المستفيدات الفعلي".</div>`}
+  </div>`;
+}
+
+function programsCardHtml(units) {
+  const year = dashProgramsYear(units);
+  const progs = collectProgramsForUnits(units, year).sort((a, b) => (b.report.createdAt || 0) - (a.report.createdAt || 0));
+  const statusColor = { "مكتمل": [GREEN, GREEN_BG], "مستمر": [BLUE, BLUE_BG], "متعثر": [DANGER, DANGER_BG], "مؤجل": [GOLD, GOLD_BG], "ملغى": [SUBTLE, GRAY_BG] };
+  const rows = progs.map(({ unit, report, p }) => {
+    const sc = statusColor[p.executionStatus] || [SUBTLE, GRAY_BG];
+    const a = programAchievedValue(p), t = numOrNull(p.targetCount);
+    const cu = programCountUnit(p);
+    const searchKey = `${unit.name} ${p.name || ""} ${p.workType || ""} ${p.executionStatus || ""}`.toLowerCase();
+    return `<tr data-search="${esc(searchKey)}">
+      <td style="color:${SUBTLE}">${esc(unit.name)}</td>
+      <td style="font-weight:700;cursor:pointer;color:${INK}" data-action="view-report-pdf" data-unit-id="${esc(unit.id)}" data-report-id="${esc(report.id)}" title="عرض التقرير">${esc(p.name)}</td>
+      <td>${esc(p.workType || "—")}</td>
+      <td style="text-align:center">${p.executionStatus ? badgeHtml(p.executionStatus, sc[0], sc[1]) : "—"}</td>
+      <td style="text-align:center">${t == null ? "—" : fmtNum(t)}</td>
+      <td style="text-align:center;font-weight:800">${a == null ? "—" : fmtNum(a) + (cu ? ` <span style="font-weight:400;color:${SUBTLE};font-size:10.5px">${esc(cu)}</span>` : "")}</td>
+      <td style="text-align:center">${p.completionPercent !== "" && p.completionPercent != null ? esc(p.completionPercent) + "٪" : "—"}</td>
+      <td style="font-size:11.5px;line-height:1.7;min-width:180px">${esc(p.highlightResult || "—")}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="card" style="margin-bottom:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="prs-title" style="font-size:14px;font-weight:800;">الأعمال والبرامج المنفذة <span style="font-size:12px;color:${SUBTLE};font-weight:700">(${progs.length})</span></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input class="input" data-action="filter-programs-table" placeholder="بحث في البرامج..." style="width:170px;padding:6px 10px;font-size:12px;" />
+        ${dashYearSelectHtml(units)}
+      </div>
+    </div>
+    ${progs.length === 0 ? emptyHint(year ? `لا توجد أعمال مُدخلة لعام ${hijriYearLabel(year)}.` : "لا توجد أعمال مُدخلة بعد.") : `
+    <div class="table-wrap" style="overflow-x:auto;max-height:520px;overflow-y:auto;"><table class="prs-table programs-table" style="min-width:820px;"><thead><tr style="background:${BLUE_BG}">
+      <th>الوحدة</th><th>اسم العمل</th><th>النوع</th><th style="text-align:center">الحالة</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المنجز</th><th style="text-align:center">الإنجاز</th><th>أبرز نتيجة</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`}
+  </div>`;
+}
+
+// نسخة التقرير الإداري النهائي (طباعة) — بدون أزرار تفاعلية
+function programsReportChapterBody(units) {
+  const progs = collectProgramsForUnits(units, null);
+  if (!progs.length) return emptyHint("لا توجد أعمال وبرامج مُدخلة بعد.");
+  const stats = achievementStats(progs);
+  const statsTable = reportTable(["نوع العمل", "عدد الأعمال", "المكتمل", "وحدة العدّ", "المستهدف", "المنجز", "النسبة"], stats.map((g) => {
+    const pct = g.hasTarget && g.target > 0 && g.hasAchieved ? Math.round((g.achieved / g.target) * 100) + "٪" : "—";
+    return [esc(g.workType), g.works, g.completed, esc(g.countUnit || "—"), g.hasTarget ? fmtNum(g.target) : "—", g.hasAchieved ? fmtNum(g.achieved) : "—", pct];
+  }));
+  const listTable = reportTable(["الوحدة", "العمل", "النوع", "الحالة", "المنجز", "أبرز نتيجة"], progs.map(({ unit, p }) => {
+    const a = programAchievedValue(p), cu = programCountUnit(p);
+    return [esc(unit.name), esc(p.name), esc(p.workType || "—"), esc(p.executionStatus || "—"), a == null ? "—" : esc(fmtNum(a) + (cu ? " " + cu : "")), esc(p.highlightResult || "—")];
+  }));
+  return `<div class="rpt-subheading">إحصائية الإنجاز</div>${statsTable}<div class="rpt-subheading">قائمة الأعمال والبرامج (${progs.length})</div>${listTable}`;
+}
+function yearCompareReportChapterBody(units) {
+  const data = yearlyComparisonData(units);
+  if (!data.indicators.length && !data.goals.length) return emptyHint("لا توجد بيانات مؤشرات أو أهداف في آخر 3 سنوات.");
+  const yl = data.years.map(hijriYearLabel);
+  const sumTable = reportTable(["البند", ...yl], [
+    ["متوسط تحقق المؤشرات", ...data.summary.map((s) => (s.indPct == null ? "—" : s.indPct + "٪"))],
+    ["متوسط تحقق الأهداف التشغيلية", ...data.summary.map((s) => (s.goalPct == null ? "—" : s.goalPct + "٪"))],
+    ["عدد الوحدات المُبلِّغة", ...data.summary.map((s) => s.reports)],
+  ]);
+  const indTable = data.indicators.length ? reportTable(["المؤشر", ...yl.map((y) => `${y} (مستهدف / متحقق)`)], data.indicators.map((ind) => [esc(ind.name), ...ind.cells.map((c) => (c ? `${fmtNum(c.target)} / ${fmtNum(c.actual)}${c.pct == null ? "" : ` <b>(${c.pct}٪)</b>`}` : "—"))])) : "";
+  const goalTable = data.goals.length ? reportTable(["الهدف الاستراتيجي", ...yl], data.goals.map((g) => [esc(g.name), ...g.cells.map((v) => (v == null ? "—" : v + "٪"))])) : "";
+  return sumTable + indTable + goalTable;
+}
+
 // معمّمة الآن لتأخذ (وحدات، أقسام) اختياريًا — تُستخدم من الإدارة العليا (كل
 // شي) ومن لوحة معلومات مكتب الإشراف (وحدات/أقسام مكتبه فقط) بنفس الدالة تمامًا.
 function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
@@ -4891,6 +5277,9 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
       </div>
       ${progressBarHtml(completionPct, ROSE)}
     </div>`)}
+    ${dashHidden(xk, "programs") ? "" : programsCardHtml(units)}
+    ${dashHidden(xk, "achieve") ? "" : achievementCardHtml(units)}
+    ${dashHidden(xk, "yearCompare") ? "" : yearCompareCardHtml(units)}
     ${dashExGrid(xk, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
         ${deptPerf.length ? svgBarChart(deptPerf, { height: 180 }) : emptyHint("لا توجد أقسام نشطة بعد.")}</div>`, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات التقارير</div>${total ? statusPie : emptyHint("لا توجد تقارير بعد.")}</div>`)}
     ${dashBlock(xk, "exUnitPerf", `<div class="card" style="margin-bottom:18px;">
@@ -5065,6 +5454,7 @@ function renderExecutiveFinalReport() {
   const completionPct = total ? Math.round((completed / total) * 100) : 0;
   const activeDepartments = S.departments.filter((d) => d.status === "active");
   const activeUnits = S.units.filter((u) => u.status === "active");
+  const finalReportUnits = activeUnits.filter((u) => u.role !== "admin" && u.role !== "executive" && u.role !== "self_report");
   const sortCurated = (arr) => [...arr].sort((a, b) => (b.curated ? 1 : 0) - (a.curated ? 1 : 0));
   const starTd = (curated) => curated ? `<span style="color:${GOLD};">⭐</span>` : "";
 
@@ -5169,13 +5559,15 @@ function renderExecutiveFinalReport() {
       ${summaryChapter}
       ${execChapterHtml(2, iconBuilding2, "مستوى أداء الأقسام والوحدات", reportTable(["القسم", "عدد الوحدات", "متوسط الإنجاز"], deptRows) + reportTable(["الوحدة", "القسم", "نسبة الإنجاز"], unitRows))}
       ${execChapterHtml(3, iconGauge2, "المؤشرات والأرقام", indicatorsChapterBody)}
-      ${execChapterHtml(4, iconSparkles, "أعلى الإنجازات ذات الأثر", achievementsChapterBody)}
-      ${execChapterHtml(5, iconCheckCircle, "نقاط القوة المشتركة", strengthsChapterBody)}
-      ${execChapterHtml(6, iconBell, "الصعوبات المتكررة والخطيرة", challengesChapterBody)}
-      ${execChapterHtml(7, iconPencil, "التوصيات التي تحتاج قرار الإدارة", recsChapterBody)}
-      ${execChapterHtml(8, iconLayers, "المبادرات القابلة للتعميم", initiativesChapterBody)}
-      ${execChapterHtml(9, iconCalendarSmall, "أولويات الفترة القادمة", nextTasksChapterBody)}
-      ${execChapterHtml(10, iconCheckCircle, "الخاتمة والاعتماد", closing)}
+      ${execChapterHtml(4, iconGauge2, "مقارنة آخر 3 سنوات — المستهدف والمتحقق", yearCompareReportChapterBody(finalReportUnits))}
+      ${execChapterHtml(5, iconLayers, "الأعمال والبرامج وإحصائية الإنجاز", programsReportChapterBody(finalReportUnits))}
+      ${execChapterHtml(6, iconSparkles, "أعلى الإنجازات ذات الأثر", achievementsChapterBody)}
+      ${execChapterHtml(7, iconCheckCircle, "نقاط القوة المشتركة", strengthsChapterBody)}
+      ${execChapterHtml(8, iconBell, "الصعوبات المتكررة والخطيرة", challengesChapterBody)}
+      ${execChapterHtml(9, iconPencil, "التوصيات التي تحتاج قرار الإدارة", recsChapterBody)}
+      ${execChapterHtml(10, iconLayers, "المبادرات القابلة للتعميم", initiativesChapterBody)}
+      ${execChapterHtml(11, iconCalendarSmall, "أولويات الفترة القادمة", nextTasksChapterBody)}
+      ${execChapterHtml(12, iconCheckCircle, "الخاتمة والاعتماد", closing)}
     </section>`;
 
   return `
@@ -8279,7 +8671,7 @@ function reviewSectionHtml(d, report) {
 
 /* =============================== Empty-item factories ========================= */
 const EMPTY_ITEM_FACTORY = {
-  programs: () => ({ id: uid("prog"), workType: "", name: "", goal: "", targetGroup: "", targetCount: "", actualBeneficiaries: "", startDate: "", endDate: "", location: "", deliveryMode: "", executingEntity: "", participatingEntities: "", responsiblePerson: "", executionStatus: "", completionPercent: "", attendeesCount: "", attendanceRate: "", continuationRate: "", approvedCost: "", actualCost: "", highlightResult: "" }),
+  programs: () => ({ id: uid("prog"), workType: "", name: "", goal: "", targetGroup: "", targetCount: "", actualBeneficiaries: "", countUnit: "", achievedCount: "", startDate: "", endDate: "", location: "", deliveryMode: "", executingEntity: "", participatingEntities: "", responsiblePerson: "", executionStatus: "", completionPercent: "", attendeesCount: "", attendanceRate: "", continuationRate: "", approvedCost: "", actualCost: "", highlightResult: "" }),
   tools: () => ({ id: uid("tool"), toolType: "", name: "", purpose: "", relatedProgram: "", targetGroup: "", populationSize: "", sampleSize: "", respondentsCount: "", applicationDate: "", toolLink: "", resultsLink: "", resultQuality: "" }),
   comparisons: () => ({ id: uid("cmp"), topic: "", resultValue: "", judgment: "", changeReason: "" }),
   challenges: () => ({ id: uid("chl"), name: "", area: "", severity: "", scope: "", description: "", rootCause: "", performanceImpact: "", startedWhen: "", recurred: "", actionTaken: "", actionResult: "", stillOngoing: "", supportNeeded: "", proposedHandler: "", resolutionTime: "" }),
@@ -8301,6 +8693,7 @@ const CUSTOM_OPTION_FIELD_MAP = {
   "top|officeName": "customOfficeNames",
   "top|term": "customTerms",
   "programs|workType": "customWorkTypes",
+  "programs|countUnit": "customCountUnits",
   "tools|toolType": "customToolTypes",
   "strengths|area": "customStrengthAreas",
   "challenges|area": "customChallengeAreas",
@@ -8397,8 +8790,9 @@ function sectionBodyOnly(section, saved, report) {
       const shades = ["#6b2337", "#8a3350", "#c26b85", "#d8c4a8", "#a8a29a"];
       const donutData = Object.keys(statusCounts).map((k, i) => ({ label: k, value: statusCounts[k], color: shades[i % shades.length] }));
       body = `<div style="max-width:220px;margin:0 auto 14px;">${svgPieChart(donutData, { size: 150 })}</div>`;
-      body += reportTable(["اسم العمل", "النوع", "الفئة المستهدفة", "المستهدف", "الفعلي", "الحالة"], rows.map((p) => [
-        esc(p.name || "—"), esc(p.workType || "—"), esc(p.targetGroup || "—"), esc(p.targetCount || "—"), esc(p.actualBeneficiaries || "—"), esc(p.executionStatus || "—"),
+      body += reportTable(["اسم العمل", "النوع", "الفئة المستهدفة", "المستهدف", "المستفيدات الفعلي", "المنجز", "الحالة"], rows.map((p) => [
+        esc(p.name || "—"), esc(p.workType || "—"), esc(p.targetGroup || "—"), esc(p.targetCount || "—"), esc(p.actualBeneficiaries || "—"),
+        p.achievedCount !== "" && p.achievedCount != null ? esc(p.achievedCount + (p.countUnit ? " " + p.countUnit : "")) : "—", esc(p.executionStatus || "—"),
       ]));
     } else { body = emptyHint("لا توجد أعمال مُدخلة."); }
     body += rows.filter((p) => p.highlightResult).map((p) => textBlock(`أبرز نتيجة — ${p.name}`, p.highlightResult)).join("");
@@ -8823,6 +9217,12 @@ function attachFormListeners() {
       if (el.id.indexOf("cp-sec-") === 0) { const sc = SECTIONS.find((x) => m.endsWith("-" + x.id)); if (sc) apDraftSet(m.slice(0, m.length - sc.id.length - 1), sc.id, el.value); }
       else apDraftSet(m, "__gen", el.value);
     }
+    if (el.dataset && el.dataset.action === "filter-programs-table") {
+      const q = el.value.trim().toLowerCase();
+      const card = el.closest(".card") || document;
+      card.querySelectorAll(".programs-table tbody tr").forEach((row) => { row.style.display = !q || (row.dataset.search || "").includes(q) ? "" : "none"; });
+      return;
+    }
     if (el.id === "dashboard-search") {
       const q = el.value.trim().toLowerCase();
       const rows = document.querySelectorAll("#recent-reports-table tbody tr");
@@ -8991,6 +9391,7 @@ function attachFormListeners() {
       reader.readAsDataURL(file);
       return;
     }
+    if (el.dataset && el.dataset.action === "dash-prog-year") { S.ui.dashProgYear = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-all-reports-dept") { S.ui.allReportsDept = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-type") { S.ui.unitReportsTypeFilter = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-year") { S.ui.unitReportsYearFilter = el.value; render(); return; }
