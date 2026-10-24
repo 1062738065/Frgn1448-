@@ -154,6 +154,10 @@ img { max-width: 100%; }
   width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
   font-size: 13.5px; color: var(--ink); background: #fdfbfa; outline: none;
 }
+/* حقول التاريخ في Safari (الآيباد) لها عرض داخلي ثابت يطلّعها عن مكانها جنب حقل ثاني */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; min-height: 44px; text-align: right; }
+.row-flex > *, .field, .num-box { min-width: 0; }
+input[type="date"]::-webkit-date-and-time-value { text-align: right; }
 select.input { cursor: pointer; }
 textarea.input { resize: vertical; line-height: 1.6; }
 .readonly-box { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--gray-bg); color: var(--subtle); display: flex; align-items: center; min-height: 40px; }
@@ -311,20 +315,75 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .rpt-wrap { background: var(--rpt-beige); padding: 26px 0; border-radius: 18px; }
 .a4-page {
   background: var(--rpt-paper);
-  width: 210mm;
+  width: var(--rpt-page-w, 210mm);
   max-width: 100%;
   min-height: 100mm;
   margin: 0 auto 22px;
-  padding: 20mm 16mm 20mm 16mm;
+  padding: var(--rpt-mt, 18mm) var(--rpt-mr, 15mm) var(--rpt-mb, 18mm) var(--rpt-ml, 15mm);
   box-shadow: 0 2px 4px rgba(107,35,55,0.06), 0 14px 34px rgba(107,35,55,0.09);
   position: relative;
   box-sizing: border-box;
-  font-family: 'Almarai', 'IBM Plex Sans Arabic', sans-serif;
+  font-family: var(--rpt-font-body, 'Almarai'), 'Almarai', 'IBM Plex Sans Arabic', sans-serif;
   color: var(--rpt-ink);
 }
-.a4-page.has-spine { padding-right: 16mm; }
+.a4-page.has-spine { padding-right: calc(var(--rpt-mr, 15mm) + 2mm); }
 .rpt-spine { position: absolute; top: 0; bottom: 0; right: 0; width: 5mm; background: var(--rpt-burgundy); }
-.rpt-page-number { position: absolute; bottom: 6mm; left: 0; right: 0; text-align: center; font-size: 14px; font-weight: 800; color: var(--rpt-burgundy); }
+
+/* ---- تنسيق الصفحة من «إدارة التقارير»: خلفية، علامة مائية، إطار، رأس وتذييل ---- */
+.rpt-bgimg .a4-page { background-image: var(--rpt-bg-img); background-size: cover; background-position: center; background-repeat: no-repeat; }
+.rpt-frame .a4-page { outline: 1.5px solid var(--rpt-burgundy); outline-offset: -5mm; }
+.rpt-wm { position: absolute; inset: 0; background-repeat: no-repeat; background-position: center; background-size: 45%; opacity: 0.06; pointer-events: none; z-index: 0; }
+.rpt-runhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10.5px; color: var(--rpt-gray); border-bottom: 2px solid var(--rpt-burgundy); padding-bottom: 6px; margin-bottom: 14px; position: relative; }
+.rpt-runhead > span { flex: 1; }
+.rpt-runhead > span:last-child { text-align: left; }
+.rpt-runhead-c { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--rpt-burgundy); }
+.rpt-runhead-c img { height: 34px; width: auto; }
+.rpt-runfoot { position: absolute; bottom: 6mm; left: var(--rpt-ml, 15mm); right: var(--rpt-mr, 15mm); display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--rpt-gray); }
+.rpt-runfoot > span { flex: 1; }
+.rpt-runfoot-num { text-align: center; font-size: 14px; font-weight: 800; color: var(--rpt-burgundy); }
+
+/* ---- صفحة «تنسيق وإنشاء التقارير» ---- */
+.rm-layout { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.rm-list { flex: 0 1 230px; min-width: 200px; display: flex; flex-direction: column; gap: 8px; }
+.rm-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: right; padding: 12px 14px; border-radius: 14px; cursor: pointer; color: var(--ink, #2E2430); border: 1px solid var(--border, #eddde2); background: #fff; font-family: inherit; min-height: 52px; }
+.rm-item.on { border: 1.5px solid var(--rose, #6b2337); background: #fbf3f5; }
+.rm-item-name { font-size: 13.5px; font-weight: 800; }
+.rm-item-kind { font-size: 11.5px; color: var(--subtle, #6f5f66); }
+.rm-new { min-height: 48px; border-radius: 14px; border: 1.5px dashed #c9a9b4; background: #fff; color: var(--rose, #6b2337); font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; }
+.rm-panel { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.rm-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.rm-tabs { display: flex; gap: 4px; flex-wrap: wrap; background: #f6f0f2; padding: 4px; border-radius: 12px; }
+.rm-tab { flex: 1; min-width: 78px; min-height: 40px; border: none; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: #5c4f55; font-family: inherit; }
+.rm-tab.on { background: #fff; color: var(--rose, #6b2337); font-weight: 800; box-shadow: 0 1px 3px rgba(107,35,55,0.12); }
+.rm-body { display: flex; flex-direction: column; gap: 14px; }
+.rm-field { display: flex; flex-direction: column; gap: 6px; }
+.rm-label { font-size: 12.5px; font-weight: 800; }
+.rm-field > .rm-pill { align-self: flex-start; }
+.rm-label:empty { display: none; }
+.rm-hint { font-size: 11.5px; color: var(--subtle, #6f5f66); line-height: 1.7; }
+.rm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rm-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.rm-pill { min-height: 40px; padding: 0 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1px solid var(--border, #eddde2); background: #fff; color: var(--ink, #2E2430); font-family: inherit; display: inline-flex; align-items: center; }
+.rm-pill.on { background: var(--rose, #6b2337); border-color: var(--rose, #6b2337); color: #fff; font-weight: 800; }
+.rm-pill-sm { min-height: 34px; padding: 0 11px; font-size: 11.5px; }
+.rm-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.rm-mini { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--subtle, #6f5f66); }
+.rm-color { width: 52px; height: 40px; border: 1px solid var(--border, #eddde2); border-radius: 8px; cursor: pointer; padding: 2px; background: #fff; }
+.rm-swatch { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border, #eddde2); }
+.rm-swatch.on { border: 3px solid var(--ink, #2E2430); }
+.rm-sep { height: 1px; background: var(--border, #eddde2); }
+.rm-chapter { border: 1px solid var(--border, #eddde2); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; background: #fff; }
+.rm-chapter.off { background: #faf6f4; }
+.rm-chapter.off input { opacity: 0.6; }
+.rm-arrow { width: 30px; height: 22px; border: 1px solid var(--border, #eddde2); background: #fff; border-radius: 6px; font-size: 10px; cursor: pointer; color: var(--ink, #2E2430); }
+.rm-arrow:disabled { opacity: 0.35; cursor: default; }
+.rm-link { background: none; border: none; color: var(--rose, #6b2337); font-size: 12px; font-weight: 700; cursor: pointer; padding: 8px 2px 0; font-family: inherit; }
+.rm-dirty { font-size: 11.5px; font-weight: 800; color: #7a4d16; background: #fbf0e1; padding: 4px 10px; border-radius: 999px; }
+.rm-saved { font-size: 11.5px; font-weight: 800; color: #2E6B52; background: #e7f5ee; padding: 4px 10px; border-radius: 999px; }
+.rm-preview { flex: 1 1 440px; min-width: 0; }
+.rm-badge { font-size: 11.5px; font-weight: 800; color: #7a4d16; background: #fbf0e1; padding: 4px 10px; border-radius: 999px; }
+.rm-preview-scroll { max-height: 1100px; overflow: auto; border-radius: 16px; background: var(--rpt-beige); }
+.rm-preview-scroll .rpt-wrap { padding: 14px 0; }
 
 /* ---- شبكة البطاقات العامة (تُستخدم بالبطاقات الأيقونية داخل الفصول) ---- */
 .rpt-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
@@ -337,7 +396,7 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .rpt-cover-assoc { font-size: 14px; font-weight: 700; color: var(--rpt-burgundy); margin-bottom: 4px; }
 .rpt-cover-unit { font-size: 12.5px; color: var(--rpt-gray); margin-bottom: 30px; }
 .rpt-cover-divider { width: 70px; height: 3px; background: var(--rpt-burgundy); margin: 0 auto 30px; border-radius: 2px; }
-.rpt-cover-title { font-family: 'Amiri', serif; font-size: 30px; font-weight: 700; color: var(--rpt-burgundy); margin: 0 0 10px; }
+.rpt-cover-title { font-family: var(--rpt-font-title, 'Amiri'), 'Amiri', serif; font-size: 30px; font-weight: 700; color: var(--rpt-burgundy); margin: 0 0 10px; }
 .rpt-cover-sub { font-size: 14px; color: var(--rpt-ink); margin-bottom: 40px; }
 .rpt-cover-meta { display: inline-flex; flex-direction: column; gap: 8px; background: #fff; border: 1px solid var(--rpt-line); border-radius: 10px; padding: 16px 30px; margin-bottom: 34px; }
 .rpt-cover-meta div { font-size: 12.5px; color: var(--rpt-ink); }
@@ -356,10 +415,10 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 
 /* ---- Chapters ---- */
 .rpt-chapter { margin-bottom: 26px; }
-.rpt-chapter-head { display: flex; align-items: center; gap: 12px; background: #f3e8dd; border: 1px solid var(--rpt-line); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+.rpt-chapter-head { display: flex; align-items: center; gap: 12px; background: var(--rpt-chapter-bg, #f3e8dd); border: 1px solid var(--rpt-line); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
 .rpt-chapter-num { width: 34px; height: 34px; border-radius: 50%; background: var(--rpt-burgundy); color: #fff; font-weight: 900; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rpt-chapter-icon { width: 26px; height: 26px; border-radius: 7px; background: var(--rpt-burgundy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rpt-chapter-title { font-family: 'Cairo', 'Almarai', sans-serif; font-size: 15.5px; font-weight: 800; color: var(--rpt-burgundy); margin: 0; }
+.rpt-chapter-title { font-family: var(--rpt-font-heading, 'Cairo'), 'Cairo', 'Almarai', sans-serif; font-size: 15.5px; font-weight: 800; color: var(--rpt-burgundy); margin: 0; }
 .rpt-subheading { font-size: 12.5px; font-weight: 800; color: var(--rpt-burgundy); margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--rpt-line); }
 .rpt-subheading:first-child { margin-top: 0; }
 .rpt-chapter-body .doc-kv { font-size: 12px; }
@@ -367,7 +426,13 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
    بدون التأثير على باقي الموقع (لوحة التحكم، محرر الأقسام). لا يغيّر شكل
    النصوص القصيرة (تسميات، شارات) لأن التبرير لا يظهر أثره إلا بالنص متعدد الأسطر. */
 .rpt-chapter-body, .rpt-wrap .hint { text-align: justify; text-align-last: right; }
-.rpt-chapter-body table.prs-table th { background: #f4ece4 !important; color: var(--rpt-burgundy) !important; }
+.rpt-chapter-body table.prs-table th { background: var(--rpt-th-bg, #f4ece4) !important; color: var(--rpt-th-color, var(--rpt-burgundy)) !important; }
+.rpt-wrap table.prs-table { font-size: var(--rpt-table-fs, 12px); }
+.rpt-wrap table.prs-table th { text-align: var(--rpt-th-align, right); }
+.rpt-wrap table.prs-table td { text-align: var(--rpt-td-align, right); text-align-last: auto; }
+.rpt-zebra .rpt-chapter-body table.prs-table tbody tr:nth-child(even) td { background: rgba(107,35,55,0.045); }
+.rpt-tnone .rpt-chapter-body table.prs-table td { border-top-color: transparent !important; }
+.rpt-tgrid .rpt-chapter-body table.prs-table th, .rpt-tgrid .rpt-chapter-body table.prs-table td { border: 1px solid var(--rpt-line) !important; }
 .rpt-chapter-body table.prs-table td { border-top-color: var(--rpt-line) !important; }
 /* توحيد ألوان الشارات وأشرطة التقدم داخل التقرير على درجات العنابي والبيج،
    بدل الألوان المتعددة (أخضر/أصفر/أحمر) المستخدمة بلوحة التحكم — يبقي التقرير
@@ -413,9 +478,9 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
   .rpt-wrap { background: #fff !important; padding: 0 !important; }
   .a4-page {
     box-shadow: none !important; margin: 0 !important; width: auto !important; min-height: 100vh;
-    padding: 16mm 14mm 18mm !important; break-after: page;
+    padding: var(--rpt-mt, 16mm) var(--rpt-mr, 14mm) var(--rpt-mb, 18mm) var(--rpt-ml, 14mm) !important; break-after: page;
   }
-  .a4-page.has-spine { padding-right: 14mm !important; }
+  .a4-page.has-spine { padding-right: calc(var(--rpt-mr, 14mm) + 2mm) !important; }
   .a4-page:last-child { break-after: auto; }
   .rpt-chapter { break-inside: avoid; }
   .rpt-cover { break-after: page; }
