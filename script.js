@@ -9630,7 +9630,7 @@ function attachClickListener() {
         render();
         if (sheetsConfigured()) {
           if (navView === "admin-reports" || navView === "units-manage" || navView === "dashboard") {
-            refreshUnitsAndDepartmentsFromSheet().then(() => { if (S.view === navView) render(); });
+            Promise.all([refreshUnitsAndDepartmentsFromSheet(), navView === "units-manage" ? refreshRolesPersonsFromSheet().catch(() => {}) : Promise.resolve()]).then(() => { if (S.view === navView) render(); });
           } else if (navView === "indicators-manage") {
             refreshIndicatorDefinitionsFromSheet().then(() => { if (S.view === navView) render(); });
           } else if (navView === "goals-manage") {
