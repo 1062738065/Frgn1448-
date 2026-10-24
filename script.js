@@ -146,10 +146,20 @@ function computeDeviationAmount(row) {
   if (row.direction && row.direction.startsWith("تنازلي")) return actual - target;
   return target - actual;
 }
-function getIndicatorBaseline(history, name) {
-  const entries = (history && history[name]) || [];
-  if (!entries.length) return null;
-  return entries[entries.length - 1].value;
+// خط الأساس منفصل عن المتحقق: = المتحقق في آخر تقرير معتمد/مكتمل سابق لنفس الوحدة ونفس المؤشر؛
+// وإن لم يوجد فالقيمة اليدوية (row.baseline) وقد تبقى فارغة.
+const BASELINE_DONE_STATUSES = ["approved", "completed"];
+function indicatorPrevBaseline(unitId, report, name) {
+  const n = String(name || "").trim();
+  if (!unitId || !n) return null;
+  const cur = (report && report.createdAt) || Date.now();
+  let best = null;
+  ensureUnitReportsLoaded(unitId).forEach((r) => {
+    if (!r || r.id === (report && report.id) || !BASELINE_DONE_STATUSES.includes(r.status) || (r.createdAt || 0) >= cur) return;
+    const row = (r.sections?.kpi?.data?.indicators || []).find((x) => String(x.name || "").trim() === n && x.actual !== "" && x.actual != null);
+    if (row && (!best || (r.createdAt || 0) > (best.report.createdAt || 0))) best = { report: r, value: row.actual };
+  });
+  return best;
 }
 function resolveIndicatorRow(row, def) {
   return { ...row, category: def?.category || "", direction: def?.direction || "", nature: def?.nature || "",
@@ -1246,16 +1256,6 @@ function buildSampleKPIRows() {
     { id: "kpi-sample-5", name: "عدد المبادرات النوعية المنفذة", actual: "" },
   ].map((row) => ({ deviationReason: "", causeType: "", correctiveAction: "", responsiblePerson: "", closureDate: "", requiredSupport: "", ...row }));
 }
-function buildSampleIndicatorHistory() {
-  const t = Date.now() - 5000000;
-  return {
-    "نسبة إنجاز الاختبارات": [{ value: 88, period: "شهري · 1448هـ", savedAt: t }],
-    "رضا المستفيدات عن الخدمة": [{ value: 85, period: "ربع سنوي · 1448هـ", savedAt: t }],
-    "زمن الاستجابة لطلبات الدعم": [{ value: 30, period: "أسبوعي · 1448هـ", savedAt: t }],
-    "معدل استكمال البرامج التدريبية": [{ value: 72, period: "فصلي · 1448هـ", savedAt: t }],
-  };
-}
-
 const dataStore = {
   getDepartments() {
     const v = lsGet(DEPARTMENTS_KEY);
@@ -9569,18 +9569,7 @@ function persistSection(sectionId, data, status) {
       updatedLabel = `تقرير ${data.periodType}`;
     }
   }
-  let updatedIndicatorHistory = current.indicatorHistory || {};
-  if (sectionId === "kpi") {
-    const periodLabel = [updatedShared.periodType, updatedShared.hijriYear].filter(Boolean).join(" · ");
-    const nextHistory = { ...updatedIndicatorHistory };
-    (data.indicators || []).forEach((row) => {
-      if (!row.name || row.actual === "" || row.actual == null || isNaN(Number(row.actual))) return;
-      const existing = nextHistory[row.name] || [];
-      nextHistory[row.name] = [...existing, { value: Number(row.actual), period: periodLabel, savedAt: Date.now() }];
-    });
-    updatedIndicatorHistory = nextHistory;
-  }
-  const updatedEntry = { ...current, label: updatedLabel, sections: updatedSections, shared: updatedShared, indicatorHistory: updatedIndicatorHistory, updatedAt: Date.now(), lastSectionId: sectionId };
+  const updatedEntry = { ...current, label: updatedLabel, sections: updatedSections, shared: updatedShared, updatedAt: Date.now(), lastSectionId: sectionId };
   // saveReportEntry يرفع التقرير كامل (بكل أقسامه) لـ Supabase دفعة وحدة.
   saveReportEntry(unitId, updatedEntry);
 }
@@ -9720,7 +9709,7 @@ function basicSectionHtml(d, unit) {
 }
 
 /* ---- مؤشرات الأداء ---- */
-function indicatorCardHtml(row, index, def, indicatorHistory, isOpen, d) {
+function indicatorCardHtml(row, index, def, report, isOpen, d) {
   const approvedNames = S.indicatorDefinitions.map((x) => x.name);
   const nameSelector = fieldWrap("اسم المؤشر", true, sel("indicators", row.id, "name", row.name, [...approvedNames, NEW_INDICATOR_LABEL], approvedNames.length ? "اختاري من مؤشرات الوحدة المعتمدة" : "لا توجد مؤشرات معتمدة بعد"));
   const isNewFlow = row.name === NEW_INDICATOR_LABEL;
@@ -9751,7 +9740,8 @@ function indicatorCardHtml(row, index, def, indicatorHistory, isOpen, d) {
   }
 
   const resolved = resolveIndicatorRow(row, def);
-  const baseline = getIndicatorBaseline(indicatorHistory, row.name);
+  const prevBase = indicatorPrevBaseline(S.currentUnitId, report, row.name);
+  const baseline = prevBase ? prevBase.value : (row.baseline !== "" && row.baseline != null ? row.baseline : null);
   const status = computeIndicatorStatus(resolved);
   const deviation = computeDeviationAmount(resolved);
   const needsDeviation = status.key !== "achieved" && status.key !== "noData";
@@ -9787,6 +9777,9 @@ function indicatorCardHtml(row, index, def, indicatorHistory, isOpen, d) {
     </div>
     ${isEditing ? `<div style="margin-top:14px;padding-top:14px;border-top:1px dashed ${BORDER}">
       ${nameSelector}${newForm}
+      ${row.name ? fieldWrap("خط الأساس", false, prevBase
+        ? `<div class="readonly-box">${esc(prevBase.value)}</div><div class="hint">من المتحقق في تقرير «${esc(prevBase.report.label || "سابق")}» المعتمد للوحدة.</div>`
+        : inp("indicators", row.id, "baseline", row.baseline, "اختياري — اتركيه فارغًا إذا ما فيه قيمة سابقة", "number")) : ""}
       ${fieldWrap("المتحقق", true, inp("indicators", row.id, "actual", row.actual, "0", "number") + `<div style="font-size:10px;color:#c9863a;margin-top:4px;">🔧 لا يوجد مصدر بيانات مربوط — يحتاج إدخالًا يدويًا</div>`)}
     </div>` : ""}
     ${showDetails ? `<div style="margin-top:14px;padding-top:14px;border-top:1px dashed ${BORDER}">
@@ -9832,7 +9825,7 @@ function kpiSectionHtml(d, report) {
   const rows = indicators.map((row, i) => {
     const def = findIndicatorDef(row.name);
     const isOpen = indicators.length === 1 || !row.name || row.id === expandedId;
-    return indicatorCardHtml(row, i, def, report.indicatorHistory, isOpen, d);
+    return indicatorCardHtml(row, i, def, report, isOpen, d);
   }).join("");
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -12658,8 +12651,7 @@ function attachClickListener() {
         if (targetUnit) {
           const list = ensureUnitReportsLoaded(targetUnit.id);
           const existing = list.length ? list[list.length - 1] : createNewReportEntry(targetUnit.id);
-          const updated = { ...existing, sections: { ...existing.sections, kpi: { status: "draft", data: { indicators: buildSampleKPIRows(), notes: existing.sections?.kpi?.data?.notes || "" }, updatedAt: Date.now() } },
-            indicatorHistory: { ...existing.indicatorHistory, ...buildSampleIndicatorHistory() } };
+          const updated = { ...existing, sections: { ...existing.sections, kpi: { status: "draft", data: { indicators: buildSampleKPIRows(), notes: existing.sections?.kpi?.data?.notes || "" }, updatedAt: Date.now() } } };
           saveReportEntry(targetUnit.id, updated);
         }
         S.__adminAllowWrite = false;
