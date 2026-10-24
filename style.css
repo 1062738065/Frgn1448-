@@ -154,6 +154,9 @@ img { max-width: 100%; }
   width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
   font-size: 13.5px; color: var(--ink); background: #fdfbfa; outline: none;
 }
+/* حقول التاريخ في Safari (الآيباد) لها عرض داخلي ثابت يطلّعها عن مكانها جنب حقل ثاني */
+input.input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; min-height: 44px; text-align: right; }
+input.input[type="date"]::-webkit-date-and-time-value { text-align: right; }
 select.input { cursor: pointer; }
 textarea.input { resize: vertical; line-height: 1.6; }
 .readonly-box { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--gray-bg); color: var(--subtle); display: flex; align-items: center; min-height: 40px; }

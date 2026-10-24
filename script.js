@@ -2843,6 +2843,7 @@ async function refreshUnitsAndDepartmentsFromDb() {
   if (unitsRes.ok && Array.isArray(unitsRes.data)) {
     S.units = unitsRes.data.map(rowToUnit);
     dataStore.cacheUnitsLocally(S.units);
+    syncUnitDeptsFromTree();
   }
   if (deptRes.ok && Array.isArray(deptRes.data)) {
     const linked = autoLinkDepartmentOffices(deptRes.data.map(rowToDept));
@@ -4094,6 +4095,25 @@ function saveOrgLevels(list) {
   S.orgLevels = list;
   lsSet(ORG_LEVELS_KEY, JSON.stringify(list));
   if (dbConnected()) queueSupabaseReplaceTable("org_levels", list.map(orgLevelToRow), "id", gone).catch(() => {});
+  syncUnitDeptsFromTree();
+}
+// الهيكل المرن هو المرجع: وحدة موضوعة تحت مستوى مربوط بقسم يصير قسمها هذا القسم تلقائيًا
+// (ويتحدّث لو نُقلت). الوحدة اللي ما فوقها قسم في الهيكل تبقى على اختيارها اليدوي.
+// الحفظ في القاعدة من حساب يدير المستخدمين فقط؛ البقية تُضبط عندهم في الذاكرة.
+function olUnitDeptFromTree(level) {
+  let p = olFind(level.parentId), guard = 0;
+  while (p && p.linkKind !== "dept" && guard++ < 50) p = olFind(p.parentId);
+  return p && p.linkKind === "dept" && (S.departments || []).some((d) => d.id === p.linkId) ? p.linkId : null;
+}
+function syncUnitDeptsFromTree() {
+  if (!Array.isArray(S.units)) return;
+  let changed = false;
+  olActive().filter((l) => l.linkKind === "unit" && l.linkId).forEach((l) => {
+    const u = S.units.find((x) => x.id === l.linkId);
+    const dep = u && olUnitDeptFromTree(l);
+    if (dep && u.departmentId !== dep) { u.departmentId = dep; changed = true; }
+  });
+  if (changed && canManageUsers()) dataStore.saveUnits(S.units);
 }
 async function refreshOrgLevelsFromDb() {
   if (!dbConnected()) return;
@@ -4102,6 +4122,7 @@ async function refreshOrgLevelsFromDb() {
   if (res.ok && Array.isArray(res.data)) {
     S.orgLevels = res.data.map(rowToOrgLevel);
     lsSet(ORG_LEVELS_KEY, JSON.stringify(S.orgLevels));
+    syncUnitDeptsFromTree();
   }
 }
 function levelTypesList() {
