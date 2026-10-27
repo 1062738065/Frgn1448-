@@ -7820,7 +7820,7 @@ function apAutoPathListHtml(unit, withSkip, period, unitCtl) {
     const inBase = !!period && apUnitSkipList(unit.id).includes(key);
     if (inBase) r.why = "متخطّاة في كل الفترات (غيّريها من تبويب «كل الفترات»)";
     const holds = lvl ? sessionIsLevel(lvl) : raw ? userHoldsApStage(apNamedStage(raw, path, unit), unit) : false;
-    const mine = !inBase && withSkip && pm && pm.skip && r.state !== "all" && r.state !== "auto" && (unitCtl || holds);
+    const mine = !inBase && withSkip && (unitCtl || (pm && pm.skip)) && r.state !== "all" && r.state !== "auto" && (unitCtl || holds);
     const pd = period ? { pt: period } : {};
     const many = mine && lvl && holds ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)).length : 0;
     return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:12px;border:1px ${off ? "dashed #d9c9cf" : "solid " + BORDER};background:${off ? "#faf6f7" : "#fff"};">
