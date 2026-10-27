@@ -3942,10 +3942,10 @@ function usSkipCardHtml(unit) {
   })).join("");
   return `<div class="card" style="margin-bottom:14px;">
     <div style="font-size:14px;font-weight:800;margin-bottom:4px;">مسار تقارير الوحدة</div>
-    <div class="hint" style="margin-bottom:10px;">يطلع لحاله من الهيكل. اختاري الفترة وتخطّي مرحلتك لها فقط (مثلًا «شهري» ما يمر عليّ، و«سنوي» يمر). «كل الفترات» يسري على كل التقارير. مرحلتك فقط اللي تقدرين تتخطّينها، والتقرير اللي واقف عندها ينتقل للي بعدها.</div>
+    <div class="hint" style="margin-bottom:10px;">يطلع لحاله من الهيكل. اختاري الفترة، وعلى كل مرحلة اضغطي «ما يمر عليها» لو ما تبين التقرير يمر عليها في هذه الفترة (مثلًا «شهري» يروح مباشرة للإدارة العليا). «كل الفترات» يسري على كل التقارير. المراحل اللي ما تقبل التخطّي ما يطلع عليها زر.</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${pills}</div>
     ${cur ? `<div style="font-size:12px;color:${SUBTLE};margin-bottom:8px;">المسار لتقارير «${esc(cur)}»</div>` : ""}
-    ${apAutoPathListHtml(unit, true, cur)}
+    ${apAutoPathListHtml(unit, true, cur, true)}
   </div>`;
 }
 
@@ -7806,7 +7806,7 @@ function structPanelTagHtml(type, e) {
   return `<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:${t.bg};color:${t.fg};white-space:nowrap;">${t.label}</span>`;
 }
 // مسار الوحدة التلقائي كقائمة مختصرة (للاطلاع) — مع أزرار تخطّي صاحبة المرحلة في «الإعدادات»
-function apAutoPathListHtml(unit, withSkip, period) {
+function apAutoPathListHtml(unit, withSkip, period, unitCtl) {
   const path = autoPathObj();
   if (!path || path.status !== "active") return `<div style="font-size:12px;color:${SUBTLE};">المسار التلقائي موقف — تفعّله مديرة النظام من «كل المسارات».</div>`;
   const pv = apAutoPreview(unit, period); if (!pv) return "";
@@ -7819,13 +7819,14 @@ function apAutoPathListHtml(unit, withSkip, period) {
     const key = AUTO_PATH_ID + ":" + (r.what === "lvl" ? "lvl:" + r.id : r.id);
     const inBase = !!period && apUnitSkipList(unit.id).includes(key);
     if (inBase) r.why = "متخطّاة في كل الفترات (غيّريها من تبويب «كل الفترات»)";
-    const mine = !inBase && withSkip && pm && pm.skip && r.state !== "all" && r.state !== "auto" && (lvl ? sessionIsLevel(lvl) : raw ? userHoldsApStage(apNamedStage(raw, path, unit), unit) : false);
+    const holds = lvl ? sessionIsLevel(lvl) : raw ? userHoldsApStage(apNamedStage(raw, path, unit), unit) : false;
+    const mine = !inBase && withSkip && pm && pm.skip && r.state !== "all" && r.state !== "auto" && (unitCtl || holds);
     const pd = period ? { pt: period } : {};
-    const many = mine && lvl ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)).length : 0;
+    const many = mine && lvl && holds ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)).length : 0;
     return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:12px;border:1px ${off ? "dashed #d9c9cf" : "solid " + BORDER};background:${off ? "#faf6f7" : "#fff"};">
       <span style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;background:${off ? "#f1ecee" : "#f3e6ea"};color:${off ? "#a99" : ROSE};">${off ? "–" : info ? "ⓘ" : n}</span>
       <div style="flex:1 1 180px;min-width:0;"><div style="font-size:12.5px;font-weight:800;${off ? "color:#a3949a;text-decoration:line-through;" : ""}">${esc(r.name)}</div>${r.why ? `<div style="font-size:11px;color:${SUBTLE};">${esc(r.why)}</div>` : ""}</div>
-      ${mine ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn(r.state === "unit" ? "إرجاع مرحلتي" : (period ? "تخطّي مرحلتي في «" + period + "»" : "تخطّي مرحلتي لهذه الوحدة"), { variant: r.state === "unit" ? "ghost" : "primary", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", ...pd } })}
+      ${mine ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn(r.state === "unit" ? (unitCtl ? "يمر عليها" : "إرجاع مرحلتي") : (unitCtl ? "ما يمر عليها" : period ? "تخطّي مرحلتي في «" + period + "»" : "تخطّي مرحلتي لهذه الوحدة"), { variant: r.state === "unit" ? "ghost" : "primary", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", ...pd } })}
         ${many > 1 ? pillBtn((r.state === "unit" ? "إرجاعها" : "تخطّيها") + " لكل وحداتي (" + many + ")", { variant: "soft", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", all: lvl.id, ...pd } }) : ""}</div>` : ""}
     </div>`;
   }).join("");
