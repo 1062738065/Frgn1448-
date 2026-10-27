@@ -2355,7 +2355,24 @@ function personsList() { return S.persons || (S.persons = dataStore.getPersons()
 // ("r1,r2"). معرّف واحد = السلوك القديم تمامًا؛ اثنان فأكثر = تظهر بطاقة لكل دور في شاشة
 // «كيف تريدين الدخول؟» ويدخل كل دور بصفحاته هو فقط (بلا جمع صلاحيات).
 function baseRoleIdsRaw(e) { return e && e.baseRoleId ? String(e.baseRoleId).split(",").map((x) => x.trim()).filter(Boolean) : []; }
-function baseRoleIdsOf(e) { const roles = rolesList(); return baseRoleIdsRaw(e).filter((id) => roles.some((r) => r.id === id && r.status !== "disabled")); }
+// «دور كل نوع»: الحساب اللي ما له دور خاص ياخذ دور نوعه (theme.typeRoles) — يتغيّر عند الكل بتعديل واحد
+const TYPE_ROLE_KINDS = [{ k: "unit", label: "الوحدات" }, { k: "center", label: "المراكز" }, { k: "dept", label: "الأقسام" }, { k: "office", label: "المكاتب" }, { k: "exec", label: "الإدارة العليا" }, { k: "level", label: "المسؤولات في الهيكل (دخول خاص)" }];
+function typeRolesCfg() { const th = ((S.siteSettings || {}).theme) || {}; return th.typeRoles || {}; }
+function entityTypeKey(e) {
+  if (!e) return "";
+  if (e.role) return e.role === "center" ? "center" : e.role === "executive" ? "exec" : e.role === "unit" ? "unit" : "";
+  if ((S.departments || []).some((d) => d.id === e.id)) return "dept";
+  if ((S.offices || []).some((o) => o.id === e.id)) return "office";
+  return "unit";
+}
+function roleActive(id) { return !!id && rolesList().some((r) => r.id === id && r.status !== "disabled"); }
+function typeRoleOf(kind) { const id = typeRolesCfg()[kind]; return roleActive(id) ? id : ""; }
+function baseRoleIdsOf(e) {
+  const own = baseRoleIdsRaw(e).filter(roleActive);
+  if (own.length) return own;
+  const t = typeRoleOf(entityTypeKey(e));
+  return t ? [t] : [];
+}
 function baseRoleChoiceCardsHtml(ids) {
   return ids.map((id) => {
     const r = rolesList().find((x) => x.id === id);
@@ -4371,7 +4388,7 @@ function olFormHtml() {
       </div>
       <div class="field" style="margin-bottom:0;"><label class="field-label" for="ol-f-role">الصلاحيات</label>
       <select class="input" id="ol-f-role" data-action="ol-form-refresh">
-        <option value="" ${!f.roleId ? "selected" : ""}>بدون دور — لا يرى أي صفحة</option>
+        <option value="" ${!f.roleId ? "selected" : ""}>${(() => { const r = rolesList().find((x) => x.id === typeRoleOf("level")); return r ? "دور الكل: " + esc(r.name) : "بدون دور — لا يرى أي صفحة"; })()}</option>
         ${rolesList().filter((r) => r.status !== "disabled").map((r) => `<option value="${esc(r.id)}" ${f.roleId === r.id ? "selected" : ""}>حسب دور: ${esc(r.name)}</option>`).join("")}
       </select>
       ${(() => { const rs = levelRoleSummary(f.roleId); if (!rs) return `<div class="hint">لا توجد صفحات افتراضية — اختاري دورًا يحدد الصفحات (مثل لوحة المعلومات، جميع التقارير، الملخص، التقرير النهائي) وتظهر على وحدات ما تحته فقط.</div>`;
@@ -4964,7 +4981,8 @@ function findLevelLogin(loginId, password) {
 }
 function doLoginLevel(level) {
   doLogin({ id: level.id, name: level.name, role: "executive", levelId: level.id, levelType: level.type || "" });
-  const role = level.roleId ? rolesList().find((r) => r.id === level.roleId) : null;
+  const rid = roleActive(level.roleId) ? level.roleId : typeRoleOf("level");
+  const role = rid ? rolesList().find((r) => r.id === rid) : null;
   if (!role || !S.levelScope) return;
   S.levelScope.roleId = role.id;
   S.currentEntryRoleName = role.name;
@@ -7861,7 +7879,7 @@ function structSimpleRoleCardsHtml(type, e) {
       <span style="display:flex;align-items:center;gap:8px;"><span style="width:18px;height:18px;border-radius:50%;${on ? `background:${ROSE};` : "border:1.5px solid #cdb9c1;"}display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;">${on ? "✓" : ""}</span><b style="font-size:14px;color:${INK};">${esc(r.name)}</b></span>
       <span style="font-size:11.5px;color:${SUBTLE};">${structSimpleRoleCountsText(r)}</span></button>`;
   };
-  const none = `<button type="button" data-action="struct-set-base-role" data-kind="${esc(kind)}" data-id="${esc(e.id)}" data-role="" style="text-align:right;font-family:inherit;cursor:pointer;padding:12px 14px;border-radius:14px;border:${!baseRoleIdsRaw(e).length ? `2px solid ${ROSE}` : `1px dashed #d9c6cd`};background:${!baseRoleIdsRaw(e).length ? "#f3e9ef" : "#fff"};"><b style="font-size:14px;color:${INK};">بلا دور</b><div style="font-size:11.5px;color:${SUBTLE};margin-top:3px;">لا صفحات عند الدخول المباشر</div></button>`;
+  const none = `<button type="button" data-action="struct-set-base-role" data-kind="${esc(kind)}" data-id="${esc(e.id)}" data-role="" style="text-align:right;font-family:inherit;cursor:pointer;padding:12px 14px;border-radius:14px;border:${!baseRoleIdsRaw(e).length ? `2px solid ${ROSE}` : `1px dashed #d9c6cd`};background:${!baseRoleIdsRaw(e).length ? "#f3e9ef" : "#fff"};">${(() => { const t = typeRoleOf(entityTypeKey(e)); const r = t && rolesList().find((x) => x.id === t); return r ? `<b style="font-size:14px;color:${INK};">دور الكل: ${esc(r.name)}</b><div style="font-size:11.5px;color:${SUBTLE};margin-top:3px;">ياخذ دور نوعه — يتغيّر مع الكل</div>` : `<b style="font-size:14px;color:${INK};">بلا دور</b><div style="font-size:11.5px;color:${SUBTLE};margin-top:3px;">لا صفحات عند الدخول المباشر</div>`; })()}</button>`;
   return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">${roles.map(card).join("")}${none}</div>
     <div style="font-size:11.5px;color:${SUBTLE};margin-top:8px;">لتغيير صفحات الدور أو أزراره نفسه: زر «الأدوار والصلاحيات» أعلى الصفحة. هنا تختارين فقط.</div>`;
 }
@@ -8245,6 +8263,46 @@ function apAutoCardHtml() {
 function renderApprovalPathsSetup() {
   return apAutoCardHtml();
 }
+// بطاقة «دور كل نوع» في «الأدوار والصلاحيات»
+function typeRoleAccounts(k) {
+  if (k === "dept") return S.departments || [];
+  if (k === "office") return S.offices || [];
+  if (k === "level") return olActive().filter((l) => l.loginId);
+  const role = k === "center" ? "center" : k === "exec" ? "executive" : "unit";
+  return (S.units || []).filter((u) => (u.role || "unit") === role);
+}
+function typeRolesCardHtml() {
+  const roles = rolesList().filter((r) => r.status !== "disabled");
+  const open = S.ui.typeRoleOpen || "";
+  const rows = TYPE_ROLE_KINDS.map((t) => {
+    const accs = typeRoleAccounts(t.k);
+    const own = (a) => (t.k === "level" ? roleActive(a.roleId) : baseRoleIdsRaw(a).some(roleActive));
+    const nAll = accs.filter((a) => !own(a)).length;
+    const cur = typeRoleOf(t.k);
+    const isOpen = open === t.k;
+    return `<div style="border:1px solid ${isOpen ? ROSE : BORDER};border-radius:14px;padding:10px 12px;margin-bottom:8px;${isOpen ? "background:#fbf3f5;" : ""}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button type="button" data-action="type-role-open" data-k="${t.k}" style="flex:1 1 200px;text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:inherit;color:${INK};">
+          <div style="font-size:13.5px;font-weight:800;">${esc(t.label)} ${isOpen ? "▾" : "◂"}</div>
+          <div style="font-size:11.5px;color:${SUBTLE};">${nAll} من ${accs.length} ياخذون دور الكل</div></button>
+        <select class="input" style="width:auto;flex:1 1 200px;" data-action="type-role-set" data-k="${t.k}">
+          <option value="">— بدون —</option>${roles.map((r) => `<option value="${esc(r.id)}" ${cur === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select>
+      </div>
+      ${isOpen ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">${accs.map((a) => {
+        const o = own(a);
+        const rn = o ? (rolesList().find((r) => r.id === (t.k === "level" ? a.roleId : baseRoleIdsRaw(a).find(roleActive))) || {}).name : (roles.find((r) => r.id === cur) || {}).name;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid ${BORDER};font-size:12.5px;">
+          <span>${esc(a.name)}</span>
+          <span style="display:flex;gap:6px;align-items:center;">${badgeHtml((rn || "بلا دور") + (o ? " (خاص)" : " (للكل)"), o ? "#7a4d16" : GREEN, o ? GOLD_BG : GREEN_BG)}
+          ${o ? pillBtn("رجّعيها لدور الكل", { variant: "ghost", action: "type-role-reset", data: { k: t.k, id: a.id } }) : ""}</span></div>`;
+      }).join("") || `<div style="font-size:12px;color:${SUBTLE};">ما فيه حسابات.</div>`}</div>` : ""}
+    </div>`;
+  }).join("");
+  return `<div class="card" style="margin-bottom:18px;">
+    <div style="font-size:15px;font-weight:800;margin-bottom:4px;">دور كل نوع</div>
+    <div class="hint" style="margin-bottom:10px;">كل حساب ما له دور خاص ياخذ دور نوعه لحاله (حتى الجديد). تعدلين صفحات الدور مرة ← تتغير عند الكل. ولو اخترتي لحساب دور ثاني من الهيكل يصير «خاص».</div>
+    ${rows}</div>`;
+}
 function renderRolesManage() {
   const ui = S.ui;
   const roles = rolesList(), persons = personsList();
@@ -8297,6 +8355,7 @@ function renderRolesManage() {
     </div>`;
   }).join("") || `<div style="font-size:12px;color:${SUBTLE};padding:8px 2px;">لا يوجد أشخاص بعد.</div>`;
   return `
+    ${typeRolesCardHtml()}
     ${rolesBulkCardHtml()}
     <div class="card" style="margin-bottom:18px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
@@ -10546,6 +10605,13 @@ function attachFormListeners() {
     }
     if (el.dataset && el.dataset.action === "ol-form-refresh") { olReadForm(); render(); return; }
     if (el.dataset && el.dataset.action === "ap-auto-unit") { S.ui.apAutoUnit = el.value; render(); return; }
+    if (el.dataset && el.dataset.action === "type-role-set") {
+      const k = el.dataset.k, v = el.value;
+      saveSiteTheme((th) => ({ typeRoles: { ...(th.typeRoles || {}), [k]: v } }));
+      const t = TYPE_ROLE_KINDS.find((x) => x.k === k); const r = rolesList().find((x) => x.id === v);
+      addPermLog("role", "type:" + k, t ? t.label : k, "دور الكل: " + (r ? r.name : "بدون"));
+      render(); return;
+    }
     if (el.dataset && el.dataset.action === "dash-prog-year") { S.ui.dashProgYear = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-all-reports-dept") { S.ui.allReportsDept = el.value; render(); return; }
     if (el.dataset && el.dataset.action === "filter-unit-reports-type") { S.ui.unitReportsTypeFilter = el.value; render(); return; }
@@ -10944,6 +11010,15 @@ function attachClickListener() {
         const p = rolePermsOf(r);
         S.ui.rolePermForm = { pages: [...p.pages], actions: [], buttons: [...(p.buttons.length ? p.buttons : p.actions.filter((a) => BUTTON_CATALOG.some((b) => b.id === a)))] };
         S.ui.rolePermEditId = r.id; S.ui.personPermEditId = null; S.ui.rolesBulk = null; render(); break;
+      }
+      case "type-role-open": S.ui.typeRoleOpen = S.ui.typeRoleOpen === ds.k ? "" : ds.k; render(); break;
+      case "type-role-reset": {
+        if (ds.k === "level") { saveOrgLevels(currentOrgLevels().map((l) => (l.id === ds.id ? { ...l, roleId: "" } : l))); }
+        else if (ds.k === "dept") { S.departments = S.departments.map((d) => (d.id === ds.id ? { ...d, baseRoleId: "" } : d)); dataStore.saveDepartments(S.departments); }
+        else if (ds.k === "office") { S.offices = (S.offices || []).map((o) => (o.id === ds.id ? { ...o, baseRoleId: "" } : o)); dataStore.saveOffices(S.offices); }
+        else { S.units = S.units.map((u) => (u.id === ds.id ? { ...u, baseRoleId: "" } : u)); dataStore.saveUnits(S.units); }
+        addPermLog("role", ds.id, "", "رجوع لدور الكل");
+        render(); break;
       }
       case "role-perm-cancel": {
         if (S.ui.permDirty) {
@@ -12043,7 +12118,8 @@ function applySessionPermsLive() {
   if (S.levelScope) {
     const l = olFind(S.levelScope.levelId); if (!l) return;
     S.levelScope.unitIds = olScopeUnitIds(l.id);
-    const role = l.roleId ? rolesList().find((r) => r.id === l.roleId) : null;
+    const rid = roleActive(l.roleId) ? l.roleId : typeRoleOf("level");
+    const role = rid ? rolesList().find((r) => r.id === rid) : null;
     S.allowedActions = null; S.allowedButtons = null;
     if (role) { S.levelScope.roleId = role.id; applyPersonPerms({ roleId: role.id, permsOverride: null }); S.allowedPages = (S.allowedPages || []).filter((x) => LEVEL_COMPATIBLE_PAGES.includes(x)); }
     else S.allowedPages = [];
