@@ -1237,14 +1237,14 @@ function apPathById(id) { return approvalPathsList().find((p) => p.id === id) ||
 // وترجع تعمل بمجرد تفعيلها من جديد (بدون تعديل المسار أو إرجاعه مسودة).
 // مراحل المسار الفعّالة. مع unit: تُتخطّى مرحلة «دور من نفس وحدة التقرير» إن لم يكن في الوحدة أحد بهذا الدور
 // authorId (اختياري): كاتبة التقرير — المراحل اللي هي صاحبتها تُتخطّى (ما تراجع تقريرها بنفسها)
-function apStageList(path, unit, authorId) { return ((path && path.stages) || []).filter((st) => !st.disabled && (!unit || apStageApplies(st, unit, { pathId: path.id, authorId }))).map((st) => apNamedStage(st, path, unit)); }
+function apStageList(path, unit, authorId, period) { return ((path && path.stages) || []).filter((st) => !st.disabled && (!unit || apStageApplies(st, unit, { pathId: path.id, authorId, period }))).map((st) => apNamedStage(st, path, unit, period)); }
 // كل المراحل الفعّالة (بدون فلترة على الوحدة) بأسمائها لهذه الوحدة — للبحث عن المرحلة الحالية لتقرير
 function apStagesNamed(path, unit) { return ((path && path.stages) || []).filter((st) => !st.disabled).map((st) => apNamedStage(st, path, unit)); }
-function apNamedStage(st, path, unit) {
+function apNamedStage(st, path, unit, period) {
   const out = { ...st, key: AP_PREFIX + path.id + ":" + st.id };
   if (path.id !== AUTO_PATH_ID) return out;
   let pk = st.id;
-  if (st.treeName && unit) { const l = apStageTreeLevel(st, unit); if (l) { out.name = l.name; out.levelId = l.id; pk = "lvl:" + l.id; } }
+  if (st.treeName && unit) { const l = apStageTreeLevel(st, unit, period); if (l) { out.name = l.name; out.levelId = l.id; pk = "lvl:" + l.id; } }
   return Object.assign(out, apPermToStage(apAutoPerm(pk)));
 }
 // المرحلة في «مسار الإرسال» الفعلي — «للعلم فقط» ما يوقف عندها التقرير
@@ -1262,14 +1262,14 @@ function apPersonInUnit(p, unit) {
 function apStageApplies(st, unit, ctx) {
   if (!st || !unit) return true;
   const a = String(st.approver || "");
-  if (a.indexOf(AP_TREE_UP) === 0 && !apStageTreeLevel(st, unit)) return false;
+  if (a.indexOf(AP_TREE_UP) === 0 && !apStageTreeLevel(st, unit, ctx && ctx.period)) return false;
   // المسار التلقائي: مرحلة داخل الوحدة أقل من أو بنفس رتبة كاتبة التقرير تُتخطّى (المساعدة لما تكتب ما تمر على المساعدة)
   if (st.unitRank && ctx && ctx.authorId && apAutoAuthorRank(ctx.authorId) >= st.unitRank) return false;
   if (st.sameUnit && a.indexOf("role:") === 0) {
     const rid = a.slice(5);
     if (!personsList().some((p) => p.status !== "disabled" && p.roleId === rid && apPersonInUnit(p, unit))) return false;
   }
-  if (ctx && ctx.pathId && st.allowSkip && apUnitSkipList(unit.id).includes(ctx.pathId + ":" + st.id)) return false;
+  if (ctx && ctx.pathId && st.allowSkip && apUnitSkipList(unit.id, ctx.period).includes(ctx.pathId + ":" + st.id)) return false;
   if (ctx && ctx.authorId && apStageHeldByPerson(st, unit, ctx.authorId)) return false;
   return true;
 }
@@ -1290,7 +1290,7 @@ function apTreeUpLevel(unit, approver, skip) {
   return null;
 }
 // مستوى الهيكل لمرحلة «فوق الوحدة» — مراحل المسار التلقائي تتخطّى المستويات المتخطّاة (للكل أو لهذه الوحدة)
-function apStageTreeLevel(st, unit) { return apTreeUpLevel(unit, st.approver, st.treeName ? apAutoSkipLevels(unit) : null); }
+function apStageTreeLevel(st, unit, period) { return apTreeUpLevel(unit, st.approver, st.treeName ? apAutoSkipLevels(unit, period) : null); }
 
 /* ===== المسار التلقائي من الهيكل =====
    مسار واحد (id ثابت) لكل الوحدات: أدوار داخل الوحدة (مساعدة ← رئيسة) ثم كل مستوى له حساب فوق الوحدة
@@ -1306,9 +1306,9 @@ function apAutoAuthorRank(personId) {
   const c = autoPathCfg(); const r = AUTO_RANKS.find((x) => c[x.k] && c[x.k] === p.roleId);
   return r ? r.rank : -1;
 }
-function apAutoSkipLevels(unit) {
+function apAutoSkipLevels(unit, period) {
   const out = new Set(autoPathCfg().skipLevels || []);
-  if (unit) apUnitSkipList(unit.id).forEach((k) => { const pre = AUTO_PATH_ID + ":lvl:"; if (k.indexOf(pre) === 0) out.add(k.slice(pre.length)); });
+  if (unit) apUnitSkipList(unit.id, period).forEach((k) => { const pre = AUTO_PATH_ID + ":lvl:"; if (k.indexOf(pre) === 0) out.add(k.slice(pre.length)); });
   return out;
 }
 function apAutoBuildStages(cfg, old) {
@@ -1377,9 +1377,9 @@ function apRepairStuck(onlyUnitId) {
         const ref = report.status === "custom_pending" && apRefOf(report.customStageId);
         if (!ref || ref.pathId !== path.id) return;
         const idx = all.findIndex((x) => x.id === ref.stageId), raw = all[idx];
-        const ctx = { pathId: path.id, authorId: report.internalSentBy };
+        const ctx = { pathId: path.id, authorId: report.internalSentBy, period: reportPeriodType(report) };
         if (raw && !raw.disabled && apStageApplies(raw, unit, ctx) && !apNamedStage(raw, path, unit).info) return;
-        const nextSt = apFlow(apStageList(path, unit, report.internalSentBy)).find((x) => all.findIndex((y) => y.id === x.id) > idx);
+        const nextSt = apFlow(apStageList(path, unit, report.internalSentBy, reportPeriodType(report))).find((x) => all.findIndex((y) => y.id === x.id) > idx);
         const log = [...(report.customLog || [])];
         const nm = raw ? raw.name : "مرحلة";
         if (nextSt) {
@@ -1414,7 +1414,12 @@ function entityPrefs(key) { const th = ((S.siteSettings || {}).theme) || {}; ret
 async function saveEntityPrefs(key, patch) {
   saveSiteTheme((th) => { const all = { ...(th.entityPrefs || {}) }; all[key] = { ...(all[key] || {}), ...patch }; return { entityPrefs: all }; });
 }
-function apUnitSkipList(unitId) { return entityPrefs("unit:" + unitId).skip || []; }
+// التخطّي العام للوحدة + (لو عُرفت الفترة) تخطّي هذه الفترة فقط: entityPrefs.skipBy[<نوع الفترة>] = [مفاتيح المراحل]
+function apUnitSkipList(unitId, period) {
+  const pr = entityPrefs("unit:" + unitId), base = pr.skip || [];
+  const per = period && pr.skipBy && Array.isArray(pr.skipBy[period]) ? pr.skipBy[period] : [];
+  return per.length ? base.concat(per.filter((k) => !base.includes(k))) : base;
+}
 // المسار المثبَّت على التقرير (من المرحلة الحالية أو من آخر حركة بالسجل)
 function reportApPathId(report) {
   if (!report) return null;
@@ -1458,7 +1463,7 @@ function userHoldsApStage(stage, unit) {
     if (!p || p.roleId !== id) return false;
     return !stage.sameUnit || !unit || apPersonInUnit(p, unit);
   }
-  if (k === "treeup") return unit ? sessionIsLevel(apStageTreeLevel(stage, unit)) : olActive().some((l) => olLevelHasAccount(l) && sessionIsLevel(l));
+  if (k === "treeup") return unit ? sessionIsLevel(stage.levelId ? olFind(stage.levelId) : apStageTreeLevel(stage, unit)) : olActive().some((l) => olLevelHasAccount(l) && sessionIsLevel(l));
   return false;
 }
 function apStageIsPassThrough(st) { return !st.canApprove && !st.canReturn && !st.canEdit; }
@@ -1470,7 +1475,7 @@ function apPendingForMe() {
       if (r.status !== "custom_pending") return;
       const ref = apRefOf(r.customStageId); if (!ref) return;
       const p = apPathById(ref.pathId); if (!p) return;
-      const stages = apFlow(apStageList(p, u, r.internalSentBy));
+      const stages = apFlow(apStageList(p, u, r.internalSentBy, reportPeriodType(r)));
       const stage = apStagesNamed(p, u).find((s) => s.key === r.customStageId);
       if (stage && userHoldsApStage(stage, u)) out.push({ unit: u, report: r, stage, path: stages, ap: true });
     });
@@ -1516,7 +1521,7 @@ function apSendReport(unitId, entry, pathId, notes) {
   if (!path) return false;
   const noteTxt = notes ? " — " + notes : "";
   // مراحل الكاتبة نفسها تُتخطّى (apStageList مع authorId)، ومراحل التمرير اللي تملكها الجلسة كذلك
-  const stages = apFlow(apStageList(path, unit, S.currentPersonId));
+  const stages = apFlow(apStageList(path, unit, S.currentPersonId, reportPeriodType(entry)));
   let i = 0;
   while (i < stages.length && userHoldsApStage(stages[i], unit) && apStageIsPassThrough(stages[i])) i++;
   const log = [...(entry.customLog || [])];
@@ -1545,7 +1550,7 @@ function apAdvanceOrReturn(unitId, reportId, isReturn, notes, opts) {
   const cur = all.find((s) => s.key === entry.customStageId);
   if (!cur || !userHoldsApStage(cur, unit)) return "ليست مرحلتك";
   // المراحل المطبّقة على هذه الوحدة (تُتخطّى مرحلة دورٍ لا يوجد في الوحدة، و«للعلم فقط» ما توقف التقرير)
-  const flow = apFlow(apStageList(path, unit, entry.internalSentBy));
+  const flow = apFlow(apStageList(path, unit, entry.internalSentBy, reportPeriodType(entry)));
   const pos = (st) => all.findIndex((x) => x.key === st.key);
   const before = flow.filter((st) => pos(st) < pos(cur)), after = flow.filter((st) => pos(st) > pos(cur));
   const log = [...(entry.customLog || [])];
@@ -1595,7 +1600,7 @@ function apAdvanceOrReturn(unitId, reportId, isReturn, notes, opts) {
 }
 function apSendPickerHtml(unit, report) {
   const p = matchingApprovalPaths(unit, report)[0];
-  const flow = p ? apFlow(apStageList(p, unit, S.currentPersonId)) : [];
+  const flow = p ? apFlow(apStageList(p, unit, S.currentPersonId, reportPeriodType(report))) : [];
   return `
   <div class="card" style="margin-top:16px;border:1.5px solid ${ROSE};">
     <div style="font-size:13px;font-weight:800;margin-bottom:6px;">إرسال التقرير</div>
@@ -1691,7 +1696,7 @@ function computeApprovalPathState(unit, entry) {
   const apPath = apId ? apPathById(apId) : null;
   if (apPath) {
     const log = entry.customLog || [];
-    return apFlow(apStageList(apPath, unit, entry.status === "draft" ? S.currentPersonId : entry.internalSentBy)).map((st) => {
+    return apFlow(apStageList(apPath, unit, entry.status === "draft" ? S.currentPersonId : entry.internalSentBy, reportPeriodType(entry))).map((st) => {
       const acted = log.filter((l) => l.from === st.key);
       const last = acted[acted.length - 1];
       let state = "pending";
@@ -3929,10 +3934,18 @@ function usSectionsCardHtml(unit) {
   </div>`;
 }
 function usSkipCardHtml(unit) {
+  const pr = entityPrefs("unit:" + unit.id), by = pr.skipBy || {};
+  const cur = S.ui.usSkipPeriod && PERIOD_TYPES.includes(S.ui.usSkipPeriod) ? S.ui.usSkipPeriod : "";
+  const pills = [pillBtn("كل الفترات", { variant: !cur ? "primary" : "ghost", action: "us-skip-period", data: { pt: "" } })].concat(PERIOD_TYPES.map((x) => {
+    const n = (by[x] || []).length;
+    return pillBtn(x + (n ? " (" + n + ")" : ""), { variant: x === cur ? "primary" : "ghost", action: "us-skip-period", data: { pt: x } });
+  })).join("");
   return `<div class="card" style="margin-bottom:14px;">
     <div style="font-size:14px;font-weight:800;margin-bottom:4px;">مسار تقارير الوحدة</div>
-    <div class="hint" style="margin-bottom:10px;">يطلع لحاله من الهيكل. لو أنتِ صاحبة مرحلة ومسموح بتخطّيها، تقدرين تتخطّينها لهذه الوحدة (أو لكل وحداتك) — ويروح التقرير للي بعدها مباشرة.</div>
-    ${apAutoPathListHtml(unit, true)}
+    <div class="hint" style="margin-bottom:10px;">يطلع لحاله من الهيكل. اختاري الفترة وتخطّي مرحلتك لها فقط (مثلًا «شهري» ما يمر عليّ، و«سنوي» يمر). «كل الفترات» يسري على كل التقارير. مرحلتك فقط اللي تقدرين تتخطّينها، والتقرير اللي واقف عندها ينتقل للي بعدها.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${pills}</div>
+    ${cur ? `<div style="font-size:12px;color:${SUBTLE};margin-bottom:8px;">المسار لتقارير «${esc(cur)}»</div>` : ""}
+    ${apAutoPathListHtml(unit, true, cur)}
   </div>`;
 }
 
@@ -7793,24 +7806,27 @@ function structPanelTagHtml(type, e) {
   return `<span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:${t.bg};color:${t.fg};white-space:nowrap;">${t.label}</span>`;
 }
 // مسار الوحدة التلقائي كقائمة مختصرة (للاطلاع) — مع أزرار تخطّي صاحبة المرحلة في «الإعدادات»
-function apAutoPathListHtml(unit, withSkip) {
+function apAutoPathListHtml(unit, withSkip, period) {
   const path = autoPathObj();
   if (!path || path.status !== "active") return `<div style="font-size:12px;color:${SUBTLE};">المسار التلقائي موقف — تفعّله مديرة النظام من «كل المسارات».</div>`;
-  const pv = apAutoPreview(unit); if (!pv) return "";
+  const pv = apAutoPreview(unit, period); if (!pv) return "";
   let n = 0;
   const rows = pv.rows.filter((r) => r.what !== "none" || r.state === "on").map((r) => {
     const off = r.state !== "on", pm = r.pk ? apAutoPerm(r.pk) : null, info = !off && pm && pm.info;
     if (!off && !info) n++;
     const lvl = r.what === "lvl" ? olFind(r.id) : null;
     const raw = r.what === "stage" ? (path.stages || []).find((x) => x.id === r.id) : null;
-    const mine = withSkip && pm && pm.skip && r.state !== "all" && r.state !== "auto" && (lvl ? sessionIsLevel(lvl) : raw ? userHoldsApStage(apNamedStage(raw, path, unit), unit) : false);
     const key = AUTO_PATH_ID + ":" + (r.what === "lvl" ? "lvl:" + r.id : r.id);
+    const inBase = !!period && apUnitSkipList(unit.id).includes(key);
+    if (inBase) r.why = "متخطّاة في كل الفترات (غيّريها من تبويب «كل الفترات»)";
+    const mine = !inBase && withSkip && pm && pm.skip && r.state !== "all" && r.state !== "auto" && (lvl ? sessionIsLevel(lvl) : raw ? userHoldsApStage(apNamedStage(raw, path, unit), unit) : false);
+    const pd = period ? { pt: period } : {};
     const many = mine && lvl ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)).length : 0;
     return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:12px;border:1px ${off ? "dashed #d9c9cf" : "solid " + BORDER};background:${off ? "#faf6f7" : "#fff"};">
       <span style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;background:${off ? "#f1ecee" : "#f3e6ea"};color:${off ? "#a99" : ROSE};">${off ? "–" : info ? "ⓘ" : n}</span>
       <div style="flex:1 1 180px;min-width:0;"><div style="font-size:12.5px;font-weight:800;${off ? "color:#a3949a;text-decoration:line-through;" : ""}">${esc(r.name)}</div>${r.why ? `<div style="font-size:11px;color:${SUBTLE};">${esc(r.why)}</div>` : ""}</div>
-      ${mine ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn(r.state === "unit" ? "إرجاع مرحلتي" : "تخطّي مرحلتي لهذه الوحدة", { variant: r.state === "unit" ? "ghost" : "primary", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1" } })}
-        ${many > 1 ? pillBtn((r.state === "unit" ? "إرجاعها" : "تخطّيها") + " لكل وحداتي (" + many + ")", { variant: "soft", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", all: lvl.id } }) : ""}</div>` : ""}
+      ${mine ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn(r.state === "unit" ? "إرجاع مرحلتي" : (period ? "تخطّي مرحلتي في «" + period + "»" : "تخطّي مرحلتي لهذه الوحدة"), { variant: r.state === "unit" ? "ghost" : "primary", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", ...pd } })}
+        ${many > 1 ? pillBtn((r.state === "unit" ? "إرجاعها" : "تخطّيها") + " لكل وحداتي (" + many + ")", { variant: "soft", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", all: lvl.id, ...pd } }) : ""}</div>` : ""}
     </div>`;
   }).join("");
   return `<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:${ROSE};color:#fff;margin-bottom:6px;font-size:12.5px;"><span>✎</span><span>يكتب: <b>${esc(pv.writer)}</b></span></div>
@@ -8169,14 +8185,14 @@ function apApproverLabel(v) {
   return "—";
 }
 // ===== بطاقة «المسار التلقائي من الهيكل» في «كل المسارات» =====
-function apAutoPreview(unit) {
+function apAutoPreview(unit, period) {
   const path = autoPathObj(), cfg = autoPathCfg();
   if (!path || !unit) return null;
   const holders = (rid) => rid ? personsList().filter((p) => p.status !== "disabled" && p.roleId === rid && apPersonInUnit(p, unit)) : [];
   const wr = apAutoWriterRanks(unit);
   const writerRank = wr.length ? Math.min(...wr) : -1;
   const writer = wr.length ? AUTO_RANKS.filter((r) => wr.includes(r.rank)).map((r) => r.label + " (" + holders(cfg[r.k]).map((p) => p.name).join("، ") + ")").join(" أو ") : "حساب الوحدة نفسه (ما فيه أشخاص بأدوار الوحدة)";
-  const uSkip = apUnitSkipList(unit.id);
+  const uSkip = apUnitSkipList(unit.id, period);
   const rows = [];
   (path.stages || []).filter((st) => st.unitRank).forEach((st) => {
     const h = holders(String(st.approver).slice(5));
@@ -11085,19 +11101,28 @@ function attachClickListener() {
         saveEntityPrefs("unit:" + unit.id, { sectionsOff: all }).then(render);
         render(); break;
       }
+      case "us-skip-period": { S.ui.usSkipPeriod = ds.pt || ""; render(); break; }
       case "us-skip-toggle": {
         const unit = (S.units || []).find((u) => u.id === S.currentUnitId); if (!unit || !ds.key) break;
         const lvl = ds.all ? olFind(ds.all) : null;
         const targets = lvl ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)) : [unit];
         const turnOn = ds.on === "1";
+        const per = ds.pt || "";
         (async () => {
           for (const u of targets) {
-            const cur = apUnitSkipList(u.id).filter((x) => x !== ds.key);
-            await saveEntityPrefs("unit:" + u.id, { skip: turnOn ? [...cur, ds.key] : cur });
+            if (per) {
+              const by = { ...(entityPrefs("unit:" + u.id).skipBy || {}) };
+              const curP = (by[per] || []).filter((x) => x !== ds.key);
+              if (turnOn) by[per] = [...curP, ds.key]; else if (curP.length) by[per] = curP; else delete by[per];
+              await saveEntityPrefs("unit:" + u.id, { skipBy: by });
+            } else {
+              const cur = apUnitSkipList(u.id).filter((x) => x !== ds.key);
+              await saveEntityPrefs("unit:" + u.id, { skip: turnOn ? [...cur, ds.key] : cur });
+            }
             if (turnOn) apRepairStuck(u.id);
           }
-          addPermLog("unit-settings", targets.length > 1 ? "multi" : unit.id, targets.length > 1 ? targets.length + " وحدات" : unit.name, turnOn ? "تخطّي مرحلة في المسار" : "إرجاع مرحلة في المسار");
-          S.ui.usMsg = (turnOn ? "تم التخطّي " : "رجعت المرحلة ") + (targets.length > 1 ? "لـ " + targets.length + " وحدات." : "لهذه الوحدة.");
+          addPermLog("unit-settings", targets.length > 1 ? "multi" : unit.id, targets.length > 1 ? targets.length + " وحدات" : unit.name, (turnOn ? "تخطّي مرحلة في المسار" : "إرجاع مرحلة في المسار") + (per ? " — " + per : ""));
+          S.ui.usMsg = (turnOn ? "تم التخطّي " : "رجعت المرحلة ") + (per ? "في «" + per + "» " : "") + (targets.length > 1 ? "لـ " + targets.length + " وحدات." : "لهذه الوحدة.");
           render();
         })();
         break;
