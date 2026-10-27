@@ -2434,6 +2434,7 @@ function applyPersonPerms(p) {
 }
 function enterEntityAsPerson(p, role) {
   const pe = S.pendingEntityLogin;
+  sessionSaveSel({ personId: p ? p.id : null, roleId: role ? role.id : null });
   S.currentPersonId = p ? p.id : null;
   S.currentPersonName = p ? p.name : "";
   S.currentEntryRoleName = !p && role ? role.name : "";
@@ -2450,6 +2451,7 @@ function enterEntityAsPerson(p, role) {
 }
 function enterUnitAsPerson(p) {
   if (S.pendingEntityLogin) return enterEntityAsPerson(p);
+  sessionSaveSel({ personId: p.id, roleId: null });
   const role = rolesList().find((r) => r.id === p.roleId);
   const unitId = S.pendingUnitLoginId;
   S.currentUnitEntryMode = "admin";
@@ -2549,6 +2551,7 @@ async function handleLoginSubmit() {
       }
       S.ui.loginBusy = false;
       S.ui.loginError = "";
+      sessionSaveLogin(username, password);
       doLogin(result.user);
       return;
     }
@@ -2560,6 +2563,7 @@ async function handleLoginSubmit() {
       try { await refreshUnitsAndDepartmentsFromDb(); await refreshOrgLevelsFromDb(); await refreshRolesPersonsFromDb(); await refreshApprovalPathsFromDb(); } catch (e) { /* نكمل بالنسخة المحلية */ }
       S.ui.loginBusy = false; S.ui.loginError = "";
       const lv = olFind(lvRes.data[0].id) || rowToOrgLevel(lvRes.data[0]);
+      sessionSaveLogin(username, password);
       doLoginLevel(lv);
       return;
     }
@@ -2791,6 +2795,37 @@ function applyScopedAccountPermissions(entity) {
   }
 }
 
+/* ---- بقاء الدخول بعد تحديث الصفحة ----
+   يُحفظ اسم الدخول وكلمة السر وآخر اختيار (الشخص/الدور) في sessionStorage فقط:
+   يبقى بعد التحديث، ويُمسح بإغلاق التبويب أو بتسجيل الخروج. */
+const SESSION_KEY = "prs:session";
+function sessionGet() { try { const v = sessionStorage.getItem(SESSION_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function sessionPut(o) { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(o)); } catch (e) { /* تجاهل */ } }
+function sessionClear() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* تجاهل */ } }
+function sessionSaveLogin(u, p) { sessionPut({ u: u, p: p, sel: null }); }
+function sessionSaveSel(sel) { const s = sessionGet(); if (s) { s.sel = sel; sessionPut(s); } }
+function sessionClickAction(action, data) {
+  const b = document.createElement("button");
+  b.setAttribute("data-action", action);
+  Object.keys(data || {}).forEach((k) => b.setAttribute("data-" + k, data[k]));
+  appEl.appendChild(b); b.click(); b.remove();
+}
+async function sessionRestore() {
+  const s = sessionGet();
+  if (!s || !s.u || !dbConnected() || S.currentUser) return;
+  S.ui.portalSkip = true; S.ui.loginBusy = true; render();
+  const uEl = document.getElementById("login-username"), pEl = document.getElementById("login-password");
+  if (!uEl || !pEl) { S.ui.loginBusy = false; sessionClear(); render(); return; }
+  uEl.value = s.u; pEl.value = s.p;
+  await handleLoginSubmit();
+  if (!S.currentUser) { sessionClear(); S.ui.loginError = ""; S.ui.portalSkip = false; render(); return; }
+  const sel = s.sel;
+  if (S.view === "unit-role-select" && sel) {
+    if (sel.personId) { const p = personsList().find((x) => x.id === sel.personId); if (p) enterUnitAsPerson(p); }
+    else if (sel.roleId) sessionClickAction("choose-base-role", { role: sel.roleId });
+    else if (S.pendingEntityLogin) sessionClickAction("choose-entity-account", {});
+  }
+}
 function doLogin(user) {
   S.currentPersonId = null; S.currentPersonName = ""; S.currentEntryRoleName = "";
   S.currentUser = user;
@@ -2882,6 +2917,7 @@ function doLogin(user) {
 }
 
 function doLogout() {
+  sessionClear();
   S.levelScope = null;
   S.entryLink = parseEntryParam(); S.ui.portalType = ""; S.ui.portalSkip = false; S.ui.portalFromType = "";
   S.currentUser = null; S.currentPersonId = null; S.currentPersonName = ""; S.currentEntryRoleName = ""; S.currentUnitId = null; S.currentDepartmentId = null; S.currentOfficeId = null; S.isAdmin = false; S.isDepartmentUser = false; S.isExecutive = false; S.isOfficeUser = false; S.cameFromAllReports = false; S.adminPreviewOrigin = null; S.pendingUnitLoginId = null; S.pendingEntityLogin = null; S.currentUnitEntryMode = null; S.allowedPages = null; S.allowedActions = null; S.allowedButtons = null; S.personNotifyTabs = null; S.view = "login"; S.ui = {};
@@ -11045,6 +11081,7 @@ function attachClickListener() {
         if (S.pendingEntityLogin) { enterEntityAsPerson(null, role); break; }
         const unitId = S.pendingUnitLoginId;
         if (!unitId) break;
+        sessionSaveSel({ personId: null, roleId: role.id });
         S.currentUnitEntryMode = "admin";
         S.currentPersonId = null; S.currentPersonName = ""; S.currentEntryRoleName = role.name;
         applyPersonPerms({ roleId: role.id, permsOverride: null });
@@ -12067,6 +12104,7 @@ function boot() {
   if (dbConnected()) refreshDashboardConfigFromDb().then(() => render()).catch(() => {});
   if (dbConnected()) refreshOrgLevelsFromDb().then(() => { if (S.view === "org-levels" || S.view === "units-manage") render(); }).catch(() => {});
   if (dbConnected()) startLiveSync();
+  sessionRestore().catch(() => { sessionClear(); });
 }
 
 document.addEventListener("DOMContentLoaded", boot);
