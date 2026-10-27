@@ -11104,28 +11104,32 @@ function attachClickListener() {
       }
       case "us-skip-period": { S.ui.usSkipPeriod = ds.pt || ""; render(); break; }
       case "us-skip-toggle": {
-        const unit = (S.units || []).find((u) => u.id === S.currentUnitId); if (!unit || !ds.key) break;
+        const unit = (S.units || []).find((u) => u.id === S.currentUnitId);
+        if (!unit || !ds.key) { S.ui.usMsg = "اختاري الوحدة أولًا ثم أعيدي المحاولة."; render(); break; }
         const lvl = ds.all ? olFind(ds.all) : null;
         const targets = lvl ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)) : [unit];
         const turnOn = ds.on === "1";
         const per = ds.pt || "";
-        (async () => {
+        // نحفظ ونعرض النتيجة فورًا، ثم ننقل التقارير الواقفة؛ أي خطأ في الخطوة الأخيرة يظهر برسالة ولا يمنع التخطّي
+        try {
           for (const u of targets) {
             if (per) {
               const by = { ...(entityPrefs("unit:" + u.id).skipBy || {}) };
               const curP = (by[per] || []).filter((x) => x !== ds.key);
               if (turnOn) by[per] = [...curP, ds.key]; else if (curP.length) by[per] = curP; else delete by[per];
-              await saveEntityPrefs("unit:" + u.id, { skipBy: by });
+              saveEntityPrefs("unit:" + u.id, { skipBy: by });
             } else {
               const cur = apUnitSkipList(u.id).filter((x) => x !== ds.key);
-              await saveEntityPrefs("unit:" + u.id, { skip: turnOn ? [...cur, ds.key] : cur });
+              saveEntityPrefs("unit:" + u.id, { skip: turnOn ? [...cur, ds.key] : cur });
             }
-            if (turnOn) apRepairStuck(u.id);
           }
-          addPermLog("unit-settings", targets.length > 1 ? "multi" : unit.id, targets.length > 1 ? targets.length + " وحدات" : unit.name, (turnOn ? "تخطّي مرحلة في المسار" : "إرجاع مرحلة في المسار") + (per ? " — " + per : ""));
           S.ui.usMsg = (turnOn ? "تم التخطّي " : "رجعت المرحلة ") + (per ? "في «" + per + "» " : "") + (targets.length > 1 ? "لـ " + targets.length + " وحدات." : "لهذه الوحدة.");
-          render();
-        })();
+        } catch (err) { S.ui.usMsg = "تعذّر الحفظ: " + (err && err.message ? err.message : err); }
+        render();
+        try {
+          if (turnOn) targets.forEach((u) => apRepairStuck(u.id));
+          addPermLog("unit-settings", targets.length > 1 ? "multi" : unit.id, targets.length > 1 ? targets.length + " وحدات" : unit.name, (turnOn ? "تخطّي مرحلة في المسار" : "إرجاع مرحلة في المسار") + (per ? " — " + per : ""));
+        } catch (err) { S.ui.usMsg = (S.ui.usMsg || "") + " (تنبيه: " + (err && err.message ? err.message : err) + ")"; render(); }
         break;
       }
       case "ap-auto-roles-save":
