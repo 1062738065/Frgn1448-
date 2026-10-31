@@ -1991,6 +1991,7 @@ function render() {
   const sbOld = appEl.querySelector(".sidebar");
   const sbTop = sbOld ? sbOld.scrollTop : 0;
   appEl.innerHTML = html;
+  try { bkInject(); } catch (e) {}
   afterRender();
   if (sbTop) { const sbNew = appEl.querySelector(".sidebar"); if (sbNew) sbNew.scrollTop = sbTop; }
 }
@@ -4015,9 +4016,21 @@ function renderUnitSettings() {
     ${body}
   </div></div>`;
 }
+function usPageCardHtml(unit) {
+  const cur = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit.id] || {};
+  const row = (label, key, opts) => `<div style="margin-bottom:12px;"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">${label}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${[["", "حسب القالب"]].concat(opts).map(([v, l]) => { const on = (cur[key] || "") === v; return `<button type="button" data-action="us-page-set" data-key="${key}" data-val="${v}" style="font-family:inherit;min-height:38px;padding:0 14px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid ${on ? ROSE : BORDER};background:${on ? ROSE : "#fff"};color:${on ? "#fff" : INK};">${l}</button>`; }).join("")}</div></div>`;
+  return `<div class="card" style="margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:800;margin-bottom:4px;">شكل صفحات تقارير الوحدة</div>
+    <div class="hint" style="margin-bottom:12px;">اتجاه الصفحة والهوامش والترقيم لتقارير «${esc(unit.name)}». «حسب القالب» يعني تأخذ من قالب الجمعية. تُحفظ فورًا.</div>
+    ${row("اتجاه الصفحة", "orient", [["portrait", "طولي"], ["landscape", "عرضي"]])}
+    ${row("الهوامش", "margin", [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]])}
+    ${cur.margin === "custom" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px;">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label style="font-size:12px;">${l}<input type="number" class="input" data-us-m="${k}" min="0" max="50" inputmode="numeric" value="${Number(cur[k]) || 0}" style="width:78px;" /></label>`).join("")}</div>` : ""}
+    ${row("ترقيم الصفحات", "pageNum", [["none", "بدون"], ["paren", "(٢)"], ["num", "٢"], ["of", "٢ من ٨"]])}
+  </div>`;
+}
 function usLetterheadCardHtml(unit) {
   const cur = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit.id] || {};
-  return `<div class="card" style="margin-bottom:14px;">
+  return usPageCardHtml(unit) + `<div class="card" style="margin-bottom:14px;">
     <div style="font-size:14px;font-weight:800;margin-bottom:4px;">كليشة الوحدة</div>
     <div class="hint" style="margin-bottom:12px;">ارفعي كليشة (ترويسة) وتذييل وخلفية الوحدة كصور، وتظهر في تقارير «${esc(unit.name)}» في العرض والطباعة وPDF. إذا ما رفعتي شيئًا تظهر كليشة الجمعية الافتراضية. تُحفظ فورًا.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
@@ -4029,7 +4042,7 @@ function usLetterheadCardHtml(unit) {
   </div>`;
 }
 function ulSetImage(uid, key, url) {
-  saveSiteTheme((th) => { const all = { ...((th || {}).unitLetterheads || {}) }; const cur = { ...(all[uid] || {}) }; if (url) cur[key] = url; else delete cur[key]; if (cur.head || cur.foot || cur.bg || cur.coverBg) all[uid] = cur; else delete all[uid]; return { unitLetterheads: all }; });
+  saveSiteTheme((th) => { const all = { ...((th || {}).unitLetterheads || {}) }; const cur = { ...(all[uid] || {}) }; if (url !== "" && url != null) cur[key] = url; else delete cur[key]; if (Object.keys(cur).length) all[uid] = cur; else delete all[uid]; return { unitLetterheads: all }; });
 }
 function usSectionsCardHtml(unit) {
   const pt = PERIOD_TYPES.includes(S.ui.usPeriod) ? S.ui.usPeriod : PERIOD_TYPES[0];
@@ -5533,7 +5546,7 @@ function pageTplCardHtml() {
     <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
       <div style="flex:1 1 360px;min-width:0;">
         ${fld("اتجاه الصفحة", pills("orient", [["portrait", "طولي"], ["landscape", "عرضي"]]))}
-        ${fld("الهوامش", pills("margin", [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]]) + (d.margin === "custom" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label style="font-size:12px;">${l}<input type="number" class="input" data-pg="${k}" min="0" max="80" inputmode="numeric" value="${Number(d[k]) || 0}" style="width:78px;" /></label>`).join("")}</div><div class="hint" style="margin-top:6px;">لو الكليشة صورة كبيرة، كبّري الهامش الأعلى (مثلًا ٤٠) عشان المحتوى ما يغطيها.</div>` : ""))}
+        ${fld("الهوامش", pills("margin", [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]]) + (d.margin === "custom" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label style="font-size:12px;">${l}<input type="number" class="input" data-pg="${k}" min="0" max="50" inputmode="numeric" value="${Number(d[k]) || 0}" style="width:78px;" /></label>`).join("")}</div><div class="hint" style="margin-top:6px;">لو الكليشة صورة كبيرة، كبّري الهامش الأعلى (مثلًا ٤٠) عشان المحتوى ما يغطيها.</div>` : ""))}
         ${fld("الخلفية", `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span style="font-size:12.5px;">لون</span><input type="color" data-pg="paper" value="${/^#[0-9a-fA-F]{6}$/.test(d.paper) ? esc(d.paper) : "#ffffff"}" style="width:56px;height:40px;border:1px solid ${BORDER};border-radius:10px;padding:2px;background:#fff;" /></div>${pgImgRow("pg-img-bg", d.bgImage, "pg-img-clear", "bgImage")}`, "اللون وحده، أو صورة تغطي الصفحة كاملة (وتتقدم على اللون). منفصلة عن الكليشة: استخدمي أحدهما أو الاثنين.")}
         ${fld("حجم صورة الخلفية", pills("bgFit", [["stretch", "تملأ الصفحة كاملة (الصورة كلها تظهر)"], ["cover", "تغطية بدون تمديد (قد يُقص جزء منها)"]]), "الصور المصمَّمة بمقاس A4 تناسب الخيار الأول.")}
         ${fld("خلفية الصفحة الأولى (الغلاف) — اختيارية", pgImgRow("pg-img-cover", d.coverBg, "pg-img-clear", "coverBg"), "إذا ما رفعتي شيئًا يأخذ الغلاف الخلفية العامة.")}
@@ -5798,8 +5811,10 @@ function rptStore() {
     sizes: Array.isArray(t.sizes) ? t.sizes.filter((z) => z && z.id && Number(z.w) >= 50 && Number(z.h) >= 50) : [] };
 }
 function rptNormalize(s) {
-  ["hidden", "titles", "hiddenCols", "colsShow"].forEach((k) => { if (!s[k] || typeof s[k] !== "object" || Array.isArray(s[k])) s[k] = {}; });
+  ["hidden", "titles", "hiddenCols", "colsShow", "levelHidden", "levelCols"].forEach((k) => { if (!s[k] || typeof s[k] !== "object" || Array.isArray(s[k])) s[k] = {}; });
   if (!Array.isArray(s.order)) s.order = [];
+  if (!s.excl || typeof s.excl !== "object" || Array.isArray(s.excl)) s.excl = {};
+  ["units", "depts"].forEach((k) => { if (!Array.isArray(s.excl[k])) s.excl[k] = []; });
   if (!s.charts || typeof s.charts !== "object" || Array.isArray(s.charts)) s.charts = {};
   if (s.breakEach) { s.perPage = 1; delete s.breakEach; } // إعداد قديم: «كل فصل بصفحة»
   s.perPage = Math.max(0, Math.min(6, Number(s.perPage) || 0));
@@ -5881,7 +5896,11 @@ function rptPageNumText(s, n, total) {
 function rptUnitSettings(unit) {
   const s = rptSettings("unit");
   const ul = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit && unit.id] || {};
-  return ul.bg && RPT_DATA_IMG_RE.test(ul.bg) ? { ...s, bgImage: ul.bg } : s;
+  const out = ul.bg && RPT_DATA_IMG_RE.test(ul.bg) ? { ...s, bgImage: ul.bg } : { ...s };
+  if (ul.orient === "portrait" || ul.orient === "landscape") out.orient = ul.orient;
+  if (ul.margin && (RPT_MARGINS[ul.margin] || ul.margin === "custom")) { out.margin = ul.margin; if (ul.margin === "custom") ["mt", "mb", "mr", "ml"].forEach((k) => { out[k] = Number(ul[k]) || 0; }); }
+  if (["none", "paren", "num", "of"].includes(ul.pageNum)) out.pageNum = ul.pageNum;
+  return out;
 }
 function rptBgSize(s) { return s && s.bgFit === "cover" ? "cover" : "100% 100%"; }
 function rptCoverStyle(s, unitId) {
@@ -5975,10 +5994,12 @@ function aggReportData(s) {
   let units = scopeUnitsFilter(S.units.filter((u) => u.status === "active"));
   const scoped = !!(s.scopeLevelId && olFind(s.scopeLevelId));
   if (scoped) { const ids = olScopeUnitIds(s.scopeLevelId); units = units.filter((u) => ids.has(u.id)); }
+  const exU = new Set((s.excl && s.excl.units) || []), exD = new Set((s.excl && s.excl.depts) || []);
+  if (exU.size || exD.size) units = units.filter((u) => !exU.has(u.id) && !exD.has(u.departmentId));
   const year = aggReportYear(s);
   let flat = collectReportsFlatForUnits(units);
   if (year) flat = flat.filter((x) => reportHijriYearNum(x.report) === year);
-  let depts = scopeDeptsFilter(S.departments.filter((d) => d.status === "active"));
+  let depts = scopeDeptsFilter(S.departments.filter((d) => d.status === "active" && !exD.has(d.id)));
   if (scoped) depts = depts.filter((d) => units.some((u) => u.departmentId === d.id));
   const latest = (uid) => {
     if (!year) return latestReportForUnit(uid);
@@ -6095,7 +6116,7 @@ function aggChapterBody(key, data, s) {
 // مستند التقرير المجمّع كاملًا (غلاف + فصول) حسب التنسيق
 function aggReportDocHtml(s, data) {
   return rptWithCtx({ ...rptChartCtx(s), hiddenCols: s.hiddenCols }, () => {
-    const chapters = rptOrdered(aggChapterDefs(s), s).filter((c) => !s.hidden[c.key] && (s.showEmpty || (c.custom ? aggCustomChapterRows(c.custom, data).length : aggChapterHasData(c.key, data))));
+    const chapters = rptOrdered(aggChapterDefs(s), s).filter((c) => !s.hidden[c.key] && !rptLevelHides(s, c.key) && (s.showEmpty || (c.custom ? aggCustomChapterRows(c.custom, data).length : aggChapterHasData(c.key, data))));
     const pages = [];
     const per = Number(s.perPage) || 0;
     chapters.forEach((c, i) => {
@@ -6107,27 +6128,14 @@ function aggReportDocHtml(s, data) {
     });
     const hasCover = !!s.showCover;
     const total = pages.length + (hasCover ? 1 : 0);
-    const cover = hasCover ? `
-    <section class="a4-page rpt-cover${rptCoverStyle(s, "") ? " rpt-hasbg" : ""}"${rptCoverStyle(s, "").replace(" class-hasbg", "")}>
-      ${s.watermark ? `<div class="rpt-wm" style="background-image:url('${ASSOCIATION_LOGO}')"></div>` : ""}
-      <div class="rpt-cover-inner">
-        <img src="${ASSOCIATION_LOGO}" class="rpt-cover-logo" alt="شعار الجمعية" />
-        <div class="rpt-cover-assoc">${esc(s.assocName)}</div>
-        ${s.preparedBy ? `<div class="rpt-cover-unit">${esc(s.preparedBy)}</div>` : ""}
-        <div class="rpt-cover-divider"></div>
-        <h1 class="rpt-cover-title">${esc(s.coverTitle || s.name || "تقرير")}</h1>
-        ${s.coverSub ? `<div class="rpt-cover-sub">${esc(s.coverSub)}</div>` : ""}
-        ${s.showCoverMeta ? `<div class="rpt-cover-meta">
-          <div><span>عدد الأقسام:</span> ${data.deptCount}</div>
-          <div><span>عدد الوحدات:</span> ${data.unitCount}</div>
-          <div><span>عدد التقارير:</span> ${data.total}</div>
-          ${data.yearText ? `<div><span>السنة:</span> ${esc(data.yearText)}</div>` : ""}
-          ${data.periodText ? `<div><span>الفترة:</span> ${esc(data.periodText)}</div>` : ""}
-        </div>` : ""}
-        ${s.preparedBy ? `<div class="rpt-cover-prepared"><div>إعداد: ${esc(s.preparedBy)}</div></div>` : ""}
-      </div>
-      ${rptPageNumText(s, 1, total) ? `<div class="rpt-runfoot"><span></span><span class="rpt-runfoot-num">${rptPageNumText(s, 1, total)}</span><span></span></div>` : ""}
-    </section>` : "";
+    const cover = hasCover ? rptUnifiedCoverHtml(s, {
+      title: (s.coverTitle || s.name || "تقرير").trim(),
+      sub: [data.yearText, data.periodText].filter(Boolean).join(" — ") || (s.coverSub || ""),
+      line: s.coverSub && (data.yearText || data.periodText) ? s.coverSub : "",
+      unitLine: `${data.deptCount} قسم — ${data.unitCount} وحدة — ${data.total} تقرير`,
+      prepared: [s.preparedBy ? "إعداد: " + s.preparedBy : ""],
+      unitId: "", total,
+    }) : "";
     return cover + pages.map((p, i) => rptPageHtml(s, p, i + 1 + (hasCover ? 1 : 0), total)).join("");
   });
 }
@@ -6322,6 +6330,49 @@ function rmCustomChapterEditor(ch) {
 function rmTabsFor(sel) {
   return [["page", "الصفحة"], ["head", "الكليشة"], ["cover", "الغلاف والاعتماد"], ["chapters", "الفصول"], ["visuals", "الرسوم والجداول"], ["fonts", "الخطوط والألوان"], ["access", sel === "final" || sel === "unit" ? "من يشوفه" : "النطاق ومن يشوفه"]];
 }
+
+/* ===== «ما يظهر لكل حساب» في التقرير الموحّد ===== */
+const RPT_LEVELS = [["unit", "الوحدة"], ["dept", "القسم"], ["office", "المكتب"], ["exec", "إدارة التعليم النسائي"], ["sec", "السكرتارية"]];
+function rptViewerLevel() {
+  if (S.isAdmin) return "admin";
+  if (S.isExecutive) return "exec";
+  if (S.isOfficeUser) return "office";
+  if (S.isDepartmentUser) return "dept";
+  if (S.currentUnitId && !S.isAdmin && !S.isDepartmentUser && !S.isOfficeUser && !S.isExecutive && !(typeof userInAnyApStage === "function" && userInAnyApStage())) return "unit";
+  return "sec";
+}
+function rptHiddenColsForViewer(s) {
+  const lv = rptViewerLevel(), extra = (s.levelCols || {})[lv];
+  if (lv === "admin" || !extra) return s.hiddenCols;
+  const out = { ...(s.hiddenCols || {}) };
+  Object.keys(extra).forEach((sid) => { out[sid] = [...new Set([...(out[sid] || []), ...extra[sid]])]; });
+  return out;
+}
+function rptLevelHides(s, key) {
+  const lv = rptViewerLevel(); if (lv === "admin") return false;
+  return ((s.levelHidden || {})[lv] || []).includes(key);
+}
+function rptFieldMatrixHtml(sid, heads, d) {
+  const lc = d.levelCols || {};
+  const th = (t) => `<th style="padding:4px 4px;font-size:10.5px;font-weight:700;">${esc(t)}</th>`;
+  const rows = heads.map((h) => `<tr style="border-top:1px solid ${BORDER};"><td style="padding:5px 6px;font-size:12px;">${esc(h.label)}</td>
+    <td style="text-align:center;"><button type="button" class="rm-pill rm-pill-sm${h.on ? " on" : ""}" data-action="rm-col" data-sec="${esc(sid)}" data-col="${esc(h.label)}" data-def="${h.def ? 1 : 0}" aria-pressed="${h.on}">${h.on ? "✓" : "—"}</button></td>
+    ${RPT_LEVELS.map(([k]) => { const off = !h.on || ((lc[k] || {})[sid] || []).includes(h.label); return `<td style="text-align:center;"><button type="button" class="rm-pill rm-pill-sm${off ? "" : " on"}" ${h.on ? "" : "disabled"} data-action="rm-colv" data-lvl="${k}" data-sec="${esc(sid)}" data-col="${esc(h.label)}" aria-pressed="${!off}">${off ? "—" : "✓"}</button></td>`; }).join("")}</tr>`).join("");
+  return `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><tr><th style="text-align:right;padding:4px 6px;font-size:11px;">الحقل</th>${th("الجميع")}${RPT_LEVELS.map(([, l]) => th(l)).join("")}</tr>${rows}</table></div>`;
+}
+function rptLevelTableHtml(d, defs) {
+  const list = rptOrdered(defs, d);
+  const head = `<tr><th style="text-align:right;padding:6px 8px;">الفصل</th>${RPT_LEVELS.map(([, l]) => `<th style="padding:6px 6px;font-size:11px;">${esc(l)}</th>`).join("")}</tr>`;
+  const rows = list.map((c) => `<tr style="border-top:1px solid ${BORDER};"><td style="padding:6px 8px;font-size:12.5px;">${esc(rptChapterTitle(c, d))}</td>${RPT_LEVELS.map(([k]) => { const off = ((d.levelHidden || {})[k] || []).includes(c.key); return `<td style="text-align:center;"><button type="button" class="rm-pill${off ? "" : " on"}" data-action="rm-lvl" data-lvl="${k}" data-key="${esc(c.key)}" aria-pressed="${!off}" style="min-width:34px;padding:2px 8px;">${off ? "—" : "✓"}</button></td>`; }).join("")}</tr>`).join("");
+  return rmFieldHtml("ما يظهر لكل حساب", `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">${head}${rows}</table></div>`, "✓ = الفصل يظهر لهذا الحساب في العرض وPDF، و«—» = مخفي عنه. مديرة النظام ترى كل الفصول دائمًا. لا يغيّر شيئًا في التعبئة.");
+}
+function rptExclHtml(d) {
+  const ex = d.excl || { units: [], depts: [] };
+  const depts = (S.departments || []).filter((x) => x.status === "active");
+  const units = (S.units || []).filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive");
+  const chip = (kind, id, name, off) => `<button type="button" class="rm-pill${off ? "" : " on"}" data-action="rm-excl" data-kind="${kind}" data-id="${esc(id)}" aria-pressed="${!off}" style="margin:2px;">${off ? "مستبعد: " : ""}${esc(name)}</button>`;
+  return rmFieldHtml("الأقسام والوحدات داخل التقرير", `<div class="rm-hint" style="margin-bottom:6px;font-weight:800;">الأقسام</div><div class="rm-pills">${depts.map((x) => chip("depts", x.id, x.name, ex.depts.includes(x.id))).join("") || "—"}</div><div class="rm-hint" style="margin:10px 0 6px;font-weight:800;">الوحدات</div><div class="rm-pills">${units.map((u) => chip("units", u.id, u.name, ex.units.includes(u.id))).join("") || "—"}</div>`, "المستبعد لا يظهر في هذا التقرير الشامل، ويبقى تقريره عند صاحبه كما هو.");
+}
 function rmPanelHtml(st) {
   const d = st.draft, sel = st.sel, tab = st.tab;
   const isUnit = sel === "unit";
@@ -6380,7 +6431,7 @@ function rmPanelHtml(st) {
       const colsHtml = open ? (c.sections || []).map((sid) => {
         const sc = SECTIONS.find((x) => x.id === sid);
         const heads = rptSectionColumns(sid, d, cols);
-        return `<div style="margin-top:8px;"><div class="rm-hint" style="font-weight:800;">${esc(sc ? sc.label : sid)}${rptSchemaFor(sid) && sid !== "review" ? " — من «إدارة حقول الأقسام»" : ""}</div>${heads.length ? `<div class="rm-pills">${heads.map((h) => `<button type="button" class="rm-pill rm-pill-sm${h.on ? " on" : ""}" data-action="rm-col" data-sec="${esc(sid)}" data-col="${esc(h.label)}" data-def="${h.def ? 1 : 0}" aria-pressed="${h.on}">${h.on ? "✓ " : ""}${esc(h.label)}</button>`).join("")}</div>` : `<div class="rm-hint">لا يحتوي جدولًا.</div>`}</div>`;
+        return `<div style="margin-top:8px;"><div class="rm-hint" style="font-weight:800;">${esc(sc ? sc.label : sid)}${rptSchemaFor(sid) && sid !== "review" ? " — من «إدارة حقول الأقسام»" : ""}</div>${heads.length ? rptFieldMatrixHtml(sid, heads, d) : `<div class="rm-hint">لا يحتوي جدولًا.</div>`}</div>`;
       }).join("") : "";
       return `<div class="rm-chapter${hid ? " off" : ""}">
         <div class="rm-row" style="flex-wrap:nowrap;">
@@ -6391,7 +6442,7 @@ function rmPanelHtml(st) {
           <input type="text" class="input" data-rm="title:${esc(c.key)}" value="${esc((d.titles || {})[c.key] || "")}" placeholder="${esc(c.title)}" style="flex:1;min-width:0;" aria-label="اسم الفصل" />
           <button type="button" class="rm-pill${hid ? "" : " on"}" data-action="rm-hide" data-key="${esc(c.key)}" aria-pressed="${!hid}">${hid ? "مخفي" : "ظاهر"}</button>
         </div>
-        ${isUnit && c.sections ? `<button type="button" class="rm-link" data-action="rm-cols" data-key="${esc(c.key)}">${open ? "إخفاء الأعمدة ▴" : "الأعمدة الظاهرة في جداوله ▾"}</button>${colsHtml}` : ""}
+        ${isUnit && c.sections ? `<button type="button" class="rm-link" data-action="rm-cols" data-key="${esc(c.key)}">${open ? "إخفاء حقول الفصل ▴" : "حقول الفصل لكل حساب ▾"}</button>${colsHtml}` : ""}
         ${c.custom ? `<button type="button" class="rm-link" data-action="rm-cols" data-key="${esc(c.key)}">${st.openCols === c.key ? "إغلاق الإعداد ▴" : "إعداد الفصل (القسم والحقول) ▾"}</button>${st.openCols === c.key ? rmCustomChapterEditor(c.custom) : ""}` : ""}
       </div>`;
     }).join("");
@@ -6444,8 +6495,8 @@ function rmPanelHtml(st) {
       rmFieldHtml("خلفية عناوين الفصول", rmColor("chapterBg", d.chapterBg)) + `<div class="rm-sep"></div>` + fontsMgr;
   }
   if (tab === "access") {
-    if (sel === "unit") return `<div class="rm-hint" style="font-size:12.5px;line-height:1.9;">«عرض التقرير كاملًا» يظهر بنفس صلاحيات التقارير الحالية (صاحبة التقرير، القسم، المكتب، مراحل مسار الاعتماد…). هنا يتغيّر الشكل فقط، لكل تقارير الوحدات.</div>`;
-    if (sel === "final") return rmRolesHtml("executive-final-report", "التقرير الإداري النهائي");
+    if (sel === "unit") return `<div class="rm-hint" style="font-size:12.5px;line-height:1.9;">«عرض التقرير كاملًا» يظهر بنفس صلاحيات التقارير الحالية (صاحبة التقرير، القسم، المكتب، مراحل مسار الاعتماد…). هنا يتغيّر الشكل فقط، لكل تقارير الوحدات.</div>` + `<div class="rm-sep"></div>` + rptLevelTableHtml(d, unitChapterDefs());
+    if (sel === "final") return rmRolesHtml("executive-final-report", "التقرير الإداري النهائي") + `<div class="rm-sep"></div>` + rptLevelTableHtml(d, aggChapterDefs(d)) + `<div class="rm-sep"></div>` + rptExclHtml(d);
     const levels = olActive();
     const depth = (l) => { let n = 0, p = l; while (p && p.parentId && n < 12) { p = olFind(p.parentId); n++; } return n; };
     const ordered = [];
@@ -6482,10 +6533,9 @@ function renderReportsManage() {
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "تنسيق وإنشاء التقارير", subtitle: "شكل كل تقرير وإنشاء تقارير مجمّعة جديدة — المعاينة ببيانات وهمية، بدون الاطلاع على أي تقرير حقيقي" })}
     <div class="rm-layout">
-      <div class="rm-list">
-        <div class="rm-label" style="padding:0 4px;">التقارير</div>
-        ${items.map((it) => `<button type="button" class="rm-item${st.sel === it.id ? " on" : ""}" data-action="rm-select" data-id="${esc(it.id)}"><span class="rm-item-name">${esc(it.name)}</span><span class="rm-item-kind">${esc(it.kind)}</span></button>`).join("")}
-        <button type="button" class="rm-new" data-action="rm-new">${iconPlus(14, ROSE)} تقرير مجمّع جديد</button>
+      <div class="rm-selectbar">
+        <label class="rm-label" for="rm-sel" style="margin:0;">التقرير</label>
+        <select id="rm-sel" class="input rm-sel">${items.map((it) => `<option value="${esc(it.id)}" ${st.sel === it.id ? "selected" : ""}>${esc(it.name)} — ${esc(it.kind)}</option>`).join("")}<option value="__new">＋ تقرير مجمّع جديد</option></select>
       </div>
       <div class="rm-panel card">
         <div class="rm-panel-head">
@@ -6515,6 +6565,9 @@ function handleReportsManageAction(action, ds) {
     case "rm-tab": st.tab = ds.tab; break;
     case "rm-set": rmSetField(ds.key, ds.value); break;
     case "rm-toggle": d[ds.key] = !d[ds.key]; break;
+    case "rm-colv": { const lv = ds.lvl, lc = { ...(d.levelCols || {}) }; const bySec = { ...(lc[lv] || {}) }; const cur = new Set(bySec[ds.sec] || []); if (cur.has(ds.col)) cur.delete(ds.col); else cur.add(ds.col); bySec[ds.sec] = [...cur]; lc[lv] = bySec; d.levelCols = lc; break; }
+    case "rm-lvl": { const lv = ds.lvl, cur = new Set((d.levelHidden || {})[lv] || []); if (cur.has(ds.key)) cur.delete(ds.key); else cur.add(ds.key); d.levelHidden = { ...(d.levelHidden || {}), [lv]: [...cur] }; break; }
+    case "rm-excl": { const ex = { units: [...((d.excl || {}).units || [])], depts: [...((d.excl || {}).depts || [])] }; const l = ex[ds.kind]; const k = l.indexOf(ds.id); if (k >= 0) l.splice(k, 1); else l.push(ds.id); d.excl = ex; break; }
     case "rm-hide": d.hidden = { ...d.hidden, [ds.key]: !d.hidden[ds.key] }; break;
     case "rm-move": {
       const defs = st.sel === "unit" ? unitChapterDefs() : aggChapterDefs(d);
@@ -8879,6 +8932,96 @@ function readIndicatorDefForm(stateKey) {
   };
 }
 
+
+
+function goalDefUsage(kind, name) {
+  let n = 0; const nm = String(name || "").trim();
+  (S.units || []).forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => {
+    const secs = r.sections || {};
+    if (kind === "ind") { const l = (secs.kpi && secs.kpi.data && secs.kpi.data.indicators) || []; if (l.some((x) => String(x.name || "").trim() === nm)) n++; }
+    else { const l = (secs.goals && secs.goals.data && secs.goals.data.goals) || []; if (l.some((g) => kind === "st" ? String(g.strategicGoal || "").trim() === nm : (g.operationalGoals || []).some((og) => String(og.name || "").trim() === nm))) n++; }
+  }));
+  return n;
+}
+function goalDelNote(kind, name) {
+  const n = goalDefUsage(kind, name);
+  return `<div class="hint" style="flex-basis:100%;margin:0;">${n ? `مستخدم في <b>${n}</b> تقرير — الحذف لا يمس التقارير المكتوبة، لكنه يختفي من القائمة للتقارير الجديدة.` : "غير مستخدم في أي تقرير."}</div>`;
+}
+/* ===== «الجهة» لكل مؤشر وهدف تشغيلي: للجميع أو وحدات محددة (محفوظة في إعدادات الموقع) ===== */
+function ogTarget(id) { const m = (((S.siteSettings || {}).theme || {}).ogTargets) || {}; return m[id] != null && m[id] !== "" ? m[id] : ""; }
+function scopeMap() { return (((S.siteSettings || {}).theme || {}).itemScopes) || { ind: {}, og: {} }; }
+function scopeOf(kind, id) { const m = scopeMap()[kind] || {}; return Array.isArray(m[id]) ? m[id] : []; }
+function scopeAllows(kind, id, unitId) { const l = scopeOf(kind, id); return !l.length || !unitId || l.includes(unitId); }
+function scopeSet(kind, id, list) {
+  saveSiteTheme((th) => { const all = { ind: { ...(((th || {}).itemScopes || {}).ind || {}) }, og: { ...(((th || {}).itemScopes || {}).og || {}) } }; if (list && list.length) all[kind][id] = list; else delete all[kind][id]; return { itemScopes: all }; });
+}
+function scopeLabel(kind, id) {
+  const l = scopeOf(kind, id); if (!l.length) return "للجميع";
+  const names = l.map((u) => ((S.units || []).find((x) => x.id === u) || {}).name).filter(Boolean);
+  return names.length <= 2 ? names.join("، ") : names.length + " وحدات";
+}
+function scopeControlHtml(kind, id) {
+  const cur = scopeOf(kind, id);
+  const units = (S.units || []).filter((u) => u.status !== "inactive");
+  return `<details style="flex-basis:100%;margin-top:4px;"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--rose);">الجهة: ${esc(scopeLabel(kind, id))}</summary>
+    <div class="hint" style="margin:6px 0;">بدون اختيار = للجميع. اختاري وحدة أو أكثر لتظهر لها فقط.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;">${units.map((u) => `<label style="font-size:12.5px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" data-scope-kind="${kind}" data-scope-id="${esc(id)}" data-scope-unit="${esc(u.id)}" ${cur.includes(u.id) ? "checked" : ""} />${esc(u.name)}</label>`).join("")}</div>
+  </details>`;
+}
+// يحلّل عنوان «[وحدة الجودة، وحدة التدريب]» أو «[للجميع]» إلى معرّفات وحدات
+function scopeParseHeading(txt) {
+  const t = String(txt || "").trim();
+  if (!t || /^للجميع$/.test(t)) return { ids: [], err: "" };
+  const names = t.split(/[،,؛;]/).map((x) => x.trim()).filter(Boolean); const ids = [], bad = [];
+  names.forEach((n) => { const u = (S.units || []).find((x) => String(x.name).trim() === n); if (u) ids.push(u.id); else bad.push(n); });
+  return { ids, err: bad.length ? `وحدة غير موجودة: «${bad.join("، ")}»` : "" };
+}
+/* ===== إدخال المؤشرات المعتمدة من نص (إدارة مؤشرات الأداء) ===== */
+const IND_IMP_FIELDS = [
+  { id: "name", label: "الاسم", required: true },
+  { id: "category", label: "التصنيف", opts: INDICATOR_CATEGORIES },
+  { id: "direction", label: "الاتجاه", opts: INDICATOR_DIRECTIONS },
+  { id: "frequency", label: "الدورية", opts: MEASUREMENT_FREQUENCIES },
+  { id: "unit", label: "وحدة القياس", opts: MEASUREMENT_UNITS },
+  { id: "target", label: "المستهدف", num: true, required: true },
+  { id: "dataSource", label: "مصدر البيانات" },
+];
+function indImpParse(text) {
+  const exist = (S.indicatorDefinitions || []).map((d) => String(d.name || "").trim());
+  let scope = { ids: [], err: "", label: "" };
+  return String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
+    const hm = line.match(/^\[(.*)\]$/);
+    if (hm) { const sp = scopeParseHeading(hm[1]); scope = { ...sp, label: hm[1].trim() || "للجميع" }; return { line, heading: true, errs: sp.err ? [sp.err] : [], rec: {}, scope }; }
+    const parts = line.split("|").map((x) => x.trim()); const rec = {}; const errs = []; if (scope.err) errs.push("الجهة غير صحيحة: " + scope.err);
+    IND_IMP_FIELDS.forEach((f, i) => {
+      const raw = parts[i] || "";
+      if (!raw) { if (f.required) errs.push(`«${f.label}» ناقص`); return; }
+      if (f.num) { const n = bkNum(raw); if (n === "" || isNaN(Number(n))) errs.push(`«${f.label}» لازم رقم`); else rec[f.id] = n; }
+      else if (f.opts) { const hit = f.opts.find((o) => o === raw) || f.opts.find((o) => o.includes(raw) || raw.includes(o)); if (hit) rec[f.id] = hit; else errs.push(`«${f.label}»: «${raw}» ليس من الخيارات`); }
+      else rec[f.id] = raw;
+    });
+    if (parts.length > IND_IMP_FIELDS.length) errs.push("حقول زائدة عن المطلوب");
+    return { line, rec, errs, scope, isNew: !exist.includes(String(rec.name || "").trim()) };
+  });
+}
+function indImpPanelHtml() {
+  const b = S.ui.indImp; if (!b) return "";
+  const pv = b.preview;
+  const order = IND_IMP_FIELDS.map((f, i) => `<span style="white-space:nowrap;">${i + 1}) ${esc(f.label)}${f.required ? " *" : ""}</span>`).join(" &nbsp;|&nbsp; ");
+  const optsHtml = `<details style="margin:10px 0 0;"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--rose);">الخيارات المسموحة</summary>${IND_IMP_FIELDS.filter((f) => f.opts).map((f) => `<div class="hint" style="margin-top:6px;"><b>${esc(f.label)}:</b> ${esc(f.opts.join(" ، "))}</div>`).join("")}</details>`;
+  const pvHtml = pv ? `<div style="margin-top:14px;">${pv.map((r, i) => r.heading ? `<div style="padding:6px 12px;margin-bottom:8px;font-size:13px;font-weight:800;color:${r.errs.length ? "#b03030" : "var(--rose)"};">الجهة: ${esc(r.line)}${r.errs.length ? " — " + esc(r.errs.join("، ")) : ""}</div>` : `<div style="padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px solid ${r.errs.length ? "#e7b4b4" : "#b9dcc4"};background:${r.errs.length ? "#fdf2f2" : "#f1faf4"};font-size:13px;line-height:1.8;"><div style="font-weight:700;">${esc(r.line.slice(0, 90))}</div>${r.errs.length ? `<div style="color:#b03030;">يحتاج تصحيح: ${esc(r.errs.join("، "))}</div>` : `<div style="color:#1f7a45;">${r.isNew ? "جديد — يُضاف" : "موجود — يُحدَّث"} · الجهة: ${esc((r.scope && r.scope.label) || "للجميع")}</div>`}</div>`).join("")}</div>` : "";
+  const ok = pv ? pv.filter((r) => !r.heading && !r.errs.length).length : 0;
+  return `<div class="card" style="margin-bottom:22px;">
+    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:8px;">إدخال المؤشرات من نص</div>
+    <div class="hint" style="margin-bottom:8px;">سطر لكل مؤشر، وافصلي الحقول بـ «|» بهذا الترتيب. الحقل الفارغ اتركيه فاضي، والأخيرة تقدرين تحذفينها. (* = مطلوب)<br>لتحديد الجهة: اكتبي سطر عنوان بين قوسين مثل <b>[وحدة الجودة]</b> أو <b>[وحدة أ، وحدة ب]</b> أو <b>[للجميع]</b>، وكل المؤشرات تحته تتبعه حتى عنوان آخر. بدون عنوان = تبقى جهتها كما هي (والجديد للجميع).</div>
+    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;line-height:2;">${order}</div>
+    ${optsHtml}
+    <textarea class="input" id="ind-imp-text" rows="6" style="margin-top:12px;font-family:inherit;line-height:1.9;min-height:140px;">${esc(b.text || "")}</textarea>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">${pillBtn("معاينة", { variant: "ghost", action: "ind-imp-preview" })}${ok ? pillBtn(`تطبيق (${ok})`, { action: "ind-imp-apply" }) : ""}${pillBtn("إغلاق", { variant: "ghost", action: "ind-imp-close" })}</div>
+    ${pvHtml}
+    <div class="hint" style="margin-top:12px;">يضيف الجديد ويحدّث الموجود (بنفس الاسم) فقط، ولا يحذف أبدًا. السطر اللي يحتاج تصحيح ما يُطبّق قبل تصحيحه.</div>
+  </div>`;
+}
 function renderIndicatorsManage() {
   const ui = S.ui;
   return `
@@ -8888,8 +9031,9 @@ function renderIndicatorsManage() {
     <div class="card" style="margin-bottom:22px;">
       <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:12px;">إضافة مؤشر جديد</div>
       ${indicatorDefFieldsHtml("new-ind", indicatorFormState("new-ind"))}
-      ${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator-def" })}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator-def" })}${pillBtn("إدخال من نص", { variant: "ghost", icon: iconLayers(15, ROSE), action: "ind-imp-open" })}</div>
     </div>
+    ${indImpPanelHtml()}
 
     <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:10px;">المؤشرات المعتمدة (${S.indicatorDefinitions.length})</div>
     ${S.indicatorDefinitions.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px 20px;border-style:dashed;">لا توجد مؤشرات معتمدة بعد — أضيفي أول مؤشر من الأعلى، أو أضيفيها لاحقًا من داخل نموذج التقرير.</div>` :
@@ -8901,8 +9045,8 @@ function indicatorDefRowHtml(def) {
   const editing = S.ui.editingIndicatorId === def.id;
   const confirming = S.ui.confirmDeleteIndicatorId === def.id;
   if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(def.name)}" نهائيًا؟</span>
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;">حذف "${esc(def.name)}" نهائيًا؟</span>${goalDelNote("ind", def.name)}
       <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-indicator-def", data: { id: def.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-confirm-indicator" })}</div>
     </div>`;
   }
@@ -8913,7 +9057,7 @@ function indicatorDefRowHtml(def) {
   }
   const details = [def.category, def.direction, def.frequency, def.unit].filter(Boolean).join(" · ") || "بدون تفاصيل إضافية";
   const targetTxt = def.target !== "" && def.target != null ? ` · المستهدف: ${def.target}` : "";
-  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
     <div style="display:flex;align-items:center;gap:10px;min-width:0;">
       <div style="width:34px;height:34px;border-radius:10px;background:${GOLD_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconGauge(GOLD, 16)}</div>
       <div style="min-width:0;"><div style="font-size:13.5px;font-weight:700;">${esc(def.name)}</div><div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(details + targetTxt)}</div></div>
@@ -8922,6 +9066,7 @@ function indicatorDefRowHtml(def) {
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-indicator-edit" data-id="${esc(def.id)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-indicator" data-id="${esc(def.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
     </div>
+    ${scopeControlHtml("ind", def.id)}
   </div>`;
 }
 
@@ -8944,8 +9089,8 @@ function goalsListRowHtml(kind, g) {
   const editing = S.ui[`editing${kind}Id`] === g.id;
   const confirming = S.ui[`confirm${kind}DeleteId`] === g.id;
   if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(g.name)}" نهائيًا؟</span>
+    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;">حذف "${esc(g.name)}" نهائيًا؟</span>${goalDelNote(kind === "Operational" ? "og" : "st", g.name)}
       <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: `delete-${kind}-goal`, data: { id: g.id } })}${pillBtn("تراجع", { variant: "ghost", action: `cancel-confirm-${kind}-goal` })}</div>
     </div>`;
   }
@@ -8963,9 +9108,49 @@ function goalsListRowHtml(kind, g) {
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-${kind}-goal-edit" data-id="${esc(g.id)}" data-name="${esc(g.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-${kind}-goal" data-id="${esc(g.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
     </div>
+    ${kind === "Operational" ? `<div style="flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12px;"><span>نسبة المستهدف %</span><input type="number" class="input" min="0" max="100" inputmode="numeric" data-og-target="${esc(g.id)}" value="${esc(ogTarget(g.id))}" placeholder="—" style="width:90px;padding:4px 8px;" /></div>` + scopeControlHtml("og", g.id) : ""}
   </div>`;
 }
 
+
+/* ===== إدخال الأهداف الاستراتيجية والتشغيلية من نص ===== */
+function goalImpParse(text) {
+  const st = (S.goalsDefinitions.strategic || []), op = (S.goalsDefinitions.operational || []);
+  let scope = { ids: [], err: "", label: "" }, curStrat = null; const seenS = {}, out = [];
+  String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
+    const hm = line.match(/^\[(.*)\]$/);
+    if (hm) { const sp = scopeParseHeading(hm[1]); scope = { ...sp, label: hm[1].trim() || "للجميع" }; out.push({ line, heading: true, errs: sp.err ? [sp.err] : [] }); return; }
+    const m = line.match(/^[-–—]+\s*(.+)$/);
+    if (!m) { const name = line.replace(/\s+/g, " "); const ex = st.find((g) => String(g.name).trim() === name); curStrat = { name, id: ex ? ex.id : seenS[name] || (seenS[name] = uid("sg")) }; out.push({ line, kind: "strategic", name, id: curStrat.id, isNew: !ex, errs: [] }); return; }
+    const bits = m[1].split("|").map((x) => x.trim()); const name = bits[0].replace(/\s+/g, " "); const errs = []; let target = "";
+    if (bits[1]) { const t = bkNum(bits[1].replace("%", "")); if (t === "" || isNaN(Number(t)) || Number(t) < 0 || Number(t) > 100) errs.push("نسبة المستهدف لازم رقم من 0 إلى 100"); else target = t; }
+    if (!curStrat) errs.push("اكتبي الهدف الاستراتيجي قبل أهدافه التشغيلية");
+    if (scope.err) errs.push("الجهة غير صحيحة: " + scope.err);
+    const ex = op.find((g) => String(g.name).trim() === name);
+    out.push({ line, kind: "operational", name, target, parentId: curStrat && curStrat.id, id: ex && ex.id, isNew: !ex, scope, errs });
+  });
+  return out;
+}
+function goalImpPanelHtml() {
+  const b = S.ui.goalImp; if (!b) return "";
+  const pv = b.preview;
+  const pvHtml = pv ? `<div style="margin-top:14px;">${pv.map((r) => r.heading ? `<div style="padding:6px 12px;margin-bottom:8px;font-size:13px;font-weight:800;color:${r.errs.length ? "#b03030" : "var(--rose)"};">الجهة: ${esc(r.line)}${r.errs.length ? " — " + esc(r.errs.join("، ")) : ""}</div>` : `<div style="padding:8px 12px;margin-bottom:6px;border-radius:10px;border:1px solid ${r.errs.length ? "#e7b4b4" : "#b9dcc4"};background:${r.errs.length ? "#fdf2f2" : "#f1faf4"};font-size:13px;line-height:1.8;${r.kind === "operational" ? "margin-right:22px;" : ""}"><div style="font-weight:700;">${esc(r.line.slice(0, 90))}</div>${r.errs.length ? `<div style="color:#b03030;">يحتاج تصحيح: ${esc(r.errs.join("، "))}</div>` : `<div style="color:#1f7a45;">${r.kind === "strategic" ? "هدف استراتيجي" : "هدف تشغيلي"} — ${r.isNew ? "جديد، يُضاف" : "موجود"}${r.kind === "operational" ? " · الجهة: " + esc((r.scope && r.scope.label) || "كما هي") + (r.target ? " · المستهدف: " + esc(r.target) + "%" : "") : ""}</div>`}</div>`).join("")}</div>` : "";
+  const ok = pv ? pv.filter((r) => !r.heading && !r.errs.length).length : 0;
+  return `<div class="card" style="margin-bottom:16px;">
+    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:8px;">إدخال الأهداف من نص</div>
+    <div class="hint" style="margin-bottom:8px;">الهدف الاستراتيجي في سطر بدون شرطة، وتحته أهدافه التشغيلية كل واحد في سطر يبدأ بـ «-»، وبعده «|» ونسبة المستهدف (اختياري).<br>لتحديد الجهة للأهداف التشغيلية: سطر عنوان بين قوسين مثل <b>[وحدة الجودة]</b> أو <b>[للجميع]</b>، وكل ما تحته يتبعه حتى عنوان آخر.</div>
+    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;line-height:2;white-space:pre-line;">تحسين جودة الاختبارات
+- تطوير أدوات القياس | 90
+- تحسين زمن إصدار النتائج | 80
+[وحدة الجودة]
+رفع كفاءة الإجراءات
+- أتمتة التقارير</div>
+    <textarea class="input" id="goal-imp-text" rows="8" style="margin-top:12px;font-family:inherit;line-height:1.9;min-height:160px;">${esc(b.text || "")}</textarea>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">${pillBtn("معاينة", { variant: "ghost", action: "goal-imp-preview" })}${ok ? pillBtn(`تطبيق (${ok})`, { action: "goal-imp-apply" }) : ""}${pillBtn("إغلاق", { variant: "ghost", action: "goal-imp-close" })}</div>
+    ${pvHtml}
+    <div class="hint" style="margin-top:12px;">يضيف الجديد فقط ولا يحذف ولا يغيّر هدفًا موجودًا (يُحدَّث فقط «الجهة» إذا كتبتِ عنوانًا). السطر اللي يحتاج تصحيح ما يُطبّق.</div>
+  </div>`;
+}
 function renderGoalsManage() {
   const strategic = S.goalsDefinitions.strategic || [], operational = S.goalsDefinitions.operational || [];
   return `
@@ -8980,6 +9165,8 @@ function renderGoalsManage() {
       ${pillBtn(goalAddFromReportOn() ? "إيقاف" : "تفعيل", { variant: goalAddFromReportOn() ? "ghost" : "primary", action: "goal-add-toggle" })}
     </div>
 
+    <div style="margin-bottom:14px;">${pillBtn("إدخال من نص", { variant: "ghost", icon: iconLayers(15, ROSE), action: "goal-imp-open" })}</div>
+    ${goalImpPanelHtml()}
     <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الأهداف الاستراتيجية</div>
     <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:8px;">
       <input class="input" id="new-strategic-goal" style="flex:1;" placeholder="نص الهدف الاستراتيجي" />
@@ -9347,6 +9534,87 @@ function radioSub(arr, id, subarr, subid, field, value, options) {
 function readonlyBox(text) { return `<div class="readonly-box">${esc(text)}</div>`; }
 function removeBtn(arr, id) { return `<button type="button" class="icon-remove" data-action="remove-item" data-arr="${esc(arr)}" data-id="${esc(id)}">${iconX(12, DANGER)}</button>`; }
 
+
+/* ===== إدخال من نص داخل أقسام التقرير ===== */
+function bkSchema(arr) {
+  if (arr === "indicators") return { arrayKey: "indicators", itemLabel: "المؤشر", fields: [
+    { id: "name", type: "select", label: "اسم المؤشر", required: true, options: (S.indicatorDefinitions || []).map((x) => x.name) },
+    { id: "actual", type: "number", label: "القيمة الفعلية" },
+    { id: "deviationReason", type: "text", label: "سبب الانحراف" },
+    { id: "correctiveAction", type: "text", label: "الإجراء التصحيحي" },
+    { id: "responsiblePerson", type: "text", label: "المسؤولة" }] };
+  if (arr === "goals") {
+    const st = (S.goalsDefinitions.strategic && S.goalsDefinitions.strategic.length ? S.goalsDefinitions.strategic.map((g) => g.name) : STRATEGIC_GOALS_FALLBACK);
+    return { arrayKey: "goals", itemLabel: "الهدف", fields: [
+      { id: "strategicGoal", type: "select", label: "الهدف الاستراتيجي", required: true, options: st },
+      { id: "operationalGoals", type: "multi", label: "الأهداف التشغيلية (افصلي بينها بـ «؛»)", required: true }] };
+  }
+  return Object.values(SECTION_FIELD_SCHEMAS).find((x) => x.arrayKey === arr) || null;
+}
+function bkFields(schema) {
+  return schema.fields.filter((f) => ["text", "textarea", "number", "select", "radio", "expandableSelect", "date", "multi"].includes(f.type) && !/link/i.test(f.id));
+}
+function bkNum(v) { return String(v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/[٫,]/g, ".").trim(); }
+function bkParse(arr, text) {
+  const schema = bkSchema(arr); if (!schema) return null;
+  const fields = bkFields(schema), existing = (getItemList(arr) || []).length;
+  const rows = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
+    const parts = line.split("|").map((x) => x.trim()); const item = EMPTY_ITEM_FACTORY[arr](); const errs = [];
+    fields.forEach((f, i) => {
+      const raw = parts[i] || ""; if (!raw) { if (f.required) errs.push(`«${f.label}» ناقص`); return; }
+      if (f.type === "multi") {
+        const allowed = (S.goalsDefinitions.operational && S.goalsDefinitions.operational.length ? operationalGoalsFor(item.strategicGoal) : OPERATIONAL_GOALS_FALLBACK);
+        const names = raw.split(/[؛;]/).map((x) => x.trim()).filter(Boolean);
+        const bad = names.filter((n) => !allowed.includes(n));
+        if (bad.length) errs.push(`هدف تشغيلي غير موجود في القائمة: «${bad.join("، ")}»`);
+        else item.operationalGoals = names.map((name) => ({ id: uid("og"), name, level: "", percentage: "", evidenceType: "", evidenceAnswer: "", explanation: "" }));
+      } else if (f.type === "number") { const n = bkNum(raw); if (n === "" || isNaN(Number(n))) errs.push(`«${f.label}» لازم رقم`); else item[f.id] = n; }
+      else if (f.type === "select" || f.type === "radio" || f.type === "expandableSelect") {
+        const opts = (f.options || f.baseOptions || []).map((o) => (typeof o === "string" ? o : o.label || o.value));
+        const hit = opts.find((o) => o === raw) || opts.find((o) => o.includes(raw) || raw.includes(o));
+        if (hit) item[f.id] = typeof (f.options || f.baseOptions || [])[opts.indexOf(hit)] === "string" ? hit : ((f.options || f.baseOptions)[opts.indexOf(hit)].value || hit);
+        else if (f.type === "expandableSelect") item[f.id] = raw;
+        else errs.push(`«${f.label}»: «${raw}» ليس من الخيارات`);
+      } else item[f.id] = raw;
+    });
+    if (parts.length > fields.length) errs.push("حقول زائدة عن المطلوب");
+    return { line, item, errs };
+  });
+  const room = schema.maxItems != null ? Math.max(0, schema.maxItems - existing) : Infinity;
+  return { schema, fields, rows, room };
+}
+function bkPanelHtml(arr) {
+  const b = (S.ui.bulk || {}); if (b.arr !== arr) return "";
+  const schema = bkSchema(arr); if (!schema) return "";
+  const fields = bkFields(schema), pv = b.preview;
+  const order = fields.map((f, i) => `<span style="white-space:nowrap;">${i + 1}) ${esc(f.label)}${f.required ? " *" : ""}</span>`).join(" &nbsp;|&nbsp; ");
+  const pvHtml = pv ? `<div style="margin-top:14px;">${pv.rows.map((r, i) => `<div style="padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px solid ${r.errs.length ? "#e7b4b4" : "#b9dcc4"};background:${r.errs.length ? "#fdf2f2" : "#f1faf4"};font-size:13px;line-height:1.8;"><div style="font-weight:700;">${i + 1}. ${esc(r.line.slice(0, 90))}</div>${r.errs.length ? `<div style="color:#b03030;">يحتاج تصحيح: ${esc(r.errs.join("، "))}</div>` : `<div style="color:#1f7a45;">جاهز للإضافة</div>`}</div>`).join("")}</div>` : "";
+  const ok = pv ? pv.rows.filter((r) => !r.errs.length).length : 0;
+  const optsHtml = fields.some((f) => f.options || f.baseOptions) ? `<details style="margin:10px 0 0;"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--rose);">الخيارات المسموحة</summary>${fields.map((f, i) => (f.options || f.baseOptions) ? `<div class="hint" style="margin-top:6px;"><b>${i + 1}. ${esc(f.label)}:</b> ${esc((f.options || f.baseOptions).map((x) => (typeof x === "string" ? x : x.label || x.value)).join(" ، "))}</div>` : "").join("")}</details>` : "";
+  return `<div id="bk-panel" class="repeat-item" style="margin-top:14px;">
+    <div class="repeat-item-head"><span class="repeat-item-title">إدخال ${esc(schema.itemLabel)} من نص</span></div>
+    <div class="hint" style="margin-bottom:8px;">اكتبي سطرًا لكل عنصر، وافصلي بين الحقول بـ «|» بهذا الترتيب. الحقل الفارغ اتركيه فاضي، والحقول الأخيرة تقدرين تحذفينها. (* = مطلوب)</div>
+    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;line-height:2;">${order}</div>
+    ${optsHtml}
+    <textarea class="input" id="bk-text" rows="6" style="margin-top:12px;font-family:inherit;line-height:1.9;min-height:140px;">${esc(b.text || "")}</textarea>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">${pillBtn("معاينة", { variant: "ghost", action: "bk-preview", data: { arr } })}${ok ? pillBtn(`إضافة ${ok} عنصر`, { action: "bk-apply", data: { arr } }) : ""}${pillBtn("إغلاق", { variant: "ghost", action: "bk-close" })}</div>
+    ${pvHtml}
+    <div class="hint" style="margin-top:12px;">يضيف بعد الموجود فقط، ولا يغيّر ولا يحذف أي عنصر. السطر اللي يحتاج تصحيح ما ينضاف قبل تصحيحه. الجداول والصور والروابط تبقى يدوية.</div>
+  </div>`;
+}
+function bkInject() {
+  document.querySelectorAll('[data-action="add-item"],[data-action="add-indicator"],[data-action="add-goal"]').forEach((btn) => {
+    const arr = btn.dataset.arr || (btn.dataset.action === "add-indicator" ? "indicators" : btn.dataset.action === "add-goal" ? "goals" : ""); if (!arr || btn.dataset.bkDone || !bkSchema(arr) || !EMPTY_ITEM_FACTORY[arr]) return;
+    btn.dataset.bkDone = "1";
+    let row = btn.parentElement, anchor;
+    if (row && row.classList.contains("bk-row")) anchor = row.parentElement;
+    else { row = document.createElement("div"); row.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;align-items:center;"; btn.before(row); row.appendChild(btn); anchor = row; }
+    const holder = document.createElement("div");
+    holder.innerHTML = pillBtn("إدخال من نص", { variant: "ghost", icon: iconLayers(15, ROSE), action: "bk-open", data: { arr } });
+    row.appendChild(holder.firstElementChild);
+    if ((S.ui.bulk || {}).arr === arr) { const pn = document.createElement("div"); pn.innerHTML = bkPanelHtml(arr); anchor.after(pn.firstElementChild); }
+  });
+}
 function getItemList(arr) { return S.sectionDraft[arr] || (S.sectionDraft[arr] = []); }
 function findById(list, id) { return list.find((x) => x.id === id); }
 
@@ -9804,7 +10072,7 @@ function basicSectionHtml(d, unit) {
 
 /* ---- مؤشرات الأداء ---- */
 function indicatorCardHtml(row, index, def, report, isOpen, d) {
-  const approvedNames = S.indicatorDefinitions.map((x) => x.name);
+  const approvedNames = S.indicatorDefinitions.filter((x) => scopeAllows("ind", x.id, S.currentUnitId) || x.name === row.name).map((x) => x.name);
   const nameSelector = fieldWrap("اسم المؤشر", true, sel("indicators", row.id, "name", row.name, [...approvedNames, NEW_INDICATOR_LABEL], approvedNames.length ? "اختاري من مؤشرات الوحدة المعتمدة" : "لا توجد مؤشرات معتمدة بعد"));
   const isNewFlow = row.name === NEW_INDICATOR_LABEL;
   const newForm = isNewFlow ? newIndicatorInlineFormHtml(row.id) : "";
@@ -9924,7 +10192,7 @@ function kpiSectionHtml(d, report) {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
       <span style="font-size:13px;font-weight:800;">مؤشرات الأداء (${indicators.length})</span>
-      ${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator" })}
+      <span class="bk-row" style="display:flex;gap:10px;flex-wrap:wrap;">${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator" })}</span>
     </div>
     ${rows}
     ${notesFieldHtml(d)}`;
@@ -9958,7 +10226,7 @@ function goalsSectionHtml(d) {
     if (!isOpen) return `<div class="repeat-item">${head}</div>`;
     const ogHtml = (g.operationalGoals || []).map((og) => `
       <div class="og-block">
-        <div style="font-size:12.5px;font-weight:800;margin-bottom:10px;">${esc(og.name)}</div>
+        <div style="font-size:12.5px;font-weight:800;margin-bottom:10px;">${esc(og.name)}${(() => { const dd = (S.goalsDefinitions.operational || []).find((x) => x.name === og.name); const t = dd ? ogTarget(dd.id) : ""; return t !== "" ? ` <span style="font-weight:600;color:${SUBTLE};">— المستهدف ${esc(t)}%</span>` : ""; })()}</div>
         ${fieldWrap("مستوى تحقق الهدف", true, selSub("goals", g.id, "operationalGoals", og.id, "level", og.level, GOAL_LEVELS, "اختاري مستوى التحقق"))}
         ${fieldWrap("نسبة تحقق الهدف", og.level ? `<div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;">${progressBarHtml(og.percentage || 0, goalLevelMeta(og.level).color)}</div><span style="font-size:13px;font-weight:800;color:${goalLevelMeta(og.level).color};min-width:34px;text-align:left;">${og.percentage}٪</span></div>` : `<div class="hint">تُحسب تلقائيًا بعد اختيار مستوى التحقق</div>`)}
         ${renderSchemaFieldHtml(evidenceTypeField, "goals", g.id, og.evidenceType || "", d.customEvidenceTypes || [], og, "operationalGoals", og.id)}
@@ -9985,7 +10253,7 @@ function strategicGoalIdByName(name) { const g = (S.goalsDefinitions.strategic |
 function operationalGoalsFor(strategicName) {
   const sid = strategicGoalIdByName(strategicName);
   const valid = new Set((S.goalsDefinitions.strategic || []).map((x) => x.id));
-  return (S.goalsDefinitions.operational || []).filter((o) => !sid || !o.parentId || !valid.has(o.parentId) || o.parentId === sid).map((o) => o.name);
+  return (S.goalsDefinitions.operational || []).filter((o) => (!sid || !o.parentId || !valid.has(o.parentId) || o.parentId === sid) && scopeAllows("og", o.id, S.currentUnitId)).map((o) => o.name);
 }
 // «＋ هدف غير موجود في القائمة»: يضيف الهدف للقائمة العامة (إدارة الأهداف) ويختاره مباشرة.
 // مديرة النظام تقدر توقفه من «إدارة الأهداف والمستهدفات».
@@ -10721,26 +10989,34 @@ function arabicDigits(n) {
 // إذا حبيتِ إضافة شارة/حملة معيّنة بزاوية الغلاف، عطيني رابط الصورة وأحطه هنا.
 const RPT_COVER_BADGE_LOGO = "";
 
-function reportCoverPageHtml(unit, report, dept, s, totalPages) {
-  const d = report.sections?.basic?.data || {};
-  const yearLabel = d.hijriYear || hijriYearLabel(hijriYearFromTs(report.createdAt || Date.now()));
-  const num = rptPageNumText(s, 1, totalPages);
+function rptUnifiedCoverHtml(s, c) {
+  const num = rptPageNumText(s, 1, c.total);
+  const bg = rptCoverStyle(s, c.unitId || "");
   return `
-  <section class="a4-page rpt-cover-v4${rptCoverStyle(s, unit && unit.id) ? " rpt-hasbg" : ""}"${rptCoverStyle(s, unit && unit.id).replace(" class-hasbg", "")}>
+  <section class="a4-page rpt-cover-v4${bg ? " rpt-hasbg" : ""}"${bg.replace(" class-hasbg", "")}>
     ${s.watermark ? `<div class="rpt-wm" style="background-image:url('${ASSOCIATION_LOGO}')"></div>` : ""}
     <img src="${ASSOCIATION_LOGO}" class="rpt-cover-v4-logo" alt="شعار الجمعية" />
     <div class="rpt-cover-v4-text">
-      <h1 class="rpt-cover-v4-title">${esc((s.coverTitle || "").trim() || report.label || "التقرير الدوري للأداء")}</h1>
-      <div class="rpt-cover-v4-sub">${esc(yearLabel)}${d.startDate ? ` (${esc(d.startDate)} – ${esc(d.endDate || "—")})` : ""}</div>
-      <div class="rpt-cover-v4-unit">${dept ? esc(dept.name) + " — " : ""}${esc(unit.name)}</div>
+      <h1 class="rpt-cover-v4-title">${esc(c.title)}</h1>
+      ${c.sub ? `<div class="rpt-cover-v4-sub">${esc(c.sub)}</div>` : ""}
+      ${c.line ? `<div class="rpt-cover-v4-unit" style="font-size:.8em;opacity:.85;">${esc(c.line)}</div>` : ""}
+      ${c.unitLine ? `<div class="rpt-cover-v4-unit">${esc(c.unitLine)}</div>` : ""}
     </div>
     ${RPT_COVER_BADGE_LOGO ? `<img src="${RPT_COVER_BADGE_LOGO}" class="rpt-cover-v4-badge-logo" alt="شارة" />` : ""}
-    <div class="rpt-cover-v4-prepared">
-      <div>إعداد: ${esc(d.preparerName || "—")} ${d.preparerTitle ? "— " + esc(d.preparerTitle) : ""}</div>
-      <div>الرئيسة المباشرة: ${esc(d.managerName || "—")}</div>
-    </div>
+    <div class="rpt-cover-v4-prepared">${(c.prepared || []).filter(Boolean).map((x) => `<div>${esc(x)}</div>`).join("")}</div>
     ${num ? `<div class="rpt-runfoot"><span></span><span class="rpt-runfoot-num">${num}</span><span></span></div>` : ""}
   </section>`;
+}
+function reportCoverPageHtml(unit, report, dept, s, totalPages) {
+  const d = report.sections?.basic?.data || {};
+  const yearLabel = d.hijriYear || hijriYearLabel(hijriYearFromTs(report.createdAt || Date.now()));
+  return rptUnifiedCoverHtml(s, {
+    title: (s.coverTitle || "").trim() || report.label || "التقرير الدوري للأداء",
+    sub: `${yearLabel}${d.startDate ? ` (${d.startDate} – ${d.endDate || "—"})` : ""}`,
+    unitLine: `${dept ? dept.name + " — " : ""}${unit.name}`,
+    prepared: [`إعداد: ${d.preparerName || "—"}${d.preparerTitle ? " — " + d.preparerTitle : ""}`, `الرئيسة المباشرة: ${d.managerName || "—"}`],
+    unitId: unit && unit.id, total: totalPages,
+  });
 }
 
 function reportApprovalHtml(report, title, boxes, extra) {
@@ -10765,12 +11041,12 @@ function reportApprovalHtml(report, title, boxes, extra) {
    (unitChapterDefs = أقسام التعبئة نفسها). في وضع المراجعة (afterPage) تظهر كل الفصول والأعمدة دائمًا. */
 function fullReportOrPreviewBody(unit, report, afterPage, opts) {
   opts = opts || {};
-  const s = opts.settings || rptSettings("unit");
+  const s = opts.settings || rptUnitSettings(unit);
   const review = !!afterPage;
   const dept = S.departments.find((x) => x.id === unit.departmentId);
-  const chapters = rptOrdered(unitChapterDefs(opts.capture ? null : report, unit.id), s).filter((c) => review || (!s.hidden[c.key] &&
+  const chapters = rptOrdered(unitChapterDefs(opts.capture ? null : report, unit.id), s).filter((c) => review || (!s.hidden[c.key] && !rptLevelHides(s, c.key) &&
     (s.showEmpty || opts.capture || c.special || c.sections.some((sid) => sectionHasData(report, sid)))));
-  return rptWithCtx({ ...rptChartCtx(s), hiddenCols: review ? null : s.hiddenCols, colsShow: s.colsShow, capture: opts.capture || null, unitId: unit.id }, () => {
+  return rptWithCtx({ ...rptChartCtx(s), hiddenCols: review ? null : rptHiddenColsForViewer(s), colsShow: s.colsShow, capture: opts.capture || null, unitId: unit.id }, () => {
     // «ملخص التقرير» بصفحة مستقلة، ثم الأقسام (عدد محدد بكل صفحة، 0 = متتابعة)، و«الإغلاق والاعتماد» مع آخر صفحة
     const per = Number(s.perPage) || 0;
     const pages = [];
@@ -10889,6 +11165,11 @@ function liveUpdateComputed(el) {
 function attachFormListeners() {
   appEl.addEventListener("input", (e) => {
     const el = e.target;
+    if (el.dataset && el.dataset.usM) {
+      const uid = S.currentUnitId; if (!uid || !(S.isAdmin || isUnitInUserScope(uid))) return;
+      ulSetImage(uid, el.dataset.usM, Math.max(0, Math.min(50, Number(el.value) || 0)));
+      return;
+    }
     if (el.dataset && el.dataset.ar) {
       S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
       const th = S.siteSettings.theme || {};
@@ -11080,6 +11361,21 @@ function attachFormListeners() {
 
   appEl.addEventListener("change", (e) => {
     const el = e.target;
+    if (el.id === "rm-sel") {
+      const b = document.createElement("button"); b.type = "button"; b.style.display = "none";
+      if (el.value === "__new") b.dataset.action = "rm-new"; else { b.dataset.action = "rm-select"; b.dataset.id = el.value; }
+      appEl.appendChild(b); b.click(); b.remove(); return;
+    }
+    if (el.dataset && el.dataset.ogTarget) {
+      if (!S.isAdmin) return; const v = el.value === "" ? "" : Math.max(0, Math.min(100, Number(el.value) || 0)); const id = el.dataset.ogTarget;
+      saveSiteTheme((th) => { const m = { ...((th || {}).ogTargets || {}) }; if (v === "") delete m[id]; else m[id] = v; return { ogTargets: m }; }); return;
+    }
+    if (el.dataset && el.dataset.scopeKind) {
+      if (!S.isAdmin) return;
+      const k = el.dataset.scopeKind, id = el.dataset.scopeId, u = el.dataset.scopeUnit;
+      const cur = new Set(scopeOf(k, id)); if (el.checked) cur.add(u); else cur.delete(u);
+      scopeSet(k, id, [...cur]); render(); return;
+    }
     // إدارة التقارير: حقول التنسيق (نص/لون/خط/رقم) + صورة الخلفية
     if (el.dataset && el.dataset.rm && rmCanEdit()) { rmSetField(el.dataset.rm, el.value); S.ui.rm.saved = false; render(); return; }
     if (el.id === "rm-bg-file" && rmCanEdit()) {
@@ -11440,7 +11736,7 @@ function attachClickListener() {
         const m = RPT_MARGINS[d.margin];
         const patch = {}; PG_KEYS.forEach((k) => { patch[k] = d[k]; });
         if (m) { patch.mt = m[0]; patch.mb = m[1]; patch.mr = m[2]; patch.ml = m[3]; }
-        else ["mt", "mb", "mr", "ml"].forEach((k) => { patch[k] = Math.max(0, Math.min(80, Number(d[k]) || 0)); });
+        else ["mt", "mb", "mr", "ml"].forEach((k) => { patch[k] = Math.max(0, Math.min(50, Number(d[k]) || 0)); });
         const ids = ["final", "unit"].concat(rptStore().custom.map((c) => c.id));
         let n = 0;
         ids.forEach((id) => { const cur = rptSettings(id); if (cur) { rptSave(id, { ...cur, ...patch }); n++; } });
@@ -11467,6 +11763,14 @@ function attachClickListener() {
         if (!S.isAdmin) break;
         const uid = S.ui.ulUnit; if (!uid) break;
         saveSiteTheme((th) => { const all = { ...((th || {}).unitLetterheads || {}) }; const cur = { ...(all[uid] || {}) }; delete cur[ds.key]; if (cur.head || cur.foot || cur.bg || cur.coverBg) all[uid] = cur; else delete all[uid]; return { unitLetterheads: all }; });
+        render(); break;
+      }
+      case "us-page-set": {
+        const uid = S.currentUnitId; if (!uid || !(S.isAdmin || isUnitInUserScope(uid))) break;
+        if (!["orient", "margin", "pageNum"].includes(ds.key)) break;
+        ulSetImage(uid, ds.key, ds.val || "");
+        if (ds.key === "margin" && RPT_MARGINS[ds.val]) { const m = RPT_MARGINS[ds.val]; ["mt", "mb", "mr", "ml"].forEach((k, i) => ulSetImage(uid, k, m[i])); }
+        if (ds.key === "margin" && ds.val === "") ["mt", "mb", "mr", "ml"].forEach((k) => ulSetImage(uid, k, ""));
         render(); break;
       }
       case "us-img-clear": {
@@ -12251,6 +12555,48 @@ function attachClickListener() {
         break;
       }
       /* ---------- indicators management ---------- */
+      case "goal-imp-open": S.ui.goalImp = { text: "", preview: null }; render(); break;
+      case "goal-imp-close": S.ui.goalImp = null; render(); break;
+      case "goal-imp-preview": { const el = document.getElementById("goal-imp-text"); const b = S.ui.goalImp || {}; b.text = el ? el.value : b.text; b.preview = goalImpParse(b.text); S.ui.goalImp = b; render(); break; }
+      case "goal-imp-apply": {
+        const el = document.getElementById("goal-imp-text"); const b = S.ui.goalImp || {}; if (el) b.text = el.value;
+        const rows = goalImpParse(b.text); const bad = new Set(); const tgt = [];
+        // الهدف التشغيلي الخاطئ ما يمنع إضافة الاستراتيجي، لكن لا يُضاف تشغيلي بلا أب
+        let strat = [...(S.goalsDefinitions.strategic || [])], op = [...(S.goalsDefinitions.operational || [])]; const jobs = [];
+        rows.forEach((r) => {
+          if (r.heading || r.errs.length) { if (!r.heading) bad.add(r.line); return; }
+          if (r.kind === "strategic") { if (r.isNew && !strat.some((g) => g.id === r.id)) strat.push({ id: r.id, name: r.name }); }
+          else {
+            let id = r.id; if (r.isNew) { id = uid("og"); op.push({ id, name: r.name, parentId: r.parentId || "" }); }
+            if (r.scope && r.scope.label) jobs.push([id, r.scope.ids]);
+            if (r.target !== "") tgt.push([id, r.target]);
+          }
+        });
+        S.goalsDefinitions = { ...S.goalsDefinitions, strategic: strat, operational: op }; dataStore.saveGoalsDefinitions(S.goalsDefinitions);
+        if (jobs.length) saveSiteTheme((th) => { const all = { ind: { ...(((th || {}).itemScopes || {}).ind || {}) }, og: { ...(((th || {}).itemScopes || {}).og || {}) } }; jobs.forEach(([id, ids]) => { if (ids.length) all.og[id] = ids; else delete all.og[id]; }); return { itemScopes: all }; });
+        if (tgt.length) saveSiteTheme((th) => { const m = { ...((th || {}).ogTargets || {}) }; tgt.forEach(([id, v]) => { m[id] = v; }); return { ogTargets: m }; });
+        S.ui.goalImp = bad.size ? { text: [...bad].join("\n"), preview: null } : null;
+        render(); break;
+      }
+      case "ind-imp-open": S.ui.indImp = { text: "", preview: null }; render(); break;
+      case "ind-imp-close": S.ui.indImp = null; render(); break;
+      case "ind-imp-preview": { const el = document.getElementById("ind-imp-text"); const b = S.ui.indImp || {}; b.text = el ? el.value : b.text; b.preview = indImpParse(b.text); S.ui.indImp = b; render(); break; }
+      case "ind-imp-apply": {
+        const el = document.getElementById("ind-imp-text"); const b = S.ui.indImp || {}; if (el) b.text = el.value;
+        const rows = indImpParse(b.text); let list = [...S.indicatorDefinitions];
+        const scopeJobs = [];
+        rows.filter((r) => !r.heading && !r.errs.length).forEach((r) => {
+          const nm = String(r.rec.name).trim(); const i = list.findIndex((d) => String(d.name || "").trim() === nm); let id;
+          if (i >= 0) { list[i] = { ...list[i], ...r.rec, name: nm }; id = list[i].id; }
+          else { id = uid("ind"); list.push({ id, nature: "", calculationMethod: "", category: "", direction: "", frequency: "", unit: "", target: "", dataSource: "", ...r.rec, name: nm }); }
+          if (r.scope && r.scope.label) scopeJobs.push([id, r.scope.ids]);
+        });
+        if (scopeJobs.length) saveSiteTheme((th) => { const all = { ind: { ...(((th || {}).itemScopes || {}).ind || {}) }, og: { ...(((th || {}).itemScopes || {}).og || {}) } }; scopeJobs.forEach(([id, ids]) => { if (ids.length) all.ind[id] = ids; else delete all.ind[id]; }); return { itemScopes: all }; });
+        S.indicatorDefinitions = list; dataStore.saveIndicatorDefinitions(list);
+        const bad = rows.filter((r) => r.errs.length && !r.heading).map((r) => r.line);
+        S.ui.indImp = bad.length ? { text: bad.join("\n"), preview: null } : null;
+        render(); break;
+      }
       case "add-indicator-def": {
         const form = readIndicatorDefForm("new-ind");
         if (!form.name.trim()) break;
@@ -12615,6 +12961,18 @@ function handleReportEditorAction(action, ds) {
       S.ui.expandedRepeatItem[ds.arr] = current === ds.id ? null : ds.id;
       render();
       return true;
+    }
+    case "bk-open": { S.ui.bulk = { arr: ds.arr, text: "", preview: null }; render(); return true; }
+    case "bk-close": { S.ui.bulk = null; render(); return true; }
+    case "bk-preview": { const el = document.getElementById("bk-text"); const b = S.ui.bulk || { arr: ds.arr }; b.text = el ? el.value : b.text; b.preview = bkParse(ds.arr, b.text); S.ui.bulk = b; render(); return true; }
+    case "bk-apply": {
+      const el = document.getElementById("bk-text"); const b = S.ui.bulk || { arr: ds.arr }; if (el) b.text = el.value;
+      const pv = bkParse(ds.arr, b.text); if (!pv) return true;
+      const good = pv.rows.filter((r) => !r.errs.length).slice(0, pv.room);
+      good.forEach((r) => getItemList(ds.arr).push(r.item));
+      const bad = pv.rows.filter((r) => r.errs.length).map((r) => r.line);
+      S.ui.bulk = bad.length ? { arr: ds.arr, text: bad.join("\n"), preview: null } : null;
+      render(); return true;
     }
     case "remove-item": {
       const list = S.sectionDraft[ds.arr];

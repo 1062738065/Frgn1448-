@@ -540,3 +540,11 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .hero-banner-eyebrow { right: var(--be-pos, 50%); transform: translateX(var(--be-pos, 50%)); }
 .hero-banner-title { right: var(--bt-pos, 50%); transform: translateX(var(--bt-pos, 50%)); }
 .hero-banner-sub { right: var(--bs-pos, 50%); transform: translateX(var(--bs-pos, 50%)); }
+
+/* تنسيق التقارير: قائمة منسدلة فوق، والإعدادات بجانب المعاينة (عرضي) */
+.rm-selectbar { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rm-selectbar .rm-sel { flex: 1 1 320px; max-width: 560px; }
+.rm-layout > .rm-panel { flex: 0 1 500px; min-width: min(100%, 420px); }
+.rm-layout > .rm-preview { flex: 1 1 380px; min-width: 0; position: sticky; top: 12px; align-self: flex-start; }
+.rm-layout { flex-wrap: wrap; }
+@media (max-width: 900px) { .rm-layout > .rm-preview { position: static; } }
