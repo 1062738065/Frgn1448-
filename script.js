@@ -1043,8 +1043,48 @@ const FONT_OPTIONS = [
   { value: "Noto Kufi Arabic", label: "Noto Kufi Arabic" },
   { value: "Reem Kufi", label: "Reem Kufi" },
   { value: "Amiri", label: "Amiri (خط كلاسيكي)" },
+  { value: "Noto Sans Arabic", label: "Noto Sans Arabic" },
+  { value: "Noto Naskh Arabic", label: "Noto Naskh Arabic (نسخ)" },
+  { value: "Readex Pro", label: "Readex Pro" },
+  { value: "Mada", label: "Mada" },
+  { value: "Vazirmatn", label: "Vazirmatn" },
+  { value: "El Messiri", label: "El Messiri" },
+  { value: "Harmattan", label: "Harmattan" },
+  { value: "Lateef", label: "Lateef (نسخ)" },
+  { value: "Scheherazade New", label: "Scheherazade New (نسخ)" },
+  { value: "Markazi Text", label: "Markazi Text" },
+  { value: "Lemonada", label: "Lemonada" },
+  { value: "Baloo Bhaijaan 2", label: "Baloo Bhaijaan 2" },
+  { value: "Aref Ruqaa", label: "Aref Ruqaa (رقعة)" },
+  { value: "Lalezar", label: "Lalezar (عناوين)" },
+  { value: "Rakkas", label: "Rakkas (عناوين)" },
+  { value: "Katibeh", label: "Katibeh (عناوين)" },
 ];
+const FONT_PRELOADED = ["IBM Plex Sans Arabic", "Cairo", "Tajawal", "Almarai", "Changa", "Noto Kufi Arabic", "Reem Kufi", "Amiri"];
+function siteFontLoad(f) {
+  if (!f || FONT_PRELOADED.indexOf(f) !== -1 || !/^[A-Za-z0-9 ]{2,40}$/.test(f)) return;
+  const id = "sitefont-" + f.replace(/ /g, "-");
+  if (document.getElementById(id)) return;
+  const l = document.createElement("link");
+  l.id = id; l.rel = "stylesheet";
+  l.href = "https://fonts.googleapis.com/css2?family=" + encodeURIComponent(f).replace(/%20/g, "+") + "&display=swap";
+  document.head.appendChild(l);
+}
+function siteCustomFontApply(cf) {
+  let st = document.getElementById("site-custom-font");
+  if (!cf || !cf.name || !cf.data) { if (st) st.remove(); return; }
+  if (!st) { st = document.createElement("style"); st.id = "site-custom-font"; document.head.appendChild(st); }
+  st.textContent = `@font-face{font-family:'${String(cf.name).replace(/[^A-Za-z0-9 \u0600-\u06FF_-]/g, "")}';src:url("${String(cf.data).replace(/"/g, "")}");font-display:swap;}`;
+}
 function siteLogoSrc(s) { return (s && s.logo) || ASSOCIATION_LOGO; }
+function bannerPos(th, which) {
+  if (which === "e") { const ev = th.bannerEyebrowPos; if (ev !== undefined && ev !== null && ev !== "" && !isNaN(Number(ev))) return Math.max(0, Math.min(100, Number(ev))); return bannerPos(th, "t"); }
+  const v = th[which === "t" ? "bannerTitlePos" : "bannerSubPos"];
+  if (v !== undefined && v !== null && v !== "" && !isNaN(Number(v))) return Math.max(0, Math.min(100, Number(v)));
+  const old = which === "t" ? th.bannerTitleAlign : th.bannerSubAlign;
+  const a = old || th.bannerAlign;
+  return a === "right" ? 0 : a === "left" ? 100 : 50;
+}
 function siteBannerSrc(s) { return (s && s.bannerImage) || "hero-bg.jpg"; }
 function sidebarTaglineBlockHtml(site) {
   const th = themeOf(site);
@@ -3079,36 +3119,40 @@ const DASH_KINDS = [
 ];
 // اللوحة العامة (مديرة النظام / المكتب / القسم / الوحدة)
 const DASH_STD_BLOCKS = [
-  { key: "banner", label: "البانر والبحث" }, { key: "stats", label: "بطاقات الأرقام الأربع" },
-  { key: "recent", label: "أحدث التقارير" }, { key: "totalPie", label: "رسم إجمالي التقارير" },
-  { key: "bars", label: "نسبة الإنجاز حسب الوحدة", not: ["unit"] },
-  { key: "indPie", label: "توزيع حالات المؤشرات" }, { key: "goalPie", label: "توزيع مستويات تحقق الأهداف" },
-  { key: "indicators", label: "جدول مؤشرات الأداء" }, { key: "goals", label: "جدول الأهداف التشغيلية" },
-  { key: "achieve", label: "إحصائية الإنجاز" }, { key: "yearCompare", label: "مقارنة آخر 3 سنوات (المستهدف والمتحقق)" },
-  { key: "programs", label: "جدول الأعمال والبرامج" },
+  { key: "banner", label: "البانر والبحث" },
   { key: "periodFilter", label: "فلتر نوع الفترة والسنة" },
+  { key: "stats", label: "بطاقات الأرقام الأربع" },
+  { key: "achieve", label: "إحصائية الإنجاز" },
+  { key: "yearCompare", label: "مقارنة آخر 3 سنوات (المستهدف والمتحقق)" },
+  { key: "recent", label: "أحدث التقارير" },
+  { key: "totalPie", label: "رسم إجمالي التقارير" },
+  { key: "bars", label: "نسبة الإنجاز حسب الوحدة", not: ["unit"] },
+  { key: "indPie", label: "توزيع حالات المؤشرات" },
+  { key: "goalPie", label: "توزيع مستويات تحقق الأهداف" },
+  { key: "indicators", label: "جدول مؤشرات الأداء" },
+  { key: "goals", label: "جدول الأهداف التشغيلية" },
   { key: "trend", label: "رسم تطور التحقق فترة بعد فترة" },
   { key: "unitsCmp", label: "مقارنة الوحدات", not: ["unit"] },
   { key: "indMatrix", label: "جدول المؤشرات عبر الفترات" },
   { key: "goalMatrix", label: "جدول الأهداف عبر الفترات" },
   { key: "followUp", label: "يحتاج متابعة" },
   { key: "highlights", label: "أبرز ما يُعرض" },
+  { key: "programs", label: "جدول الأعمال والبرامج" },
 ];
 const DASH_STD_KINDS = ["office", "dept", "unit"];
 // لوحة مديرة النظام: متابعة تشغيل الموقع فقط
 const DASH_ADMIN_BLOCKS = [
-  { key: "banner", label: "البانر والبحث" }, { key: "periodFilter", label: "فلتر نوع الفترة (لـ«ما رفعت تقرير الفترة الحالية»)" },
-  { key: "opsCounts", label: "أعداد التقارير حسب الحالة" }, { key: "opsStuck", label: "تقارير واقفة في المسار" },
-  { key: "opsMissing", label: "ما رفعت تقرير الفترة الحالية" }, { key: "opsReturned", label: "تقارير معادة ما انعدّلت" },
-  { key: "opsSetup", label: "جهات ناقصة الإعداد" }, { key: "opsActivity", label: "آخر الحركات" },
+  { key: "banner", label: "البانر والبحث" },
+  { key: "periodFilter", label: "فلتر نوع الفترة (لـ«ما رفعت تقرير الفترة الحالية»)" },
+  { key: "opsCounts", label: "أعداد التقارير حسب الحالة" },
+  { key: "opsStuck", label: "تقارير واقفة في المسار" },
+  { key: "opsMissing", label: "ما رفعت تقرير الفترة الحالية" },
+  { key: "opsReturned", label: "تقارير معادة ما انعدّلت" },
+  { key: "opsActivity", label: "آخر الحركات" },
+  { key: "opsSetup", label: "جهات ناقصة الإعداد" },
 ];
-// لوحة الإشراف (الإدارة العليا، وصفحة لوحة المكتب القديمة)
+// لوحة إدارة التعليم النسائي (المكتب في الجدول العام)
 const DASH_EX_BLOCKS = [
-  { key: "exStats", label: "بطاقات الأرقام الأربع" }, { key: "exCompletion", label: "نسبة إنجاز التقارير إجمالًا" },
-  { key: "exDeptPerf", label: "ملخص أداء الأقسام" }, { key: "exStatus", label: "توزيع حالات التقارير" },
-  { key: "exUnitPerf", label: "نسبة الإنجاز حسب الوحدة" }, { key: "exPeriod", label: "مقارنة عدد التقارير حسب الفترة" },
-  { key: "achieve", label: "إحصائية الإنجاز" }, { key: "yearCompare", label: "مقارنة آخر 3 سنوات (المستهدف والمتحقق)" },
-  { key: "programs", label: "جدول الأعمال والبرامج" },
   { key: "periodFilter", label: "فلتر نوع الفترة والسنة" },
   { key: "exKpis", label: "بطاقات الأرقام مع خط التطور" },
   { key: "exHeat", label: "خريطة الأداء" },
@@ -3122,25 +3166,45 @@ const DASH_EX_BLOCKS = [
   { key: "exTopBottom", label: "أفضل 5 وأضعف 5 وحدات" },
   { key: "followUp", label: "يحتاج متابعة" },
   { key: "highlights", label: "أبرز ما يُعرض" },
+  { key: "exStats", label: "بطاقات الأرقام الأربع" },
+  { key: "exCompletion", label: "نسبة إنجاز التقارير إجمالًا" },
+  { key: "programs", label: "جدول الأعمال والبرامج" },
+  { key: "achieve", label: "إحصائية الإنجاز" },
+  { key: "yearCompare", label: "مقارنة آخر 3 سنوات (المستهدف والمتحقق)" },
+  { key: "exDeptPerf", label: "ملخص أداء الأقسام" },
+  { key: "exStatus", label: "توزيع حالات التقارير" },
+  { key: "exUnitPerf", label: "نسبة الإنجاز حسب الوحدة" },
+  { key: "exPeriod", label: "مقارنة عدد التقارير حسب الفترة" },
 ];
-const DASH_EX_KINDS = ["executive", "office"];
+const DASH_EX_KINDS = ["executive"];
 function dashConfig() { return S.dashboardConfig || (S.dashboardConfig = dataStore.getDashboardConfig()); }
 function dashHidden(kind, key) { const c = dashConfig()[kind]; return !!(c && Array.isArray(c.hidden) && c.hidden.indexOf(key) !== -1); }
-function dashBlock(kind, key, html) { return dashHidden(kind, key) ? "" : html; }
+function dashMarkWrap(kind, html) { return String(html).replace(/\u0001(\w+)\u0002([\s\S]*?)\u0003/g, (m, k, h) => dashB(kind, k, h)); }
+function dashShow(kind, key, html) { return dashHidden(kind, key) ? "" : html; }
+function dashCatalog(kind) { return kind === "admin" ? DASH_ADMIN_BLOCKS : kind === "executive" ? DASH_EX_BLOCKS : DASH_STD_BLOCKS; }
+function dashOrderList(kind) {
+  const keys = dashCatalog(kind).map((b) => b.key);
+  const saved = ((dashConfig()[kind] || {}).order) || [];
+  const out = [];
+  (Array.isArray(saved) ? saved : []).forEach((k) => { if (keys.indexOf(k) !== -1 && out.indexOf(k) === -1) out.push(k); });
+  keys.forEach((k) => { if (out.indexOf(k) === -1) out.push(k); });
+  return out;
+}
+// كل عنصر في اللوحة يُغلَّف بـ order حسب الترتيب المحفوظ (ليظهر بالترتيب اللي تحدده مديرة النظام)
+function dashB(kind, key, html) {
+  if (!html || dashHidden(kind, key)) return "";
+  const i = dashOrderList(kind).indexOf(key);
+  return `<div class="dash-blk" data-dk="${esc(key)}" style="order:${(i === -1 ? 500 : i) + 1};">${html}</div>`;
+}
+function dashBlock(kind, key, html) { return dashB(kind, key, html); }
 function dashRecentGrid(kind, recentHtml, totalHtml) {
-  const a = dashBlock(kind, "recent", recentHtml), b = dashBlock(kind, "totalPie", totalHtml);
-  if (!a && !b) return "";
-  return `<div style="display:grid;grid-template-columns:${a && b ? "2fr 1fr" : "1fr"};gap:14px;margin-bottom:18px;" class="dash-recent-grid">${a}${b}</div>`;
+  return dashB(kind, "recent", recentHtml) + dashB(kind, "totalPie", totalHtml);
 }
 function dashExGrid(kind, deptHtml, statusHtml) {
-  const a = dashBlock(kind, "exDeptPerf", deptHtml), b = dashBlock(kind, "exStatus", statusHtml);
-  if (!a && !b) return "";
-  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">${a}${b}</div>`;
+  return dashB(kind, "exDeptPerf", deptHtml) + dashB(kind, "exStatus", statusHtml);
 }
 function dashPieGrid(kind, indHtml, goalHtml) {
-  const a = dashBlock(kind, "indPie", indHtml), b = dashBlock(kind, "goalPie", goalHtml);
-  if (!a && !b) return "";
-  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px;">${a}${b}</div>`;
+  return dashB(kind, "indPie", indHtml) + dashB(kind, "goalPie", goalHtml);
 }
 
 /* =============================== لوحات المعلومات: التقارير عبر الفترات ===============================
@@ -3210,7 +3274,8 @@ function dashCard(title, sub, body, extra) {
 }
 
 /* ---- فلاتر اللوحة ---- */
-function dashFiltersHtml(kind, series) {
+function dashFiltersHtml(kind, series) { return dashB(kind, "periodFilter", dashFiltersInner(kind, series)); }
+function dashFiltersInner(kind, series) {
   if (dashHidden(kind, "periodFilter")) return "";
   const years = [...new Set(series.units.flatMap((u) => ensureUnitReportsLoaded(u.id).filter(reportHasContent).map((r) => reportHijriYearNum(r)).filter(Boolean)))].sort();
   const pill = (label, on, action, v) => `<button type="button" class="pill-btn ${on ? "pill-primary" : "pill-ghost"}" data-action="${action}" data-v="${esc(v)}">${esc(label)}</button>`;
@@ -3353,8 +3418,8 @@ function dashUnitsCmpHtml(kind, series) {
 }
 // الأجزاء المشتركة الجديدة بالترتيب (لوحة الوحدة/القسم/المكتب)
 function dashPeriodBlocksHtml(kind, series) {
-  return dashTrendHtml(kind, series) + dashUnitsCmpHtml(kind, series) + dashIndMatrixHtml(kind, series) + dashGoalMatrixHtml(kind, series)
-    + `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;">${dashFollowUpHtml(kind, series)}${dashHighlightsHtml(kind, series)}</div>`;
+  return dashB(kind, "trend", dashTrendHtml(kind, series)) + dashB(kind, "unitsCmp", dashUnitsCmpHtml(kind, series)) + dashB(kind, "indMatrix", dashIndMatrixHtml(kind, series)) + dashB(kind, "goalMatrix", dashGoalMatrixHtml(kind, series))
+    + dashB(kind, "followUp", dashFollowUpHtml(kind, series)) + dashB(kind, "highlights", dashHighlightsHtml(kind, series));
 }
 
 /* =============================== لوحة الإدارة العليا: رسومات + تفصيل بالضغط ===============================
@@ -3378,7 +3443,8 @@ function exScope(units) {
 }
 function exDrillBtn(path, text, style) { return `<button type="button" data-action="ex-drill" data-path="${esc(path.join(","))}" style="background:none;border:none;cursor:pointer;font-family:inherit;${style}">${text}</button>`; }
 function exUnitParent(u) { const l = olActive().find((x) => x.linkKind === "unit" && x.linkId === u.id); const p = l && olFind(l.parentId); if (p) return p.name; const d = (S.departments || []).find((x) => x.id === u.departmentId); return d ? d.name : ""; }
-function exBlocksHtml(kind, units) {
+function exBlocksHtml(kind, units) { return dashMarkWrap(kind, exBlocksInner(kind, units)); }
+function exBlocksInner(kind, units) {
   const sc = exScope(units);
   const series = dashSeries(sc.scopeUnits);
   const latestPct = (u, f) => { const l = dashUnitLatest(series, u.id); return l ? f(l.report) : null; };
@@ -3389,7 +3455,7 @@ function exBlocksHtml(kind, units) {
   html += dashFiltersHtml(kind, series);
 
   // بطاقات بخط تطور
-  if (!dashHidden(kind, "exKpis")) {
+  if (!dashHidden(kind, "exKpis")) { html += "\u0001exKpis\u0002";
     const perCol = series.cols.map((c) => { const rs = series.units.map((u) => (series.byUnit[u.id] || {})[c.key]).filter(Boolean); return { ind: dashAvg(rs.map(dashReportIndAvg)), goal: dashAvg(rs.map(dashReportGoalAvg)), n: rs.length }; });
     const spark = (arr, color) => { const v = arr.map((x) => (x == null ? null : x)); const pts = v.map((p, k) => (p == null ? null : [v.length === 1 ? 100 : 6 + k * (188 / (v.length - 1)), 36 - Math.min(100, p) * 0.32])).filter(Boolean); return pts.length ? `<svg viewBox="0 0 200 40" width="100%" height="40" aria-hidden="true"><path d="${pts.map((p, k) => (k ? "L" : "M") + p[0].toFixed(0) + " " + p[1].toFixed(0)).join(" ")}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/></svg>` : ""; };
     const delta = (arr) => { const v = arr.filter((x) => x != null); if (v.length < 2) return ""; const d = v[v.length - 1] - v[v.length - 2]; return `<span style="font-size:12px;font-weight:800;color:${d >= 0 ? GREEN : DANGER}">${d >= 0 ? "▲" : "▼"} ${Math.abs(d)}٪</span>`; };
@@ -3408,9 +3474,10 @@ function exBlocksHtml(kind, units) {
       ${card("المستفيدون", fmtNum(ben), "#8B4A73", "")}
       ${card("تقارير معتمدة (آخر فترة)", series.units.length ? Math.round(appr / series.units.length * 100) + "٪" : "—", GREEN, `<span style="font-size:11.5px;color:${SUBTLE}">${appr} من ${series.units.length}</span>`)}
     </div>`;
+    html += "\u0003";
   }
   // خريطة الأداء: أبناء المستوى الحالي، وتحت كل واحد أبناؤه ومربعات وحداته
-  if (!dashHidden(kind, "exHeat")) {
+  if (!dashHidden(kind, "exHeat")) { html += "\u0001exHeat\u0002";
     const tileBg = (p) => (p == null ? "#cfc6ca" : pctColor(p));
     const tiles = (list) => `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(74px,100%),1fr));gap:6px;margin-top:6px;">${list.map((u) => { const p = latestPct(u, dashReportIndAvg); return `<div title="${esc(u.name)}" style="border-radius:8px;padding:6px;color:#fff;text-align:center;min-height:50px;display:flex;flex-direction:column;justify-content:center;background:${tileBg(p)};"><div style="font-size:10.5px;line-height:1.4;">${esc(u.name)}</div><div style="font-size:14px;font-weight:800;">${p == null ? "—" : p + "٪"}</div></div>`; }).join("")}</div>`;
     const pctOf = (list) => { const p = dashAvg(list.map((u) => latestPct(u, dashReportIndAvg))); return p == null ? "—" : p + "٪"; };
@@ -3427,6 +3494,7 @@ function exBlocksHtml(kind, units) {
     const legend = [[GREEN, "100٪+"], [GOLD, "90–99"], ["#c9863a", "70–89"], [DANGER, "أقل من 70"], ["#cfc6ca", "بلا بيانات"]].map(([c, l]) => `<span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:${c}"></span>${l}</span>`).join("");
     html += dashCard("خريطة الأداء", "كل مربع وحدة ملوّنة بنسبة تحقق مؤشراتها في آخر تقرير · اضغطي على أي اسم للتفصيل",
       `<div style="display:flex;gap:10px;font-size:11.5px;flex-wrap:wrap;margin-bottom:10px;">${legend}</div><div style="display:flex;gap:12px;flex-wrap:wrap;">${box || emptyHint("لا توجد وحدات.")}</div>`);
+    html += "\u0003";
   }
   // مقارنة الأبناء + التطور
   const childStats = sc.children.map((c) => ({ ...c,
@@ -3438,18 +3506,19 @@ function exBlocksHtml(kind, units) {
       const nameEl = c.leaf || !c.levelId ? `<span style="width:150px;flex-shrink:0;font-size:12.5px;font-weight:700;">${esc(c.name)}</span>` : exDrillBtn(sc.path.concat(c.levelId), esc(c.name), `width:150px;flex-shrink:0;text-align:right;padding:4px 0;min-height:36px;font-size:12.5px;font-weight:700;color:${ROSE};`);
       return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;">${nameEl}<div style="flex:1;display:flex;flex-direction:column;gap:4px;">${bar(c.ind, ROSE)}${bar(c.goal, "#D9A066")}</div></div>`;
     }).join(""));
-  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:14px;">${cmp}${dashTrendHtml(kind, series, "التطور فترة بعد فترة — " + (sc.cur ? sc.cur.name : "الجمعية"))}</div>`;
+  html += dashB(kind, "exCompare", cmp) + dashB(kind, "trend", dashTrendHtml(kind, series, "التطور فترة بعد فترة — " + (sc.cur ? sc.cur.name : "الجمعية")));
   // أهداف الخطة الاستراتيجية + حالات المؤشرات
   const latestReports = dashReports(series, true);
   let strat = "";
-  if (!dashHidden(kind, "exStrategic")) {
+  if (!dashHidden(kind, "exStrategic")) { html += "\u0001exStrategic\u0002";
     const m = {};
     latestReports.forEach(({ report }) => dashOpGoals(report).forEach((g) => { const k = g.strategicGoal || "بدون هدف استراتيجي"; (m[k] = m[k] || []).push(numOrNull(g.percentage)); }));
     const list = Object.entries(m).map(([k, v]) => [k, dashAvg(v)]).sort((a, b) => (b[1] || 0) - (a[1] || 0));
     strat = dashCard("أهداف الخطة الاستراتيجية", "متوسط تحقق الأهداف التشغيلية التابعة لكل هدف", list.length ? list.map(([k, p]) => `<div style="padding:6px 0;"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;"><span style="font-weight:700">${esc(k)}</span>${dashPctCell(p)}</div><div style="height:12px;background:${GRAY_BG};border-radius:6px;"><div style="height:12px;border-radius:6px;width:${Math.min(100, p || 0)}%;background:${pctColor(p)}"></div></div></div>`).join("") : emptyHint("لا توجد أهداف مُدخلة."));
+    html += "\u0003";
   }
   let stacks = "";
-  if (!dashHidden(kind, "exStacks")) {
+  if (!dashHidden(kind, "exStacks")) { html += "\u0001exStacks\u0002";
     const cols = [["achieved", "متحقق", GREEN], ["close", "قريب", GOLD], ["needsAction", "يحتاج تدخلًا", "#c9863a"], ["struggling", "متعثر", DANGER]];
     const rows = childStats.map((c) => {
       const k = { achieved: 0, close: 0, needsAction: 0, struggling: 0 };
@@ -3458,18 +3527,20 @@ function exBlocksHtml(kind, units) {
       return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;"><span style="width:140px;flex-shrink:0;font-size:12px;">${esc(c.name)}</span>${tot ? `<div style="flex:1;display:flex;height:18px;border-radius:6px;overflow:hidden;">${cols.map(([key, l, col]) => (k[key] ? `<div title="${l}: ${k[key]}" style="width:${(k[key] / tot * 100).toFixed(1)}%;background:${col}"></div>` : "")).join("")}</div><b style="font-size:11.5px;width:26px;">${tot}</b>` : `<span class="hint" style="margin:0">لا مؤشرات</span>`}</div>`;
     }).join("");
     stacks = dashCard("حالات المؤشرات لكل " + childLabel[1], "", `<div style="display:flex;gap:10px;font-size:11.5px;flex-wrap:wrap;margin-bottom:8px;">${cols.map(([, l, c]) => `<span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:${c}"></span>${l}</span>`).join("")}</div>${rows}`);
+    html += "\u0003";
   }
-  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:14px;">${strat}${stacks}</div>`;
+  html += dashB(kind, "exStrategic", strat) + dashB(kind, "exStacks", stacks);
   // المستفيدون / التحديات / رفع التقارير
   let benH = "", chH = "", subH = "";
-  if (!dashHidden(kind, "exBenef")) {
+  if (!dashHidden(kind, "exBenef")) { html += "\u0001exBenef\u0002";
     const progs = collectProgramsForUnits(series.units, series.year === "all" ? null : Number(series.year));
     const m = {}; progs.forEach(({ p }) => { const k = p.workType || "غير محدد"; m[k] = (m[k] || 0) + (numOrNull(p.actualBeneficiaries) || 0); });
     const list = Object.entries(m).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 7);
     const max = Math.max(1, ...list.map((x) => x[1]));
     benH = dashCard("المستفيدون حسب نوع العمل", "", list.length ? `<div style="display:flex;align-items:flex-end;gap:10px;height:190px;padding-top:10px;">${list.map(([k, v]) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;"><b style="font-size:11.5px;">${fmtNum(v)}</b><div style="width:100%;max-width:48px;height:${Math.max(4, Math.round(v / max * 130))}px;background:#8B4A73;border-radius:6px 6px 0 0;"></div><span style="font-size:10.5px;color:${SUBTLE};text-align:center;line-height:1.3;">${esc(k)}</span></div>`).join("")}</div>` : emptyHint("لا توجد أعداد مستفيدين مُدخلة."));
+    html += "\u0003";
   }
-  if (!dashHidden(kind, "exChal")) {
+  if (!dashHidden(kind, "exChal")) { html += "\u0001exChal\u0002";
     const sev = [["حرج", DANGER], ["مرتفع", "#c9863a"], ["متوسط", "#E8C7A0"], ["منخفض", "#efe3d6"]];
     const rows = childStats.map((c) => {
       const k = {}; sev.forEach(([s]) => (k[s] = 0));
@@ -3478,40 +3549,45 @@ function exBlocksHtml(kind, units) {
       return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;"><span style="width:140px;flex-shrink:0;font-size:12px;">${esc(c.name)}</span><div style="flex:1;display:flex;gap:2px;height:18px;">${sev.map(([s, col]) => (k[s] ? `<div title="${s}: ${k[s]}" style="width:${k[s] * 22}px;border-radius:4px;background:${col}"></div>` : "")).join("")}</div><b style="font-size:12px;width:22px;">${tot}</b></div>`;
     }).join("");
     chH = dashCard("الصعوبات القائمة حسب المستوى", "", `<div style="display:flex;gap:10px;font-size:11.5px;flex-wrap:wrap;margin-bottom:8px;">${sev.map(([s, c]) => `<span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:${c}"></span>${s}</span>`).join("")}</div>${rows}`);
+    html += "\u0003";
   }
-  if (!dashHidden(kind, "exSubm")) {
+  if (!dashHidden(kind, "exSubm")) { html += "\u0001exSubm\u0002";
     const lastCol = series.cols[series.cols.length - 1];
     subH = dashCard("رفع التقارير واعتمادها", lastCol ? "آخر فترة: " + lastCol.label : "", lastCol ? childStats.map((c) => {
       let a = 0, s = 0; c.list.forEach((x) => { const r = (series.byUnit[x.id] || {})[lastCol.key]; if (r) { if (r.status === "approved") a++; else s++; } });
       const t = c.list.length;
       return `<div style="padding:6px 0;"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;gap:8px;"><span style="font-weight:700">${esc(c.name)}</span><span style="color:${SUBTLE};font-size:11.5px;">${a} معتمد · ${s} مرفوع · ${t - a - s} لم يرفع</span></div><div style="display:flex;height:12px;background:${GRAY_BG};border-radius:6px;overflow:hidden;"><div style="width:${a / t * 100}%;background:${GREEN}"></div><div style="width:${s / t * 100}%;background:#9CC9B0"></div></div></div>`;
     }).join("") + `<div style="display:flex;gap:12px;font-size:11.5px;margin-top:8px;"><span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:${GREEN}"></span>معتمد</span><span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#9CC9B0"></span>مرفوع ولم يُعتمد</span></div>` : emptyHint("لا توجد تقارير في الفترة المختارة."));
+    html += "\u0003";
   }
-  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;">${benH}${chH}${subH}</div>`;
+  html += dashB(kind, "exBenef", benH) + dashB(kind, "exChal", chH) + dashB(kind, "exSubm", subH);
   // أفضل وأضعف 5
-  if (!dashHidden(kind, "exTopBottom")) {
+  if (!dashHidden(kind, "exTopBottom")) { html += "\u0001exTopBottom\u0002";
     const ranked = sc.scopeUnits.map((u) => ({ u, p: latestPct(u, dashReportIndAvg) })).filter((r) => r.p != null).sort((a, b) => b.p - a.p);
     const list = (arr, col) => arr.map((r, i) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid ${BORDER};font-size:12.5px;gap:8px;"><span><b>${i + 1}.</b> ${esc(r.u.name)} <span style="color:${SUBTLE}">· ${esc(exUnitParent(r.u))}</span></span><b style="color:${col}">${r.p}٪</b></div>`).join("") || emptyHint("لا توجد بيانات.");
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;">${dashCard("أفضل 5 وحدات", "تحقق المؤشرات في آخر تقرير", list(ranked.slice(0, 5), GREEN))}${dashCard("أضعف 5 وحدات", "تحقق المؤشرات في آخر تقرير", list(ranked.slice().reverse().slice(0, 5), DANGER))}</div>`;
+    html += "\u0003";
   }
-  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;">${dashFollowUpHtml(kind, series)}${dashHighlightsHtml(kind, series)}</div>`;
+  html += dashB(kind, "followUp", dashFollowUpHtml(kind, series)) + dashB(kind, "highlights", dashHighlightsHtml(kind, series));
   return html;
 }
 
 /* =============================== لوحة مديرة النظام: متابعة التشغيل =============================== */
 const OPS_STUCK_DAYS = 5;
 function opsDays(ts) { return ts ? Math.floor((Date.now() - ts) / 86400000) : 0; }
-function opsBlocksHtml(kind, units) {
+function opsBlocksHtml(kind, units) { return dashMarkWrap(kind, opsBlocksInner(kind, units)); }
+function opsBlocksInner(kind, units) {
   const flat = [];
   units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => flat.push({ unit: u, report: r })));
   let html = "";
-  if (!dashHidden(kind, "opsCounts")) {
+  if (!dashHidden(kind, "opsCounts")) { html += "\u0001opsCounts\u0002";
     const c = (st) => flat.filter((x) => st.includes(x.report.status)).length;
     const tiles = [["مسودة", c(["draft"]), BLUE], ["في المسار", c(["custom_pending"]), GOLD], ["معاد", c(["returned", "needs_completion"]), DANGER], ["مكتمل", c(["completed"]), "#5FA67F"], ["معتمد", c(["approved"]), GREEN]];
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:12px;margin-bottom:18px;">${tiles.map(([l, n, col]) => `<div class="card" style="padding:14px 16px;border-top:4px solid ${col};"><div style="font-size:12px;color:${SUBTLE};">${l}</div><div style="font-size:26px;font-weight:900;margin-top:2px;">${n}</div></div>`).join("")}</div>`;
+    html += "\u0003";
   }
   let stuckH = "", missingH = "", returnedH = "", setupH = "", actH = "";
-  if (!dashHidden(kind, "opsStuck")) {
+  if (!dashHidden(kind, "opsStuck")) { html += "\u0001opsStuck\u0002";
     const rows = flat.filter((x) => x.report.status === "custom_pending").map((x) => {
       const log = x.report.customLog || []; const last = log[log.length - 1];
       const ref = apRefOf(x.report.customStageId); const p = ref && apPathById(ref.pathId); const st = p && apStagesNamed(p, x.unit).find((s) => s.id === ref.stageId);
@@ -3519,19 +3595,22 @@ function opsBlocksHtml(kind, units) {
       return { ...x, days: opsDays(last ? last.at : x.report.updatedAt), stage: st ? st.name : "—", who: lvl ? lvl.name : st ? apApproverLabel(st.approver) : "—" };
     }).filter((x) => x.days >= OPS_STUCK_DAYS).sort((a, b) => b.days - a.days);
     stuckH = dashCard("تقارير واقفة في المسار", `أكثر من ${OPS_STUCK_DAYS} أيام في نفس المرحلة`, rows.length ? `<div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GRAY_BG}"><th>الوحدة</th><th>التقرير</th><th>المرحلة</th><th>صاحب المرحلة</th><th style="text-align:center">منذ</th></tr></thead><tbody>${rows.map((x) => `<tr><td style="font-weight:700">${esc(x.unit.name)}</td><td>${esc(x.report.label || "")}</td><td>${esc(x.stage)}</td><td style="color:${SUBTLE}">${esc(x.who)}</td><td style="text-align:center;font-weight:800;color:${x.days >= 10 ? DANGER : "#c9863a"}">${x.days} يوم</td></tr>`).join("")}</tbody></table></div>` : emptyHint("لا توجد تقارير واقفة."));
+    html += "\u0003";
   }
-  if (!dashHidden(kind, "opsMissing")) {
+  if (!dashHidden(kind, "opsMissing")) { html += "\u0001opsMissing\u0002";
     const series = dashSeries(units);
     const lastCol = series.cols[series.cols.length - 1];
     const miss = lastCol ? units.filter((u) => !(series.byUnit[u.id] || {})[lastCol.key]) : [];
     missingH = dashCard("ما رفعت تقرير الفترة الحالية", lastCol ? `«${series.period}» · ${lastCol.label}` : "", lastCol ? (miss.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${miss.map((u) => badgeHtml(u.name, "#7a4d16", GOLD_BG)).join("")}</div>` : emptyHint("كل الوحدات رفعت تقريرها.")) : emptyHint("لا توجد تقارير بعد."));
+    html += "\u0003";
   }
-  if (!dashHidden(kind, "opsReturned")) {
+  if (!dashHidden(kind, "opsReturned")) { html += "\u0001opsReturned\u0002";
     const rows = flat.filter((x) => (x.report.status === "returned" || x.report.status === "needs_completion") && x.report.internalReturnedAt && (x.report.updatedAt || 0) - x.report.internalReturnedAt < 60000)
       .map((x) => ({ ...x, days: opsDays(x.report.internalReturnedAt) })).sort((a, b) => b.days - a.days);
     returnedH = dashCard("تقارير معادة ما انعدّلت", "", rows.length ? rows.map((x) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};font-size:12.5px;flex-wrap:wrap;"><span><b>${esc(x.unit.name)}</b> — ${esc(x.report.label || "")} · ${esc(reportStatusMeta(x.report.status).label)}</span><span style="color:${DANGER};font-weight:700">منذ ${x.days} يوم</span></div>`).join("") : emptyHint("لا توجد تقارير معادة متروكة."));
+    html += "\u0003";
   }
-  if (!dashHidden(kind, "opsSetup")) {
+  if (!dashHidden(kind, "opsSetup")) { html += "\u0001opsSetup\u0002";
     const issues = [];
     units.forEach((u) => {
       if (!baseRoleIdsOf(u).length && !unitActivePersons(u.id).length) issues.push([u.name, "بدون دور ولا أشخاص — يطلع لها «لم تُحدَّد صلاحيات»", "إعطاء دور"]);
@@ -3544,15 +3623,17 @@ function opsBlocksHtml(kind, units) {
     issues.forEach(([n, i]) => { if (!byUnit.has(n)) byUnit.set(n, []); byUnit.get(n).push(i); });
     const rowsU = [...byUnit.entries()];
     setupH = dashCard("جهات ناقصة الإعداد", "تمنع الدخول أو الإرسال أو تتخطّى مراحل", rowsU.length ? rowsU.slice(0, 12).map(([n, list]) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><div style="min-width:0;"><div style="font-size:13px;font-weight:700;">${esc(n)}</div>${list.map((i) => `<div style="font-size:11.5px;color:${SUBTLE};line-height:1.7;">• ${esc(i)}</div>`).join("")}</div>${pillBtn("ضبط", { variant: "ghost", action: "nav-to", data: { view: "units-manage" } })}</div>`).join("") + (rowsU.length > 12 ? `<div class="hint">و${rowsU.length - 12} جهات غيرها.</div>` : "") : emptyHint("كل الجهات مضبوطة."));
+    html += "\u0003";
   }
-  if (!dashHidden(kind, "opsActivity")) {
+  if (!dashHidden(kind, "opsActivity")) { html += "\u0001opsActivity\u0002";
     const log = [];
     flat.forEach((x) => (x.report.customLog || []).forEach((l) => log.push({ ...l, unit: x.unit })));
     log.sort((a, b) => (b.at || 0) - (a.at || 0));
     const col = { send: GOLD, final: GREEN, return: DANGER };
     actH = dashCard("آخر الحركات", "", log.length ? log.slice(0, 8).map((l) => `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid ${BORDER};"><span style="width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0;background:${col[l.kind] || ROSE}"></span><div style="flex:1;min-width:0;"><div style="font-size:12.5px;line-height:1.7;"><b>${esc(l.unit.name)}</b> — ${esc(l.text || "")}</div><div style="font-size:11px;color:${SUBTLE};">${esc(l.by || "")}${l.by ? " · " : ""}${l.at ? new Date(l.at).toLocaleString("ar-SA-u-ca-islamic", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : ""}</div></div></div>`).join("") : emptyHint("لا توجد حركات بعد."));
+    html += "\u0003";
   }
-  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:14px;align-items:start;"><div>${stuckH}${missingH}${returnedH}</div><div>${setupH}${actH}</div></div>`;
+  html += dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
   return html;
 }
 
@@ -3704,7 +3785,7 @@ function renderDashboardBody(activeUnits, opts) {
 
   const site = currentSiteSettings();
   return `
-  <div class="page-wrap"><div class="page-inner">
+  <div class="page-wrap"><div class="page-inner dash-wide">
     ${topBarHtml({ title: opts.title || "لوحة المعلومات", subtitle: opts.subtitle || `مرحبًا ${esc(S.currentUser.name)} — نظرة شاملة على كل الوحدات`, right: opts.topBarRight })}
     ${opts.extraTop || ""}
 
@@ -3730,8 +3811,8 @@ function renderDashboardBody(activeUnits, opts) {
       ${statIconCardHtml("تقرير قيد المراجعة", underReviewReportsCount, iconDocument(18, GOLD), GOLD_BG)}
       ${statIconCardHtml("عدد الوحدات", activeUnits.length, iconBuilding(ROSE, 18), BLUE_BG)}
     </div>`)}
-    ${dashHidden(dkind, "achieve") ? "" : achievementCardHtml(activeUnits)}
-    ${dashHidden(dkind, "yearCompare") ? "" : yearCompareCardHtml(activeUnits)}
+    ${dashB(dkind, "achieve", achievementCardHtml(activeUnits))}
+    ${dashB(dkind, "yearCompare", yearCompareCardHtml(activeUnits))}
 
     ${dashRecentGrid(dkind, `
       <div class="card">
@@ -3771,10 +3852,10 @@ function renderDashboardBody(activeUnits, opts) {
         <th style="color:${ROSE}">الوحدة</th><th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
-    <div style="margin-top:18px;">${dashPeriodBlocksHtml(dkind, series)}</div>
-    ${dashHidden(dkind, "programs") ? "" : `<div style="margin-top:18px;">${programsCardHtml(activeUnits)}</div>`}
+    ${dashPeriodBlocksHtml(dkind, series)}
+    ${dashB(dkind, "programs", `<div style="margin-top:18px;">${programsCardHtml(activeUnits)}</div>`)}
     `}
-    ${opts.extraBottom || ""}
+    ${opts.extraBottom ? `<div style="order:9999;">${opts.extraBottom}</div>` : ""}
   </div></div>`;
 }
 
@@ -3850,7 +3931,7 @@ function renderUnitDashboard() {
 
   const site = currentSiteSettings();
   return `
-  <div class="page-wrap"><div class="page-inner">
+  <div class="page-wrap"><div class="page-inner dash-wide">
     ${topBarHtml({ title: "لوحة المعلومات", subtitle: `مرحبًا ${esc(S.currentUser.name)} — نظرة عامة على تقارير ${esc(unit.name)}` })}
     ${scopedUnitSwitcherHtml()}
 
@@ -3909,12 +3990,8 @@ function renderUnitDashboard() {
         <th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
-    ${unit ? `<div style="margin-top:18px;">${dashPeriodBlocksHtml("unit", series)}</div>` : ""}
-    ${unit ? `<div style="margin-top:18px;">
-      ${dashHidden("unit", "achieve") ? "" : achievementCardHtml([unit])}
-      ${dashHidden("unit", "yearCompare") ? "" : yearCompareCardHtml([unit])}
-      ${dashHidden("unit", "programs") ? "" : programsCardHtml([unit])}
-    </div>` : ""}
+    ${unit ? dashPeriodBlocksHtml("unit", series) : ""}
+    ${unit ? dashB("unit", "achieve", achievementCardHtml([unit])) + dashB("unit", "yearCompare", yearCompareCardHtml([unit])) + dashB("unit", "programs", programsCardHtml([unit])) : ""}
   </div></div>`;
 }
 
@@ -3929,7 +4006,7 @@ function usLevelUnitSwitcherHtml() {
 }
 function renderUnitSettings() {
   const unit = (S.units || []).find((u) => u.id === S.currentUnitId);
-  const body = !unit ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">اختاري الوحدة أولًا.</div>` : `${usSectionsCardHtml(unit)}${usSkipCardHtml(unit)}`;
+  const body = !unit ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">اختاري الوحدة أولًا.</div>` : `${usLetterheadCardHtml(unit)}${usSectionsCardHtml(unit)}${usSkipCardHtml(unit)}`;
   return `
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "الإعدادات", subtitle: unit ? unit.name : "" })}
@@ -3937,6 +4014,22 @@ function renderUnitSettings() {
     ${S.ui.usMsg ? `<div class="hint good" style="font-weight:700;margin-bottom:10px;">${esc(S.ui.usMsg)}</div>` : ""}
     ${body}
   </div></div>`;
+}
+function usLetterheadCardHtml(unit) {
+  const cur = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit.id] || {};
+  return `<div class="card" style="margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:800;margin-bottom:4px;">كليشة الوحدة</div>
+    <div class="hint" style="margin-bottom:12px;">ارفعي كليشة (ترويسة) وتذييل وخلفية الوحدة كصور، وتظهر في تقارير «${esc(unit.name)}» في العرض والطباعة وPDF. إذا ما رفعتي شيئًا تظهر كليشة الجمعية الافتراضية. تُحفظ فورًا.</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة الكليشة (أعلى الصفحة)</div>${pgImgRow("us-img-head", cur.head, "us-img-clear", "head")}</div>
+      <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة التذييل (أسفل الصفحة)</div>${pgImgRow("us-img-foot", cur.foot, "us-img-clear", "foot")}</div>
+      <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة خلفية الصفحات</div>${pgImgRow("us-img-bg", cur.bg, "us-img-clear", "bg")}</div>
+      <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">خلفية الصفحة الأولى (الغلاف) — اختيارية</div>${pgImgRow("us-img-cover", cur.coverBg, "us-img-clear", "coverBg")}</div>
+    </div>
+  </div>`;
+}
+function ulSetImage(uid, key, url) {
+  saveSiteTheme((th) => { const all = { ...((th || {}).unitLetterheads || {}) }; const cur = { ...(all[uid] || {}) }; if (url) cur[key] = url; else delete cur[key]; if (cur.head || cur.foot || cur.bg || cur.coverBg) all[uid] = cur; else delete all[uid]; return { unitLetterheads: all }; });
 }
 function usSectionsCardHtml(unit) {
   const pt = PERIOD_TYPES.includes(S.ui.usPeriod) ? S.ui.usPeriod : PERIOD_TYPES[0];
@@ -5362,6 +5455,139 @@ function portalPreload() {
 }
 
 /* =============================== Site settings (admin) ======================= */
+/* ===== قالب الصفحة العام: ترويسة وتذييل وترقيم وعلامة مائية وهوامش — يُطبَّق على كل التقارير بزر ===== */
+const PG_KEYS = ["mt", "mb", "mr", "ml", "bgFit", "coverBg", "bgImage", "headImage", "footImage", "orient", "margin", "paper", "watermark", "frame", "showHead", "headRight", "headCenter", "headLeft", "headLogo", "showFoot", "footText", "pageNum"];
+function pgDraft() {
+  if (!S.ui.pgDraft) { const f = rptSettings("final"); S.ui.pgDraft = {}; PG_KEYS.forEach((k) => { S.ui.pgDraft[k] = f[k]; }); if (!S.ui.pgDraft.bgFit) S.ui.pgDraft.bgFit = "stretch"; }
+  return S.ui.pgDraft;
+}
+function pgPreviewHtml() {
+  const d = pgDraft();
+  const land = d.orient === "landscape";
+  const w = land ? 300 : 212, h = land ? 212 : 300;
+  const m = RPT_MARGINS[d.margin] || (d.margin === "custom" ? [Number(d.mt) || 0, Number(d.mb) || 0, Number(d.mr) || 0, Number(d.ml) || 0] : RPT_MARGINS.normal);
+  const sc = w / (land ? 297 : 210);
+  const num = rptPageNumText(d, 2, 8);
+  return `<div style="position:relative;width:${w}px;height:${h}px;background:${/^#[0-9a-fA-F]{6}$/.test(d.paper) ? d.paper : "#fff"};border:1px solid ${BORDER};box-shadow:0 4px 14px rgba(0,0,0,.08);margin:0 auto;overflow:hidden;${d.frame ? `outline:2px solid ${ROSE};outline-offset:-8px;` : ""}">
+    ${d.bgImage && RPT_DATA_IMG_RE.test(d.bgImage) ? `<div style="position:absolute;inset:0;background:url('${d.bgImage}') center/${d.bgFit === "cover" ? "cover" : "100% 100%"} no-repeat;"></div>` : ""}
+    ${d.watermark ? `<div style="position:absolute;inset:0;background:url('${ASSOCIATION_LOGO}') center/45% no-repeat;opacity:.08;"></div>` : ""}
+    <div style="position:absolute;top:${Math.round(m[0] * sc)}px;bottom:${Math.round(m[1] * sc)}px;right:${Math.round(m[2] * sc)}px;left:${Math.round(m[3] * sc)}px;display:flex;flex-direction:column;border:1px dashed #d8c9c1;">
+      ${d.headImage && RPT_DATA_IMG_RE.test(d.headImage) ? `<img src="${d.headImage}" alt="" style="width:100%;max-height:28px;object-fit:contain;border-bottom:1px solid ${BORDER};" />` : d.showHead ? `<div style="display:flex;justify-content:space-between;align-items:center;font-size:7px;padding:3px 4px;border-bottom:1px solid ${BORDER};color:${INK};"><span>${esc(d.headRight)}</span><span style="display:flex;gap:3px;align-items:center;">${d.headLogo ? `<img src="${ASSOCIATION_LOGO}" alt="" style="height:12px;" />` : ""}<b>${esc(d.headCenter)}</b></span><span>${esc(d.headLeft)}</span></div>` : ""}
+      <div style="flex:1;padding:8px 6px;">${[70, 90, 55, 80, 40].map((x) => `<div style="height:5px;width:${x}%;background:#e9dfda;border-radius:3px;margin-bottom:7px;"></div>`).join("")}</div>
+      ${d.footImage && RPT_DATA_IMG_RE.test(d.footImage) ? `<img src="${d.footImage}" alt="" style="width:100%;max-height:22px;object-fit:contain;" />` : ""}
+      ${(d.showFoot && d.footText) || num ? `<div style="display:flex;justify-content:space-between;font-size:7px;padding:3px 4px;border-top:1px solid ${BORDER};color:${SUBTLE};"><span>${d.showFoot ? esc(d.footText) : ""}</span><span>${num}</span><span></span></div>` : ""}
+    </div></div>`;
+}
+function pgImgRow(inputId, val, clearAction, key) {
+  return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <label class="pill-btn pill-ghost" style="margin:0;">${iconPlus(14, INK)} اختيار صورة<input type="file" accept="image/*" id="${inputId}" style="display:none;" /></label>
+    ${val ? `<img src="${esc(val)}" alt="" style="max-width:150px;max-height:48px;border:1px solid ${BORDER};border-radius:6px;background:#fff;" />${pillBtn("إزالة", { variant: "ghost", icon: iconX(14, INK), action: clearAction, data: { key } })}` : ""}
+  </div>`;
+}
+function unitLetterheadHtml() {
+  const units = (S.units || []).filter((u) => u.status === "active");
+  const uid = units.some((u) => u.id === S.ui.ulUnit) ? S.ui.ulUnit : (units[0] || {}).id;
+  const all = ((S.siteSettings || {}).theme || {}).unitLetterheads || {};
+  const cur = (uid && all[uid]) || {};
+  const withImg = units.filter((u) => all[u.id] && (all[u.id].head || all[u.id].foot || all[u.id].bg || all[u.id].coverBg));
+  return `<div style="border-top:1px solid ${BORDER};margin-top:20px;padding-top:16px;">
+    <div style="font-size:13px;font-weight:800;margin-bottom:6px;">كليشة خاصة بوحدة</div>
+    <div class="hint" style="margin-bottom:10px;">الوحدة اللي ما لها صورة خاصة تأخذ صورة القالب أعلاه. الصورة الخاصة تظهر في تقارير الوحدة (العرض والطباعة وPDF). تُحفظ فورًا.</div>
+    ${units.length ? `<select class="input" id="ul-unit" style="max-width:300px;margin-bottom:12px;">${units.map((u) => `<option value="${esc(u.id)}" ${u.id === uid ? "selected" : ""}>${esc(u.name)}${all[u.id] && (all[u.id].head || all[u.id].foot || all[u.id].bg || all[u.id].coverBg) ? " ✓" : ""}</option>`).join("")}</select>
+    <div style="display:flex;flex-direction:column;gap:12px;"><div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة الكليشة</div>${pgImgRow("ul-img-head", cur.head, "ul-img-clear", "head")}</div>
+    <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة التذييل</div>${pgImgRow("ul-img-foot", cur.foot, "ul-img-clear", "foot")}</div>
+    <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة الخلفية</div>${pgImgRow("ul-img-bg", cur.bg, "ul-img-clear", "bg")}</div>
+    <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">خلفية الصفحة الأولى (الغلاف)</div>${pgImgRow("ul-img-cover", cur.coverBg, "ul-img-clear", "coverBg")}</div></div>
+    ${withImg.length ? `<div class="hint" style="margin-top:10px;">وحدات لها كليشة خاصة: ${withImg.map((u) => esc(u.name)).join("، ")}</div>` : ""}` : `<div class="hint">لا توجد وحدات.</div>`}
+  </div>`;
+}
+// تصغير الصورة قبل الحفظ (أقصى عرض 1400px) لتبقى خفيفة
+function imgDownscale(file, cb) {
+  if (!file || !/^image\//.test(file.type)) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const w = Math.min(1400, im.width), h = Math.round(im.height * (w / im.width));
+      const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(im, 0, 0, w, h);
+      let out = cv.toDataURL("image/png");
+      if (out.length > 600 * 1024) out = cv.toDataURL("image/jpeg", 0.85);
+      if (out.length > 900 * 1024) { alert("الصورة كبيرة بعد التصغير. اختاري صورة أخف."); return; }
+      cb(out);
+    };
+    im.onerror = () => alert("تعذّر قراءة الصورة.");
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function pageTplCardHtml() {
+  const d = pgDraft();
+  const pills = (key, opts) => `<div style="display:flex;gap:6px;flex-wrap:wrap;">${opts.map(([v, l]) => { const on = d[key] === v; return `<button type="button" data-action="pg-set" data-key="${key}" data-val="${v}" style="font-family:inherit;min-height:38px;padding:0 14px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid ${on ? ROSE : BORDER};background:${on ? ROSE : "#fff"};color:${on ? "#fff" : INK};">${l}</button>`; }).join("")}</div>`;
+  const tog = (key, label) => `<button type="button" data-action="pg-toggle" data-key="${key}" aria-pressed="${d[key] ? "true" : "false"}" style="font-family:inherit;min-height:38px;padding:0 14px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid ${d[key] ? GREEN : BORDER};background:${d[key] ? GREEN_BG : "#fff"};color:${d[key] ? GREEN : INK};">${d[key] ? "✓ " : ""}${label}</button>`;
+  const txt = (key, ph) => `<input type="text" class="input" data-pg="${key}" value="${esc(d[key] || "")}" placeholder="${esc(ph)}" style="width:100%;" />`;
+  const fld = (label, inner) => `<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;margin-bottom:6px;">${label}</div>${inner}</div>`;
+  return `<div class="card" style="margin-bottom:16px;">
+    <div class="subhead" style="margin-top:0;">قالب الصفحة (لكل التقارير)</div>
+    <div class="hint" style="margin-bottom:14px;">اضبطي الشكل هنا ثم اضغطي «تطبيق على كل التقارير». يبقى لكل تقرير بعدها تعديله وحده من «تنسيق وإنشاء التقارير».</div>
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
+      <div style="flex:1 1 360px;min-width:0;">
+        ${fld("اتجاه الصفحة", pills("orient", [["portrait", "طولي"], ["landscape", "عرضي"]]))}
+        ${fld("الهوامش", pills("margin", [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]]) + (d.margin === "custom" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label style="font-size:12px;">${l}<input type="number" class="input" data-pg="${k}" min="0" max="80" inputmode="numeric" value="${Number(d[k]) || 0}" style="width:78px;" /></label>`).join("")}</div><div class="hint" style="margin-top:6px;">لو الكليشة صورة كبيرة، كبّري الهامش الأعلى (مثلًا ٤٠) عشان المحتوى ما يغطيها.</div>` : ""))}
+        ${fld("الخلفية", `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span style="font-size:12.5px;">لون</span><input type="color" data-pg="paper" value="${/^#[0-9a-fA-F]{6}$/.test(d.paper) ? esc(d.paper) : "#ffffff"}" style="width:56px;height:40px;border:1px solid ${BORDER};border-radius:10px;padding:2px;background:#fff;" /></div>${pgImgRow("pg-img-bg", d.bgImage, "pg-img-clear", "bgImage")}`, "اللون وحده، أو صورة تغطي الصفحة كاملة (وتتقدم على اللون). منفصلة عن الكليشة: استخدمي أحدهما أو الاثنين.")}
+        ${fld("حجم صورة الخلفية", pills("bgFit", [["stretch", "تملأ الصفحة كاملة (الصورة كلها تظهر)"], ["cover", "تغطية بدون تمديد (قد يُقص جزء منها)"]]), "الصور المصمَّمة بمقاس A4 تناسب الخيار الأول.")}
+        ${fld("خلفية الصفحة الأولى (الغلاف) — اختيارية", pgImgRow("pg-img-cover", d.coverBg, "pg-img-clear", "coverBg"), "إذا ما رفعتي شيئًا يأخذ الغلاف الخلفية العامة.")}
+        ${fld("زخارف", `<div style="display:flex;gap:6px;flex-wrap:wrap;">${tog("watermark", "علامة مائية (الشعار)")}${tog("frame", "إطار حول الصفحة")}</div>`)}
+        ${fld("الترويسة (أعلى الصفحة)", `<div style="margin-bottom:8px;">${tog("showHead", d.showHead ? "ظاهرة" : "مخفية")}</div>${d.showHead ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">${txt("headRight", "يمين: اسم الجمعية")}${txt("headCenter", "وسط: نص اختياري")}${txt("headLeft", "يسار: اسم الإدارة")}</div><div style="margin-top:8px;">${tog("headLogo", "الشعار في الوسط")}</div>` : ""}`)}
+        ${fld("صورة الكليشة (ترويسة جاهزة بعرض الصفحة)", pgImgRow("pg-img-head", d.headImage, "pg-img-clear", "headImage"), "إذا رفعتي صورة تحل محل نص الترويسة. الأفضل عرضها ٢١٠ مم تقريبًا وارتفاعها أقل من ٣٠ مم.")}
+        ${fld("صورة التذييل", pgImgRow("pg-img-foot", d.footImage, "pg-img-clear", "footImage"))}
+                ${fld("التذييل (أسفل الصفحة)", `<div style="margin-bottom:8px;">${tog("showFoot", d.showFoot ? "ظاهر" : "مخفي")}</div>${d.showFoot ? txt("footText", "مثال: سري — للاستخدام الداخلي") : ""}`)}
+        ${fld("ترقيم الصفحات", pills("pageNum", [["none", "بدون"], ["paren", "(٢)"], ["num", "٢"], ["of", "٢ من ٨"]]))}
+      </div>
+      <div style="flex:0 0 330px;max-width:100%;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:8px;text-align:center;">معاينة A4 (شكل تقريبي)</div><div id="pg-preview">${pgPreviewHtml()}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      ${pillBtn("تطبيق على كل التقارير", { action: "pg-apply" })}
+      ${pillBtn("إعادة من التقرير الحالي", { variant: "ghost", icon: iconX(14, INK), action: "pg-reload" })}
+    </div>
+    ${S.ui.pgMsg ? `<div class="hint" style="margin-top:10px;color:${GREEN};">${esc(S.ui.pgMsg)}</div>` : ""}
+    ${unitLetterheadHtml()}
+  </div>`;
+}
+/* ===== الأرشفة وDrive: إعدادات الروابط ومفاتيح التشغيل (تُحفظ مع إعدادات الموقع؛ التنفيذ الفعلي للحفظ في Drive في الدفعة ٤) ===== */
+function archiveCfg(theme) { return { enabled: false, drive: false, sheet: false, scriptUrl: "", rootFolder: "", unitFolders: false, senderEmail: "", ...((theme && theme.archive) || {}) }; }
+function archiveCardHtml(theme) {
+  const a = archiveCfg(theme);
+  const tog = (key, label) => `<button type="button" data-action="ar-toggle" data-key="${key}" aria-pressed="${a[key] ? "true" : "false"}" style="font-family:inherit;min-height:40px;padding:0 16px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid ${a[key] ? GREEN : BORDER};background:${a[key] ? GREEN_BG : "#fff"};color:${a[key] ? GREEN : INK};">${a[key] ? "✓ " : ""}${label}</button>`;
+  const fld = (label, inner, hint) => `<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;margin-bottom:6px;">${label}</div>${inner}${hint ? `<div class="hint" style="margin-top:4px;">${hint}</div>` : ""}</div>`;
+  const inp = (key, ph, dir) => `<input type="text" class="input" data-ar="${key}" value="${esc(a[key] || "")}" placeholder="${esc(ph)}" ${dir ? `dir="${dir}"` : ""} style="width:100%;" />`;
+  const bad = (v) => v && !/^https:\/\/[^\s]+$/.test(v);
+  return `<div class="card" style="margin-bottom:16px;max-width:760px;">
+    <div class="subhead" style="margin-top:0;">الأرشفة وDrive</div>
+    <div class="hint" style="margin-bottom:14px;">هنا تُضبط الروابط ومفاتيح التشغيل. القاعدة تحفظ دائمًا؛ وDrive والشيت اختياريان، وفشلهما لا يمنع الاعتماد. يبدأ التنفيذ الفعلي للحفظ في Drive بعد ما نكمل دفعة Drive.</div>
+    ${fld("الأرشفة التلقائية عند الاعتماد النهائي", `<div style="display:flex;gap:8px;flex-wrap:wrap;">${tog("enabled", a.enabled ? "مفعّلة" : "متوقفة")}</div>`)}
+    ${fld("أماكن الحفظ", `<div style="display:flex;gap:8px;flex-wrap:wrap;"><span style="min-height:40px;display:inline-flex;align-items:center;padding:0 16px;border-radius:999px;border:1px solid ${GREEN};background:${GREEN_BG};color:${GREEN};font-size:13px;font-weight:700;">✓ القاعدة (دائمًا)</span>${tog("drive", "Google Drive")}${tog("sheet", "Google Sheet")}</div>`)}
+    ${a.drive ? `${fld("رابط سكربت Drive الوسيط (Apps Script)", inp("scriptUrl", "https://script.google.com/macros/s/…/exec", "ltr"), bad(a.scriptUrl) ? `<span style="color:${DANGER};">الرابط لازم يبدأ بـ https://</span>` : "الموقع الحقيقي والتجريبي يحتاجان سكربتًا وسيطًا يُنشر مرة واحدة.")}
+    ${fld("رابط المجلد المركزي للسكرتاريات", inp("rootFolder", "https://drive.google.com/drive/folders/…", "ltr"), bad(a.rootFolder) ? `<span style="color:${DANGER};">الرابط لازم يبدأ بـ https://</span>` : "تُحفظ النسخ داخله: القسم ← الوحدة ← الفترة.")}
+    ${fld("مجلد خاص لكل وحدة", `<div>${tog("unitFolders", a.unitFolders ? "مفعّل" : "متوقف")}</div>`, "يُشارَك المجلد كـ«محرر» مع حساب الإرسال.")}
+    ${a.unitFolders ? fld("بريد حساب الإرسال (محرر)", inp("senderEmail", "name@gmail.com", "ltr")) : ""}` : ""}
+    <div class="hint" style="margin-top:6px;">اضغطي «حفظ» أسفل الصفحة ليثبت التغيير.</div>
+  </div>`;
+}
+function dashOrderCardHtml() {
+  const kind = DASH_KINDS.some((k) => k.id === S.ui.dashOrderKind) ? S.ui.dashOrderKind : "office";
+  const list = dashOrderList(kind);
+  const cat = dashCatalog(kind);
+  const customized = Array.isArray((dashConfig()[kind] || {}).order) && dashConfig()[kind].order.length;
+  const mb = (dir, i, dis) => `<button type="button" data-action="dash-move" data-kind="${esc(kind)}" data-i="${i}" data-dir="${dir}" ${dis ? "disabled" : ""} aria-label="${dir === "up" ? "أعلى" : "أسفل"}" style="width:38px;height:38px;border:1px solid ${BORDER};border-radius:10px;background:#fff;cursor:${dis ? "default" : "pointer"};opacity:${dis ? 0.35 : 1};font-size:16px;font-family:inherit;">${dir === "up" ? "↑" : "↓"}</button>`;
+  return `<div style="border-top:1px solid ${BORDER};margin-top:18px;padding-top:16px;">
+    <div style="font-size:13px;font-weight:800;margin-bottom:6px;">ترتيب عناصر اللوحة</div>
+    <div class="hint" style="margin-bottom:10px;">اختاري الجهة ثم حرّكي كل عنصر بالأسهم. الترتيب من فوق لتحت في اللوحة (والشاشة العريضة تعرضها بأعمدة بنفس التسلسل). الباهت = مخفي.</div>
+    <select class="input" id="dash-order-kind" style="max-width:260px;margin-bottom:12px;">${DASH_KINDS.map((k) => `<option value="${esc(k.id)}" ${k.id === kind ? "selected" : ""}>${esc(k.label)}</option>`).join("")}</select>
+    <div style="display:flex;flex-direction:column;gap:6px;max-width:560px;">${list.map((key, i) => { const b = cat.find((x) => x.key === key); const off = dashHidden(kind, key); return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid ${BORDER};border-radius:12px;background:#fff;${off ? "opacity:.5;" : ""}"><span style="width:24px;text-align:center;font-size:12px;color:${SUBTLE};">${i + 1}</span><span style="flex:1;font-size:13px;font-weight:600;">${esc(b ? b.label : key)}</span>${mb("up", i, i === 0)}${mb("down", i, i === list.length - 1)}</div>`; }).join("")}</div>
+    <div style="margin-top:12px;">${pillBtn("رجوع للترتيب الأصلي", { variant: "ghost", icon: iconX(14, INK), action: "dash-order-reset", data: { kind }, disabled: !customized })}</div>
+  </div>`;
+}
 function dashSettingsCardHtml() {
   const group = (title, blocks, kindIds) => {
     const kinds = DASH_KINDS.filter((k) => kindIds.indexOf(k.id) !== -1);
@@ -5370,20 +5596,23 @@ function dashSettingsCardHtml() {
       const shown = !dashHidden(k.id, b.key);
       return `<td style="text-align:center;"><button type="button" data-action="dash-toggle" data-kind="${esc(k.id)}" data-key="${esc(b.key)}" title="${shown ? "ظاهر — اضغطي للإخفاء" : "مخفي — اضغطي للإظهار"}" style="width:34px;height:30px;border-radius:9px;cursor:pointer;font-size:15px;font-weight:800;border:1px solid ${shown ? GREEN : BORDER};background:${shown ? GREEN_BG : "#fff"};color:${shown ? GREEN : DANGER};">${shown ? "✓" : "✗"}</button></td>`;
     };
-    return `<div style="margin-bottom:18px;">
+    return `<div style="margin-bottom:18px;flex:1 1 320px;min-width:0;">
       <div style="font-size:13px;font-weight:800;margin-bottom:8px;">${esc(title)}</div>
       <div class="table-wrap"><table class="prs-table"><thead><tr style="background:${GRAY_BG}"><th>العنصر</th>${kinds.map((k) => `<th style="text-align:center;">${esc(k.label)}</th>`).join("")}</tr></thead>
       <tbody>${blocks.map((b) => `<tr><td style="font-weight:600;">${esc(b.label)}</td>${kinds.map((k) => cell(k, b)).join("")}</tr>`).join("")}</tbody></table></div>
     </div>`;
   };
   const anyHidden = DASH_KINDS.some((k) => (dashConfig()[k.id] && (dashConfig()[k.id].hidden || []).length));
-  return `<div class="card" style="max-width:760px;margin-bottom:16px;">
+  return `<div class="card" style="margin-bottom:16px;">
     <div class="subhead" style="margin-top:0;">ما يظهر في لوحة المعلومات</div>
     <div class="hint" style="margin-bottom:14px;">✓ يظهر · ✗ مخفي. الاختيار لنوع الجهة كله (كل الأقسام ترى الشكل نفسه). يُحفظ فورًا. الأصل أن كل شيء ظاهر.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;">
     ${group("لوحة مديرة النظام (متابعة التشغيل)", DASH_ADMIN_BLOCKS, ["admin"])}
     ${group("لوحة الوحدة والقسم والمكتب", DASH_STD_BLOCKS, DASH_STD_KINDS)}
-    ${group("لوحة الإشراف (الإدارة العليا، وصفحة لوحة المكتب القديمة)", DASH_EX_BLOCKS, DASH_EX_KINDS)}
+    ${group("لوحة إدارة التعليم النسائي", DASH_EX_BLOCKS, DASH_EX_KINDS)}
+    </div>
     <div>${pillBtn("إظهار كل العناصر للجميع", { variant: "ghost", icon: iconX(14, INK), action: "dash-reset", disabled: !anyHidden })}</div>
+    ${dashOrderCardHtml()}
   </div>`;
 }
 /* =============================== إدارة التقارير ===============================
@@ -5639,7 +5868,7 @@ function rptWrap(s, inner, isPreview) {
   if (s.bgImage && RPT_DATA_IMG_RE.test(s.bgImage)) vars += `--rpt-bg-img:url("${s.bgImage}");`;
   const cls = ["rpt-wrap", s.zebra ? "rpt-zebra" : "", s.tableBorders === "grid" ? "rpt-tgrid" : s.tableBorders === "none" ? "rpt-tnone" : "", s.frame ? "rpt-frame" : "", vars.indexOf("--rpt-bg-img") !== -1 ? "rpt-bgimg" : ""].filter(Boolean).join(" ");
   ensureReportFontsLoaded();
-  const pageCss = isPreview ? "" : `<style>@page{size:${w}mm ${h}mm;margin:0}</style>`;
+  const pageCss = (isPreview ? "" : `<style>@page{size:${w}mm ${h}mm;margin:0}</style>`) + `<style>.a4-page.rpt-hasbg{min-height:${h}mm}@media print{.a4-page.rpt-hasbg{min-height:100vh}}</style>`;
   return `${pageCss}<div class="${cls}" style="${vars}">${inner}</div>`;
 }
 function rptPageNumText(s, n, total) {
@@ -5649,11 +5878,31 @@ function rptPageNumText(s, n, total) {
   return "";
 }
 // صفحة واحدة من التقرير مع الكليشة (رأس) والتذييل ورقم الصفحة والعلامة المائية
+function rptUnitSettings(unit) {
+  const s = rptSettings("unit");
+  const ul = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit && unit.id] || {};
+  return ul.bg && RPT_DATA_IMG_RE.test(ul.bg) ? { ...s, bgImage: ul.bg } : s;
+}
+function rptBgSize(s) { return s && s.bgFit === "cover" ? "cover" : "100% 100%"; }
+function rptCoverStyle(s, unitId) {
+  const ul = (unitId && (((S.siteSettings || {}).theme || {}).unitLetterheads || {})[unitId]) || {};
+  const okb = (x) => (x && RPT_DATA_IMG_RE.test(x) ? x : "");
+  const v = okb(ul.coverBg) || okb(s.coverBg) || okb(ul.bg) || okb(s.bgImage);
+  return v ? ` class-hasbg style="background-image:url('${v}');background-size:${rptBgSize(s)};background-position:center;background-repeat:no-repeat;"` : "";
+}
+function rptLetterhead(s) {
+  const uid = RPT_CTX && RPT_CTX.unitId;
+  const ul = (uid && (((S.siteSettings || {}).theme || {}).unitLetterheads || {})[uid]) || {};
+  const ok = (v) => (v && RPT_DATA_IMG_RE.test(v) ? v : "");
+  return { head: ok(ul.head) || ok(s.headImage), foot: ok(ul.foot) || ok(s.footImage), bg: ok(ul.bg) || ok(s.bgImage) };
+}
 function rptPageHtml(s, inner, n, total) {
-  const head = s.showHead ? `<div class="rpt-runhead"><span>${esc(s.headRight)}</span><span class="rpt-runhead-c">${s.headLogo ? `<img src="${ASSOCIATION_LOGO}" alt="" />` : ""}${s.headCenter ? `<b>${esc(s.headCenter)}</b>` : ""}</span><span>${esc(s.headLeft)}</span></div>` : "";
+  const lh = rptLetterhead(s);
+  const head = lh.head ? `<div class="rpt-runhead-img" style="margin-bottom:4mm;"><img src="${lh.head}" alt="" style="display:block;width:100%;max-height:30mm;object-fit:contain;" /></div>` : s.showHead ? `<div class="rpt-runhead"><span>${esc(s.headRight)}</span><span class="rpt-runhead-c">${s.headLogo ? `<img src="${ASSOCIATION_LOGO}" alt="" />` : ""}${s.headCenter ? `<b>${esc(s.headCenter)}</b>` : ""}</span><span>${esc(s.headLeft)}</span></div>` : "";
   const num = rptPageNumText(s, n, total);
-  const foot = (s.showFoot && s.footText) || num ? `<div class="rpt-runfoot"><span>${s.showFoot ? esc(s.footText) : ""}</span><span class="rpt-runfoot-num">${num}</span><span></span></div>` : "";
-  return `<section class="a4-page${s.spine ? " has-spine" : ""}">${s.spine ? `<div class="rpt-spine"></div>` : ""}${s.watermark ? `<div class="rpt-wm" style="background-image:url('${ASSOCIATION_LOGO}')"></div>` : ""}${head}${inner}${foot}</section>`;
+  const footImg = lh.foot ? `<div class="rpt-runfoot-img" style="position:absolute;bottom:14mm;left:var(--rpt-ml,15mm);right:var(--rpt-mr,15mm);"><img src="${lh.foot}" alt="" style="display:block;width:100%;max-height:20mm;object-fit:contain;" /></div>` : "";
+  const foot = footImg + ((s.showFoot && s.footText) || num ? `<div class="rpt-runfoot"><span>${s.showFoot ? esc(s.footText) : ""}</span><span class="rpt-runfoot-num">${num}</span><span></span></div>` : "");
+  return `<section class="a4-page${s.spine ? " has-spine" : ""}${lh.bg ? " rpt-hasbg" : ""}"${lh.bg ? ` style="background-image:url('${lh.bg}');background-size:${rptBgSize(s)};background-position:center;background-repeat:no-repeat;"` : ""}>${s.spine ? `<div class="rpt-spine"></div>` : ""}${s.watermark ? `<div class="rpt-wm" style="background-image:url('${ASSOCIATION_LOGO}')"></div>` : ""}${head}${inner}${foot}</section>`;
 }
 
 /* ---- سياق الرسم: نوع الرسوم وألوانها وحجمها والأعمدة المخفية — يقرؤه svgBarChart/svgPieChart/reportTable ---- */
@@ -5859,7 +6108,7 @@ function aggReportDocHtml(s, data) {
     const hasCover = !!s.showCover;
     const total = pages.length + (hasCover ? 1 : 0);
     const cover = hasCover ? `
-    <section class="a4-page rpt-cover">
+    <section class="a4-page rpt-cover${rptCoverStyle(s, "") ? " rpt-hasbg" : ""}"${rptCoverStyle(s, "").replace(" class-hasbg", "")}>
       ${s.watermark ? `<div class="rpt-wm" style="background-image:url('${ASSOCIATION_LOGO}')"></div>` : ""}
       <div class="rpt-cover-inner">
         <img src="${ASSOCIATION_LOGO}" class="rpt-cover-logo" alt="شعار الجمعية" />
@@ -6085,11 +6334,10 @@ function rmPanelHtml(st) {
       rmFieldHtml("الاتجاه", rmPills("orient", d.orient, [["portrait", "طولي"], ["landscape", "عرضي"]])) +
       rmFieldHtml("الهوامش", rmPills("margin", d.margin, [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]]) +
         (d.margin === "custom" ? `<div class="rm-row">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label class="rm-mini">${l}${rmNum(k, d[k], 0, 50)}</label>`).join("")}</div>` : "")) +
-      rmFieldHtml("لون الورقة", rmColor("paper", d.paper)) +
-      rmFieldHtml("صورة خلفية للصفحات", `<div class="rm-row">
+      rmFieldHtml("الخلفية", `<div class="rm-row" style="margin-bottom:8px;"><span style="font-size:12.5px;">لون</span>${rmColor("paper", d.paper)}</div><div class="rm-row">
         <label class="pill-btn pill-ghost" style="margin:0;">${iconPlus(14, INK)} اختيار صورة<input type="file" accept="image/*" id="rm-bg-file" style="display:none;" /></label>
         ${d.bgImage ? `<img src="${esc(d.bgImage)}" alt="الخلفية" style="width:44px;height:58px;object-fit:cover;border-radius:6px;border:1px solid ${BORDER};" />${pillBtn("إزالة", { variant: "ghost", icon: iconX(14, INK), action: "rm-bg-remove" })}` : ""}
-      </div>`, "أقل من 800 كيلوبايت. تُغطي الصفحة كاملة خلف النص.") +
+      </div>`, "اللون وحده، أو صورة (أقل من 800 كيلوبايت) تغطي الصفحة كاملة خلف النص وتتقدم على اللون.") +
       rmFieldHtml("زخارف الصفحة", `<div class="rm-pills">${rmToggle("watermark", "علامة مائية (الشعار)", d.watermark)}${rmToggle("frame", "إطار حول الصفحة", d.frame)}${rmToggle("spine", "شريط ملوّن جانبي", d.spine)}</div>`);
   }
   if (tab === "head") {
@@ -6376,7 +6624,57 @@ function handleReportsManageAction(action, ds) {
   return true;
 }
 
+const FIVE_COLORS = [
+  { k: "primary", label: "الأساسي", hint: "الصفحة المحددة والأزرار والعناوين وترويسة التقارير والأيقونات" },
+  { k: "secondary", label: "الثاني", hint: "التدرجات وبطاقات الهيكل الخمسة (تُشتق منه)" },
+  { k: "accent", label: "التمييز", hint: "إطار الحقل عند الكتابة فيه والروابط الصغيرة" },
+  { k: "text", label: "النصوص", hint: "النصوص الأساسية، والفرعية والحدود تُشتق منه" },
+  { k: "background", label: "الخلفية", hint: "خلفية الصفحة والشريط الجانبي" },
+];
+function fiveColorValue(k, current, theme) {
+  if (k === "primary") return current.primary;
+  if (k === "background") return current.background;
+  if (k === "text") return theme.ink;
+  if (k === "secondary") return theme.blue;
+  return theme.accent || current.primary;
+}
+function applyFiveColor(k, v) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(v)) return false;
+  const cur = S.siteSettings || dataStore.getSiteSettings();
+  const th = { ...(cur.theme || {}) };
+  let next = { ...cur };
+  if (k === "primary") { next.primary = v; th.navActive = v; }
+  else if (k === "background") { next.background = v; th.sidebarBg = mixHex(v, "#ffffff", 0.5); }
+  else if (k === "text") { th.ink = v; th.subtle = mixHex(v, "#ffffff", 0.5); th.border = mixHex(v, "#ffffff", 0.88); }
+  else if (k === "secondary") { th.blue = v; th.bs = [0.72, 0.58, 0.44, 0.3, 0.16].map((t) => mixHex(v, "#ffffff", t)); }
+  else if (k === "accent") { th.accent = v; }
+  next.theme = th;
+  S.siteSettings = next;
+  S.ui.siteSettingsSaved = false;
+  applySiteColors(next);
+  return true;
+}
 function renderSiteSettings() {
+  const t = document.createElement("template");
+  t.innerHTML = renderSiteSettingsInner();
+  const col = S.ui.siteCollapsed || {};
+  t.content.querySelectorAll(".card > .subhead:first-child").forEach((h) => {
+    const key = h.textContent.trim();
+    h.setAttribute("data-action", "site-card-toggle");
+    h.setAttribute("data-key", key);
+    h.style.cursor = "pointer";
+    h.style.display = "flex";
+    h.style.justifyContent = "space-between";
+    h.style.alignItems = "center";
+    h.innerHTML = `<span>${h.innerHTML}</span><span data-chev style="font-size:11px;color:#8a7b82;">${(key.indexOf("ألوان متقدمة") === 0 && col[key] === undefined) || col[key] ? "◂ توسيع" : "▾ تضييق"}</span>`;
+    const closed = key.indexOf("ألوان متقدمة") === 0 && col[key] === undefined ? true : !!col[key];
+    if (closed) { let n = h.nextElementSibling; while (n) { n.style.display = "none"; n = n.nextElementSibling; } }
+  });
+  return t.innerHTML;
+}
+function renderSiteSettingsInner() {
+  const stTab = S.ui.siteTab || "look";
+  const stH = (t) => (t === stTab ? "" : "display:none;");
   const current = S.siteSettings || dataStore.getSiteSettings();
   const theme = themeOf(current);
   const isColorDefault = current.primary === DEFAULT_SITE_COLORS.primary && current.background === DEFAULT_SITE_COLORS.background;
@@ -6402,26 +6700,20 @@ function renderSiteSettings() {
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "إعدادات الموقع", subtitle: "تخصيص هوية الموقع — الألوان، الشعار، البانر، والعبارات. التغيير يظهر فورًا هنا، ولازم الضغط على \"حفظ\" ليصير دائمًا" })}
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
-      <div class="subhead" style="margin-top:0;">الألوان</div>
-      <div style="margin-bottom:20px;">
-        ${fieldLabel("اللون الأساسي (الأزرار، العناوين، التحديد)")}
-        <div style="display:flex;align-items:center;gap:12px;">
-          <input type="color" id="site-primary-color" value="${esc(current.primary)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
-          <span style="font-size:12.5px;color:${SUBTLE};font-family:monospace;">${esc(current.primary)}</span>
-        </div>
-      </div>
-      <div style="margin-bottom:16px;">
-        ${fieldLabel("لون خلفية الموقع")}
-        <div style="display:flex;align-items:center;gap:12px;">
-          <input type="color" id="site-bg-color" value="${esc(current.background)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
-          <span style="font-size:12.5px;color:${SUBTLE};font-family:monospace;">${esc(current.background)}</span>
-        </div>
-      </div>
-      <div>${pillBtn("استعادة الألوان الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-settings-defaults", disabled: isColorDefault })}</div>
+    ${(() => { const T = [["look", "المظهر"], ["brand", "الشعار والشريط"], ["dash", "لوحة المعلومات"], ["page", "قالب الصفحة"], ["report", "خيارات التقرير"], ["archive", "الأرشفة وDrive"]]; return `<div style="display:flex;flex-wrap:wrap;border-bottom:1px solid ${BORDER};margin-bottom:16px;">${T.map(([id, l]) => `<button type="button" data-action="site-tab" data-tab="${id}" data-st-btn="${id}" style="font-family:inherit;font-size:14px;cursor:pointer;padding:10px 4px;margin-inline-end:18px;background:none;border:none;border-bottom:2.5px solid ${stTab === id ? ROSE : "transparent"};margin-bottom:-1px;font-weight:${stTab === id ? 800 : 600};color:${stTab === id ? ROSE : "#8a7b82"};">${l}</button>`).join("")}</div>`; })()}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;align-items:start;">
+    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">الألوان الخمسة</div>
+      <div class="hint" style="margin-bottom:12px;">خمسة ألوان فقط تتحكم بكل الموقع، والباقي يُشتق منها. ألوان الحالة (أخضر، ذهبي، أحمر) منفصلة لأن لكل منها معنى، وتجدينها في «ألوان متقدمة».</div>
+      ${FIVE_COLORS.map((f) => { const v = fiveColorValue(f.k, current, theme); return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <input type="color" id="site-c5-${f.k}" value="${esc(v)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
+        <input type="text" class="input" id="site-c5-${f.k}-hex" value="${esc(v)}" maxlength="7" dir="ltr" style="width:100px;font-family:monospace;" aria-label="رمز اللون" />
+        <div style="flex:1 1 160px;min-width:0;"><div style="font-size:13px;font-weight:800;">${f.label}</div><div style="font-size:11.5px;color:${SUBTLE};">${f.hint}</div></div></div>`; }).join("")}
+      <div style="display:flex;gap:6px;margin:6px 0 14px;" aria-label="معاينة">${["primary", "secondary", "accent", "text", "background"].map((k) => `<span id="site-c5-prev-${k}" style="flex:1;height:26px;border-radius:8px;border:1px solid ${BORDER};background:${fiveColorValue(k, current, theme)};"></span>`).join("")}</div>
+      <div>${pillBtn("رجوع لألوان الشعار", { variant: "ghost", icon: iconX(14, INK), action: "restore-five-colors" })}</div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">ألوان متقدمة (كل ألوان الموقع)</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px;">
         ${THEME_COLOR_FIELDS.map((f) => `<div>${fieldLabel(f.label)}<div style="display:flex;align-items:center;gap:10px;">
@@ -6437,7 +6729,7 @@ function renderSiteSettings() {
       </div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="report" style="${stH("report")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">خيارات «الفترة التي يغطيها التقرير»</div>
       <div class="hint" style="margin-bottom:12px;">تظهر في البيانات الأساسية للتقرير وفي فلتر الفترة. «شهري» و«فصلي» مثبّتتان لأنهما تفتحان حقل الشهر وحقل الفصل. التقارير القديمة تحتفظ بقيمتها حتى لو حذفتِ الخيار أو غيّرتِ اسمه.</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
@@ -6456,7 +6748,7 @@ function renderSiteSettings() {
       </div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">ألوان الأيقونات</div>
       ${[["iconColor", "لون كل أيقونات الموقع (القوائم، الأزرار، البطاقات)", current.primary], ["fieldIconColor", "لون أيقونات إدارة حقول الأقسام (تتجاوز اللون العام)", theme.iconColor || current.primary]].map(([k, lb, def]) => `<div style="margin-bottom:14px;">${fieldLabel(lb)}
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><input type="color" id="site-x-${k}" value="${esc(theme[k] || def)}" style="width:46px;height:36px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
@@ -6464,7 +6756,7 @@ function renderSiteSettings() {
       <div class="hint">ولكل حقل لونه الخاص من نافذة تعديل الحقل بإدارة حقول الأقسام. الأيقونات الحمراء/الخضراء/البيضاء ذات المعنى (حذف، نجاح، على الزر) تبقى كما هي.</div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">النصوص: الألوان والأحجام</div>
       ${TEXT_STYLE_FIELDS.map((f) => `<div style="margin-bottom:16px;">${fieldLabel(f.label)}
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -6476,21 +6768,34 @@ function renderSiteSettings() {
       <div class="hint">لون ونص عبارة الشريط الجانبي وحجمها في بطاقة «الشريط الجانبي» أدناه.</div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">الخط</div>
       <div>
-        ${fieldLabel("خط الموقع (يشمل النصوص والعناوين والأزرار بكل الصفحات — عدا التقرير المطبوع نفسه)")}
-        <select class="input" id="site-font-family" style="width:100%;margin-bottom:10px;">
-          ${FONT_OPTIONS.map((f) => `<option value="${esc(f.value)}" style="font-family:'${esc(f.value)}';" ${(current.fontFamily || DEFAULT_BRANDING.fontFamily) === f.value ? "selected" : ""}>${esc(f.label)}</option>`).join("")}
-        </select>
-        <div style="border:1px solid ${BORDER};border-radius:10px;padding:14px 16px;background:${GRAY_BG};font-family:'${esc(current.fontFamily || DEFAULT_BRANDING.fontFamily)}';">
-          <div style="font-size:16px;font-weight:800;margin-bottom:4px;">هذا مثال على شكل الخط المختار</div>
-          <div style="font-size:12.5px;color:${SUBTLE};">تقرير الأداء الدوري — وحدة الاختبارات — جمعية فرقان</div>
+        ${(() => {
+          const cf = theme.customFont && theme.customFont.name ? [{ value: theme.customFont.name, label: theme.customFont.name + " (خط مرفوع)" }] : [];
+          const opts = [...FONT_OPTIONS, ...cf];
+          const mainF = current.fontFamily || DEFAULT_BRANDING.fontFamily;
+          const headF = theme.headingFont || "";
+          opts.forEach((f) => siteFontLoad(f.value));
+          const optHtml = (sel) => opts.map((f) => `<option value="${esc(f.value)}" style="font-family:'${esc(f.value)}';" ${sel === f.value ? "selected" : ""}>${esc(f.label)}</option>`).join("");
+          return `${fieldLabel("خط النصوص (يشمل الأزرار والجداول بكل الصفحات — عدا التقرير المطبوع نفسه)")}
+        <select class="input" id="site-font-family" style="width:100%;margin-bottom:12px;">${optHtml(mainF)}</select>
+        ${fieldLabel("خط العناوين")}
+        <select class="input" id="site-heading-font" style="width:100%;margin-bottom:12px;"><option value="" ${headF ? "" : "selected"}>نفس خط النصوص</option>${optHtml(headF)}</select>
+        <div style="border:1px solid ${BORDER};border-radius:10px;padding:14px 16px;background:${GRAY_BG};font-family:'${esc(mainF)}';margin-bottom:12px;">
+          <div style="font-size:18px;font-weight:800;margin-bottom:4px;font-family:'${esc(headF || mainF)}';">عنوان تجريبي — تقرير الأداء الدوري</div>
+          <div style="font-size:13px;color:${SUBTLE};">هذا نص تجريبي بالخط المختار: وحدة الاختبارات — جمعية فرقان لتحفيظ القرآن الكريم ١٢٣٤٥٦٧٨٩٠</div>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <label class="btn btn-ghost" style="cursor:pointer;min-height:40px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid ${BORDER};border-radius:999px;font-size:13px;font-weight:700;">رفع خط (TTF / OTF / WOFF)<input type="file" id="site-font-upload" accept=".ttf,.otf,.woff,.woff2" style="display:none;" /></label>
+          ${theme.customFont && theme.customFont.name ? `<button type="button" data-action="site-font-remove" style="min-height:40px;padding:0 14px;border:1px solid ${BORDER};border-radius:999px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;">حذف الخط المرفوع (${esc(theme.customFont.name)})</button>` : ""}
+        </div>
+        <div class="hint" style="margin-top:6px;">الخط المرفوع حجمه أقل من ٤٠٠ كيلوبايت. يحتاج الموقع اتصال بالإنترنت لتحميل خطوط Google.</div>`;
+        })()}
       </div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="brand" style="${stH("brand")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">الشعار</div>
       <div style="margin-bottom:20px;">
         ${fieldLabel("صورة الشعار (يظهر بالشريط الجانبي وصفحة الدخول)")}
@@ -6505,7 +6810,7 @@ function renderSiteSettings() {
       </div>
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="brand" style="${stH("brand")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">بانر لوحة المعلومات</div>
       <div style="margin-bottom:20px;">
         ${fieldLabel("صورة البانر")}
@@ -6515,13 +6820,23 @@ function renderSiteSettings() {
         ${fieldLabel("عنوان البانر")}
         ${textInput("site-banner-title", current.bannerTitle, DEFAULT_BRANDING.bannerTitle)}
       </div>
-      <div>
+      <div style="margin-bottom:14px;">
         ${fieldLabel("وصف البانر")}
         ${textInput("site-banner-sub", current.bannerSub, DEFAULT_BRANDING.bannerSub)}
       </div>
+      ${(() => {
+        const pill = (key, val, label, cur) => { const on = cur === val; return `<button type="button" data-action="site-banner-set" data-key="${key}" data-val="${val}" style="font-family:inherit;min-height:38px;padding:0 14px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid ${on ? ROSE : BORDER};background:${on ? ROSE : "#fff"};color:${on ? "#fff" : INK};">${label}</button>`; };
+        const al0 = ["right", "left"].includes(theme.bannerAlign) ? theme.bannerAlign : "center", alT = theme.bannerTitleAlign || al0, alS = theme.bannerSubAlign || al0, ps = theme.bannerPos || "center";
+        return `<div style="margin-bottom:14px;">${fieldLabel("تفتيح الصورة (تخفيف لون الصورة ليظهر النص)")}
+          <div style="display:flex;align-items:center;gap:10px;"><input type="range" id="site-banner-veil" min="0" max="90" step="5" value="${Number(theme.bannerVeil) || 0}" style="flex:1;" /><span id="site-banner-veil-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:44px;">${Number(theme.bannerVeil) || 0}%</span></div></div>
+        ${(() => { const row = (label, id, key, val) => `<div style="margin-bottom:14px;">${fieldLabel(label)}<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;color:${SUBTLE};">يمين</span><input type="range" id="${id}" min="0" max="100" step="1" value="${val}" style="flex:1;" /><span style="font-size:12px;color:${SUBTLE};">يسار</span><span id="${id}-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:40px;">${val}%</span></div><div style="display:flex;gap:6px;margin-top:6px;">${[[0, "يمين"], [50, "وسط"], [100, "يسار"]].map(([v, l]) => `<button type="button" data-action="site-banner-set" data-key="${key}" data-val="${v}" style="font-family:inherit;min-height:34px;padding:0 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;border:1px solid ${BORDER};background:#fff;color:${INK};">${l}</button>`).join("")}</div></div>`; return row("مكان «مرحبًا بك في»", "site-banner-epos", "bannerEyebrowPos", bannerPos(theme, "e")) + row("مكان العنوان: اسحبي المؤشر للمكان اللي تبينه", "site-banner-tpos", "bannerTitlePos", bannerPos(theme, "t")) + row("مكان الوصف", "site-banner-spos", "bannerSubPos", bannerPos(theme, "s")); })()}
+        <div style="margin-bottom:14px;">${fieldLabel("موضع النص")}<div style="display:flex;gap:6px;flex-wrap:wrap;">${pill("bannerPos", "top", "أعلى", ps)}${pill("bannerPos", "center", "وسط", ps)}${pill("bannerPos", "bottom", "أسفل", ps)}</div></div>
+        <div class="hint" style="margin-bottom:8px;">معاينة (تنطبق الإعدادات هذه على كل صفحة فيها بانر: لوحة المعلومات، ولوحة الوحدة، و«تقارير»):</div>
+        <div class="hero-banner" style="min-height:130px;margin-bottom:0;"><img class="hero-banner-bg" src="${esc(siteBannerSrc(current))}" alt="" /><div class="hero-banner-text"><div class="hero-banner-eyebrow">مرحبًا بك في</div><div class="prs-title hero-banner-title">${esc(current.bannerTitle || DEFAULT_BRANDING.bannerTitle || "منصة التقارير")}</div><div class="hero-banner-sub">${esc(current.bannerSub || DEFAULT_BRANDING.bannerSub || "")}</div></div></div>`;
+      })()}
     </div>
 
-    <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card" data-st="brand" style="${stH("brand")}margin-bottom:16px;">
       <div class="subhead" style="margin-top:0;">الشريط الجانبي</div>
       <div style="margin-bottom:14px;">
         ${fieldLabel("اسم المنصة (يظهر بعنوان الشريط الجانبي)")}
@@ -6576,9 +6891,12 @@ function renderSiteSettings() {
     </div>
 
 
-    ${dashSettingsCardHtml()}
+    <div data-st="dash" style="${stH("dash")}">${dashSettingsCardHtml()}</div>
+    <div data-st="page" style="${stH("page")}">${pageTplCardHtml()}</div>
+    <div data-st="archive" style="${stH("archive")}">${archiveCardHtml(theme)}</div>
 
-    <div class="card" style="max-width:560px;">
+    </div>
+    <div class="card">
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${pillBtn("حفظ", { icon: iconCheckCircle(15, "#fff"), action: "save-site-settings" })}
         ${pillBtn("استعادة إعدادات الهوية الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-branding-defaults", disabled: isBrandingDefault })}
@@ -7451,7 +7769,7 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
     : `<div class="hint">تحتاجين تقارير من أكثر من فترة واحدة لعرض مقارنة زمنية.</div>`;
 
   return `
-  <div class="page-wrap"><div class="page-inner">
+  <div class="page-wrap"><div class="page-inner dash-wide">
     ${topBarHtml({ title: "لوحة المعلومات", subtitle: opts.subtitle || (S.levelScope ? `نظرة على ${units.length} وحدة تحت هذا المستوى` : "نظرة إشرافية شاملة على كل الأقسام والوحدات"),
       right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
     ${opts.extraTop || ""}
@@ -7469,9 +7787,9 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
       </div>
       ${progressBarHtml(completionPct, ROSE)}
     </div>`)}
-    ${dashHidden(xk, "programs") ? "" : programsCardHtml(units)}
-    ${dashHidden(xk, "achieve") ? "" : achievementCardHtml(units)}
-    ${dashHidden(xk, "yearCompare") ? "" : yearCompareCardHtml(units)}
+    ${dashB(xk, "programs", programsCardHtml(units))}
+    ${dashB(xk, "achieve", achievementCardHtml(units))}
+    ${dashB(xk, "yearCompare", yearCompareCardHtml(units))}
     ${dashExGrid(xk, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
         ${deptPerf.length ? svgBarChart(deptPerf, { height: 180 }) : emptyHint("لا توجد أقسام نشطة بعد.")}</div>`, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">توزيع حالات التقارير</div>${total ? statusPie : emptyHint("لا توجد تقارير بعد.")}</div>`)}
     ${dashBlock(xk, "exUnitPerf", `<div class="card" style="margin-bottom:18px;">
@@ -7855,7 +8173,7 @@ function renderUnitReportsHub() {
     ${scopedUnitSwitcherHtml()}
 
     <div class="hero-banner">
-      <img class="hero-banner-bg" src="hero-bg.jpg" alt="" />
+      <img class="hero-banner-bg" src="${esc(siteBannerSrc(currentSiteSettings()))}" alt="" />
       <div class="hero-banner-text">
         <div class="hero-banner-eyebrow">إدارة تقاريرك بسهولة وتنظيم</div>
         <div class="prs-title hero-banner-title">التقارير</div>
@@ -10408,7 +10726,7 @@ function reportCoverPageHtml(unit, report, dept, s, totalPages) {
   const yearLabel = d.hijriYear || hijriYearLabel(hijriYearFromTs(report.createdAt || Date.now()));
   const num = rptPageNumText(s, 1, totalPages);
   return `
-  <section class="a4-page rpt-cover-v4">
+  <section class="a4-page rpt-cover-v4${rptCoverStyle(s, unit && unit.id) ? " rpt-hasbg" : ""}"${rptCoverStyle(s, unit && unit.id).replace(" class-hasbg", "")}>
     ${s.watermark ? `<div class="rpt-wm" style="background-image:url('${ASSOCIATION_LOGO}')"></div>` : ""}
     <img src="${ASSOCIATION_LOGO}" class="rpt-cover-v4-logo" alt="شعار الجمعية" />
     <div class="rpt-cover-v4-text">
@@ -10452,7 +10770,7 @@ function fullReportOrPreviewBody(unit, report, afterPage, opts) {
   const dept = S.departments.find((x) => x.id === unit.departmentId);
   const chapters = rptOrdered(unitChapterDefs(opts.capture ? null : report, unit.id), s).filter((c) => review || (!s.hidden[c.key] &&
     (s.showEmpty || opts.capture || c.special || c.sections.some((sid) => sectionHasData(report, sid)))));
-  return rptWithCtx({ ...rptChartCtx(s), hiddenCols: review ? null : s.hiddenCols, colsShow: s.colsShow, capture: opts.capture || null }, () => {
+  return rptWithCtx({ ...rptChartCtx(s), hiddenCols: review ? null : s.hiddenCols, colsShow: s.colsShow, capture: opts.capture || null, unitId: unit.id }, () => {
     // «ملخص التقرير» بصفحة مستقلة، ثم الأقسام (عدد محدد بكل صفحة، 0 = متتابعة)، و«الإغلاق والاعتماد» مع آخر صفحة
     const per = Number(s.perPage) || 0;
     const pages = [];
@@ -10528,7 +10846,7 @@ function renderFullReport() {
     ${topBarHtml({ title: "عرض التقرير كاملاً", subtitle: `${unit.name} — ${esc(report.label)} — ${progress.completed} من ${progress.total} أقسام مكتملة`,
       backAction: rvItem ? "nav-to" : (readOnlyVisit ? "nav-to" : "nav-to-unit-report"), backData: rvItem ? { view: "custom-path-inbox" } : (readOnlyVisit ? { view: "all-reports" } : undefined),
       right: pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) })}
-    ${rptWrap(rptSettings("unit"), fullReportOrPreviewBody(unit, report, rvItem ? apReviewAfterPageHtml(rvItem) : null))}
+    ${rptWrap(rptUnitSettings(unit), fullReportOrPreviewBody(unit, report, rvItem ? apReviewAfterPageHtml(rvItem) : null))}
     ${rvItem ? apReviewPanelHtml(rvItem) : ""}
     ${readOnlyVisit ? "" : `<div class="hint" style="margin-top:12px;">للتعديل على أي قسم، ارجعي إلى "مسودة التقرير" واختاري القسم من قائمة المراحل.</div>`}
   </div></div>`;
@@ -10544,7 +10862,7 @@ function renderReportPreview() {
     <div class="no-print">${topBarHtml({ title: "معاينة التقرير",
       backAction: readOnlyVisit ? "nav-to" : "nav-to-unit-report", backData: readOnlyVisit ? { view: "all-reports" } : undefined,
       right: `<div style="display:flex;gap:8px;">${pillBtn("تنزيل PDF", { icon: iconDownload(15, "#fff"), action: "print-page" })}${pillBtn("طباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "print-page" })}</div>` })}</div>
-    ${rptWrap(rptSettings("unit"), fullReportOrPreviewBody(unit, report))}
+    ${rptWrap(rptUnitSettings(unit), fullReportOrPreviewBody(unit, report))}
   </div></div>`;
 }
 
@@ -10571,6 +10889,18 @@ function liveUpdateComputed(el) {
 function attachFormListeners() {
   appEl.addEventListener("input", (e) => {
     const el = e.target;
+    if (el.dataset && el.dataset.ar) {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      const th = S.siteSettings.theme || {};
+      S.siteSettings = { ...S.siteSettings, theme: { ...th, archive: { ...archiveCfg(th), [el.dataset.ar]: el.value.trim() } } };
+      S.ui.siteSettingsSaved = false;
+      return;
+    }
+    if (el.dataset && el.dataset.pg) {
+      pgDraft()[el.dataset.pg] = el.value;
+      const pv = document.getElementById("pg-preview"); if (pv) pv.innerHTML = pgPreviewHtml();
+      return;
+    }
     if (el.id && (el.id.indexOf("cp-sec-") === 0 || el.id.indexOf("cp-notes-") === 0)) {
       // حفظ مسودة ملاحظات المراجِعة محليًا (تبقى عند التنقل بين الوارد وعرض التقرير)
       const m = el.id.indexOf("cp-sec-") === 0 ? el.id.slice(7) : el.id.slice(9);
@@ -10630,6 +10960,15 @@ function attachFormListeners() {
       return;
     }
     if (el.id === "login-username") { S.ui.loginUsernameVal = el.value; return; }
+    if (el.id && /^site-c5-(primary|secondary|accent|text|background)(-hex)?$/.test(el.id)) {
+      const m = el.id.match(/^site-c5-(\w+?)(-hex)?$/);
+      let v = el.value.trim(); if (v && v[0] !== "#") v = "#" + v;
+      if (applyFiveColor(m[1], v)) {
+        const pk = document.getElementById("site-c5-" + m[1]), hx = document.getElementById("site-c5-" + m[1] + "-hex"), pv = document.getElementById("site-c5-prev-" + m[1]);
+        if (pk && pk !== el) pk.value = v; if (hx && hx !== el) hx.value = v; if (pv) pv.style.background = v;
+      }
+      return;
+    }
     if (el.id === "site-primary-color" || el.id === "site-bg-color") {
       S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
       S.siteSettings = { ...S.siteSettings, [el.id === "site-primary-color" ? "primary" : "background"]: el.value };
@@ -10675,6 +11014,21 @@ function attachFormListeners() {
     if (el.id === "field-draft-iconcolor" || el.id === "field-draft-iconbg") {
       S.ui.fieldEditDraft = S.ui.fieldEditDraft || {};
       S.ui.fieldEditDraft[el.id === "field-draft-iconcolor" ? "iconColor" : "iconBg"] = el.value;
+      return;
+    }
+    if (el.id === "site-banner-tpos" || el.id === "site-banner-spos" || el.id === "site-banner-epos") {
+      const key = { "site-banner-tpos": "bannerTitlePos", "site-banner-spos": "bannerSubPos", "site-banner-epos": "bannerEyebrowPos" }[el.id];
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), [key]: Number(el.value) } };
+      S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings);
+      const lb = document.getElementById(el.id + "-label"); if (lb) lb.textContent = el.value + "%";
+      return;
+    }
+    if (el.id === "site-banner-veil") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), bannerVeil: Number(el.value) } };
+      S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings);
+      const lb = document.getElementById("site-banner-veil-label"); if (lb) lb.textContent = el.value + "%";
       return;
     }
     if (el.id === "site-sidebar-bg-veil") {
@@ -10870,6 +11224,46 @@ function attachFormListeners() {
       render();
       return;
     }
+    if (el.id === "pg-img-head" || el.id === "pg-img-foot" || el.id === "pg-img-bg" || el.id === "pg-img-cover") {
+      imgDownscale(el.files && el.files[0], (url) => { pgDraft()[{ "pg-img-head": "headImage", "pg-img-foot": "footImage", "pg-img-bg": "bgImage", "pg-img-cover": "coverBg" }[el.id]] = url; S.ui.pgMsg = ""; render(); });
+      return;
+    }
+    if (el.id === "us-img-head" || el.id === "us-img-foot" || el.id === "us-img-bg" || el.id === "us-img-cover") {
+      const uid = S.currentUnitId; if (!uid || !(S.isAdmin || isUnitInUserScope(uid))) return;
+      const k = { "us-img-head": "head", "us-img-foot": "foot", "us-img-bg": "bg", "us-img-cover": "coverBg" }[el.id];
+      imgDownscale(el.files && el.files[0], (url) => { ulSetImage(uid, k, url); render(); });
+      return;
+    }
+    if (el.id === "ul-unit") { S.ui.ulUnit = el.value; render(); return; }
+    if (el.id === "ul-img-head" || el.id === "ul-img-foot" || el.id === "ul-img-bg" || el.id === "ul-img-cover") {
+      const uid = S.ui.ulUnit || ((S.units || []).filter((u) => u.status === "active")[0] || {}).id; const k = { "ul-img-head": "head", "ul-img-foot": "foot", "ul-img-bg": "bg", "ul-img-cover": "coverBg" }[el.id];
+      if (!uid || !S.isAdmin) return;
+      imgDownscale(el.files && el.files[0], (url) => {
+        saveSiteTheme((th) => { const all = { ...((th || {}).unitLetterheads || {}) }; all[uid] = { ...(all[uid] || {}), [k]: url }; return { unitLetterheads: all }; });
+        render();
+      });
+      return;
+    }
+    if (el.id === "dash-order-kind") { S.ui.dashOrderKind = el.value; render(); return; }
+    if (el.id === "site-heading-font") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), headingFont: el.value } };
+      S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings); render(); return;
+    }
+    if (el.id === "site-font-upload") {
+      const f = el.files && el.files[0];
+      if (!f) return;
+      if (f.size > 400 * 1024) { alert("حجم الخط أكبر من ٤٠٠ كيلوبايت. اختاري خطًا أصغر."); el.value = ""; return; }
+      const rd = new FileReader();
+      rd.onload = () => {
+        const name = f.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9 \u0600-\u06FF_-]/g, "").slice(0, 30) || "خط مرفوع";
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        S.siteSettings = { ...S.siteSettings, fontFamily: name, theme: { ...(S.siteSettings.theme || {}), customFont: { name, data: rd.result } } };
+        S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings); render();
+      };
+      rd.readAsDataURL(f);
+      return;
+    }
     if (el.id === "site-font-family") {
       S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
       S.siteSettings = { ...S.siteSettings, fontFamily: el.value };
@@ -11033,12 +11427,113 @@ function attachClickListener() {
         render();
         break;
       }
+      case "pg-set": {
+        const d = pgDraft(); d[ds.key] = ds.val;
+        if (ds.key === "margin" && RPT_MARGINS[ds.val]) { const m = RPT_MARGINS[ds.val]; d.mt = m[0]; d.mb = m[1]; d.mr = m[2]; d.ml = m[3]; }
+        S.ui.pgMsg = ""; render(); break;
+      }
+      case "pg-toggle": { const d = pgDraft(); d[ds.key] = !d[ds.key]; S.ui.pgMsg = ""; render(); break; }
+      case "pg-reload": { S.ui.pgDraft = null; S.ui.pgMsg = ""; render(); break; }
+      case "pg-apply": {
+        if (!S.isAdmin) break;
+        const d = pgDraft();
+        const m = RPT_MARGINS[d.margin];
+        const patch = {}; PG_KEYS.forEach((k) => { patch[k] = d[k]; });
+        if (m) { patch.mt = m[0]; patch.mb = m[1]; patch.mr = m[2]; patch.ml = m[3]; }
+        else ["mt", "mb", "mr", "ml"].forEach((k) => { patch[k] = Math.max(0, Math.min(80, Number(d[k]) || 0)); });
+        const ids = ["final", "unit"].concat(rptStore().custom.map((c) => c.id));
+        let n = 0;
+        ids.forEach((id) => { const cur = rptSettings(id); if (cur) { rptSave(id, { ...cur, ...patch }); n++; } });
+        S.ui.pgMsg = "تم تطبيق قالب الصفحة على " + n + " من قوالب التقارير.";
+        render(); break;
+      }
+      case "site-banner-set": {
+        if (!["bannerAlign", "bannerTitleAlign", "bannerSubAlign", "bannerPos", "bannerTitlePos", "bannerSubPos", "bannerEyebrowPos"].includes(ds.key)) break;
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), [ds.key]: /Pos$/.test(ds.key) && ds.key !== "bannerPos" ? Number(ds.val) : ds.val } };
+        S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings); render();
+        break;
+      }
+      case "ar-toggle": {
+        if (!S.isAdmin) break;
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        const th = S.siteSettings.theme || {}; const cur = archiveCfg(th);
+        S.siteSettings = { ...S.siteSettings, theme: { ...th, archive: { ...cur, [ds.key]: !cur[ds.key] } } };
+        S.ui.siteSettingsSaved = false; render();
+        break;
+      }
+      case "pg-img-clear": { pgDraft()[ds.key] = ""; S.ui.pgMsg = ""; render(); break; }
+      case "ul-img-clear": {
+        if (!S.isAdmin) break;
+        const uid = S.ui.ulUnit; if (!uid) break;
+        saveSiteTheme((th) => { const all = { ...((th || {}).unitLetterheads || {}) }; const cur = { ...(all[uid] || {}) }; delete cur[ds.key]; if (cur.head || cur.foot || cur.bg || cur.coverBg) all[uid] = cur; else delete all[uid]; return { unitLetterheads: all }; });
+        render(); break;
+      }
+      case "us-img-clear": {
+        const uid = S.currentUnitId; if (!uid || !(S.isAdmin || isUnitInUserScope(uid))) break;
+        ulSetImage(uid, ds.key, ""); render(); break;
+      }
+      case "dash-move": {
+        if (!S.isAdmin) break;
+        const kind = ds.kind, i = Number(ds.i), j = ds.dir === "up" ? i - 1 : i + 1;
+        if (!DASH_KINDS.some((k) => k.id === kind)) break;
+        const list = dashOrderList(kind);
+        if (isNaN(i) || j < 0 || j >= list.length) break;
+        const t = list[i]; list[i] = list[j]; list[j] = t;
+        const cfg = JSON.parse(JSON.stringify(dashConfig()));
+        cfg[kind] = { ...(cfg[kind] || {}), order: list };
+        S.dashboardConfig = cfg; dataStore.saveDashboardConfig(cfg);
+        render();
+        break;
+      }
+      case "dash-order-reset": {
+        if (!S.isAdmin) break;
+        const kind = ds.kind;
+        const cfg = JSON.parse(JSON.stringify(dashConfig()));
+        if (cfg[kind]) delete cfg[kind].order;
+        S.dashboardConfig = cfg; dataStore.saveDashboardConfig(cfg);
+        render();
+        break;
+      }
       case "dash-reset": {
         if (!S.isAdmin) break;
         S.dashboardConfig = {};
         dataStore.saveDashboardConfig({});
         addPermLog("dashboard", "all", "كل الجهات", "إظهار كل عناصر لوحة المعلومات");
         render();
+        break;
+      }
+      case "site-font-remove": {
+        S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+        const cf = (S.siteSettings.theme || {}).customFont;
+        const th2 = { ...(S.siteSettings.theme || {}) }; delete th2.customFont;
+        if (cf && th2.headingFont === cf.name) th2.headingFont = "";
+        S.siteSettings = { ...S.siteSettings, fontFamily: cf && S.siteSettings.fontFamily === cf.name ? DEFAULT_BRANDING.fontFamily : S.siteSettings.fontFamily, theme: th2 };
+        S.ui.siteSettingsSaved = false; applySiteColors(S.siteSettings); render();
+        break;
+      }
+      case "restore-five-colors": {
+        const th0 = ((S.siteSettings || dataStore.getSiteSettings()).theme) || {};
+        const keep = {}; ["periodTypes", "levelTypes", "entityIcons", "portalEnabled", "reportStyle", "reportTemplates", "archive", "customFont", "unitLetterheads"].forEach((k) => { if (k in th0) keep[k] = th0[k]; });
+        S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), ...DEFAULT_SITE_COLORS, theme: keep };
+        applySiteColors(S.siteSettings);
+        S.ui.siteSettingsSaved = false;
+        render();
+        break;
+      }
+      case "site-card-toggle": {
+        const h = btn; const key = ds.key;
+        S.ui.siteCollapsed = S.ui.siteCollapsed || {};
+        const cs = S.ui.siteCollapsed[key]; const closed = cs === undefined ? (key.indexOf("ألوان متقدمة") === 0 ? false : true) : !cs;
+        S.ui.siteCollapsed[key] = closed;
+        let n = h.nextElementSibling; while (n) { n.style.display = closed ? "none" : ""; n = n.nextElementSibling; }
+        const c = h.querySelector("[data-chev]"); if (c) c.textContent = closed ? "◂ توسيع" : "▾ تضييق";
+        break;
+      }
+      case "site-tab": {
+        S.ui.siteTab = ds.tab;
+        document.querySelectorAll("[data-st]").forEach((el) => { el.style.display = el.getAttribute("data-st") === ds.tab ? "" : "none"; });
+        document.querySelectorAll("[data-st-btn]").forEach((b) => { const on = b.getAttribute("data-st-btn") === ds.tab; b.style.borderBottomColor = on ? ROSE : "transparent"; b.style.color = on ? ROSE : "#8a7b82"; b.style.fontWeight = on ? 800 : 600; });
         break;
       }
       case "save-site-settings": {
@@ -11060,7 +11555,7 @@ function attachClickListener() {
         // نرجّع الألوان فقط — ونحفظ إعدادات غير الألوان المخزّنة بنفس المكان (الفترات، أنواع المستويات،
         // أيقونات الجهات وروابطها، بوابة الدخول، شكل التقرير النهائي)
         const th0 = ((S.siteSettings || dataStore.getSiteSettings()).theme) || {};
-        const keep = {}; ["periodTypes", "levelTypes", "entityIcons", "portalEnabled", "reportStyle", "reportTemplates"].forEach((k) => { if (k in th0) keep[k] = th0[k]; });
+        const keep = {}; ["periodTypes", "levelTypes", "entityIcons", "portalEnabled", "reportStyle", "reportTemplates", "archive", "customFont", "unitLetterheads"].forEach((k) => { if (k in th0) keep[k] = th0[k]; });
         S.siteSettings = { ...(S.siteSettings || dataStore.getSiteSettings()), theme: keep };
         applySiteColors(S.siteSettings);
         dataStore.saveSiteSettings(S.siteSettings);
@@ -12243,6 +12738,7 @@ function applySiteColors(settings) {
   root.style.setProperty("--rose-dark", settings.primary);
   root.style.setProperty("--blush-bg", settings.background);
   const th = themeOf(settings);
+  root.style.setProperty("--accent", th.accent || settings.primary);
   INK = th.ink; SUBTLE = th.subtle; BORDER = th.border; GREEN = th.green; GOLD = th.gold; DANGER = th.danger; BLUE = th.blue;
   GREEN_BG = th.green === DEFAULT_THEME.green ? DEFAULT_THEME_BG.green : mixHex(th.green, "#ffffff", 0.88);
   GOLD_BG = th.gold === DEFAULT_THEME.gold ? DEFAULT_THEME_BG.gold : mixHex(th.gold, "#ffffff", 0.88);
@@ -12256,13 +12752,23 @@ function applySiteColors(settings) {
     if (th[f.k + "Color"]) root.style.setProperty(cssName + "-color", th[f.k + "Color"]); else root.style.removeProperty(cssName + "-color");
     root.style.setProperty(cssName + "-size", (Number(th[f.k + "Size"]) || f.def) + "px");
   });
+  root.style.setProperty("--banner-veil", String(Math.max(0, Math.min(90, Number(th.bannerVeil) || 0)) / 100));
+  const pT = bannerPos(th, "t"), pS = bannerPos(th, "s"), pE = bannerPos(th, "e");
+  root.style.setProperty("--be-pos", pE + "%");
+  root.style.setProperty("--bt-pos", pT + "%");
+  root.style.setProperty("--bs-pos", pS + "%");
+  root.style.setProperty("--banner-shift", pT === 50 && pS === 50 && pE === 50 ? "-8%" : "0%");
+  root.style.setProperty("--banner-vpos", { top: "flex-start", bottom: "flex-end" }[th.bannerPos] || "center");
   ICON_OVERRIDE = th.iconColor || "";
   applyPeriodTypes(th.periodTypes);
   const veil = Math.max(0, Math.min(90, Number(th.sidebarBgVeil) || 0)) / 100;
   root.style.setProperty("--sidebar-bg-image", th.sidebarBgImage ? `linear-gradient(rgba(255,255,255,${veil}),rgba(255,255,255,${veil})), url("${String(th.sidebarBgImage).replace(/"/g, "")}")` : "none");
   const font = settings.fontFamily || DEFAULT_BRANDING.fontFamily;
+  const hfont = th.headingFont || font;
+  siteCustomFontApply(th.customFont);
+  siteFontLoad(font); siteFontLoad(hfont);
   root.style.setProperty("--font-main", `'${font}'`);
-  root.style.setProperty("--font-heading", `'${font}'`);
+  root.style.setProperty("--font-heading", `'${hfont}'`);
 }
 function afterRender() {
   applyButtonPermissions();

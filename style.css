@@ -203,13 +203,15 @@ textarea.input { resize: vertical; line-height: 1.6; }
   min-height: 190px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: var(--banner-vpos, center);
+  align-items: stretch;
 }
+.hero-banner::after { content: ""; position: absolute; inset: 0; background: rgba(255,255,255,var(--banner-veil, 0)); z-index: 1; pointer-events: none; }
 .hero-banner-bg {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; object-position: center 62%; z-index: 0;
 }
-.hero-banner-text { position: relative; z-index: 2; margin-bottom: 18px; text-align: center; transform: translateX(-8%); }
+.hero-banner-text { position: relative; z-index: 2; margin-bottom: 18px; text-align: center; transform: translateX(var(--banner-shift, -8%)); }
 .hero-banner-eyebrow { font-size: 14px; font-weight: 600; color: #000; }
 .hero-banner-title { font-size: var(--banner-title-size, 27px); font-weight: 900; color: var(--banner-title-color, #6b2337); margin: 4px 0 8px; }
 .hero-banner-sub { font-size: var(--banner-sub-size, 13px); color: var(--banner-sub-color, #000); margin-bottom: 0; }
@@ -317,7 +319,7 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .rpt-spine { position: absolute; top: 0; bottom: 0; right: 0; width: 5mm; background: var(--rpt-burgundy); }
 
 /* ---- تنسيق الصفحة من «إدارة التقارير»: خلفية، علامة مائية، إطار، رأس وتذييل ---- */
-.rpt-bgimg .a4-page { background-image: var(--rpt-bg-img); background-size: cover; background-position: center; background-repeat: no-repeat; }
+.rpt-bgimg .a4-page { background-image: var(--rpt-bg-img); background-size: 100% 100%; background-position: center; background-repeat: no-repeat; }
 .rpt-frame .a4-page { outline: 1.5px solid var(--rpt-burgundy); outline-offset: -5mm; }
 .rpt-wm { position: absolute; inset: 0; background-repeat: no-repeat; background-position: center; background-size: 45%; opacity: 0.06; pointer-events: none; z-index: 0; }
 .rpt-runhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10.5px; color: var(--rpt-gray); border-bottom: 2px solid var(--rpt-burgundy); padding-bottom: 6px; margin-bottom: 14px; position: relative; }
@@ -493,3 +495,48 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .arc-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .arc-tip { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--subtle, #7b6f72); line-height: 1.7; }
 @media (max-width: 860px) { .arc-layout { grid-template-columns: 1fr; } .arc-side { order: -1; } }
+
+/* عرض أفقي: آيباد/حاسب */
+@media (min-width: 1100px) {
+  .page-inner { max-width: 1280px; }
+  .page-inner.narrow { max-width: 900px; }
+  .page-inner.dash-wide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  .page-inner.dash-wide > * { margin-top: 0 !important; margin-bottom: 0 !important; min-width: 0; }
+  .page-inner.dash-wide > .topbar, .page-inner.dash-wide > .hero-banner, .page-inner.dash-wide > .stat-grid, .page-inner.dash-wide > .dash-recent-grid { grid-column: 1 / -1; }
+  .page-inner.dash-wide .table-wrap { overflow-x: auto; }
+}
+@media (min-width: 1500px) {
+  .page-inner { max-width: 1500px; }
+  .page-inner.dash-wide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.input:focus, input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent, var(--rose)); outline-offset: 1px; }
+
+/* ترتيب عناصر لوحة المعلومات: الحاوية عمود مرن، وكل عنصر له order */
+.page-inner.dash-wide { display: flex; flex-direction: column; }
+.dash-blk { min-width: 0; }
+@media (min-width: 1100px) {
+  .page-inner.dash-wide { display: grid; }
+  .page-inner.dash-wide > .dash-blk > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+  .page-inner.dash-wide > .dash-blk:has(> .hero-banner, > .stat-grid, > .search-bar, > .card[style*="flex-wrap"]), .page-inner.dash-wide > .dash-blk[data-dk="periodFilter"], .page-inner.dash-wide > .dash-blk[data-dk="exKpis"], .page-inner.dash-wide > .dash-blk[data-dk="exHeat"], .page-inner.dash-wide > .dash-blk[data-dk="opsCounts"], .page-inner.dash-wide > .dash-blk[data-dk="exStats"], .page-inner.dash-wide > .dash-blk[data-dk="recent"] { grid-column: 1 / -1; }
+  .page-inner.dash-wide > nav.card { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1100px) {
+  .page-inner.dash-wide { align-items: stretch; }
+  .page-inner.dash-wide > .dash-blk > .card { height: 100%; box-sizing: border-box; }
+  .page-inner.dash-wide > .dash-blk[data-dk="opsSetup"], .page-inner.dash-wide > .dash-blk[data-dk="indicators"], .page-inner.dash-wide > .dash-blk[data-dk="goals"],
+  .page-inner.dash-wide > .dash-blk[data-dk="indMatrix"], .page-inner.dash-wide > .dash-blk[data-dk="goalMatrix"], .page-inner.dash-wide > .dash-blk[data-dk="programs"],
+  .page-inner.dash-wide > .dash-blk[data-dk="exCompare"], .page-inner.dash-wide > .dash-blk[data-dk="exUnitPerf"], .page-inner.dash-wide > .dash-blk[data-dk="bars"] { grid-column: 1 / -1; }
+}
+.hero-banner .search-bar { align-self: stretch; position: relative; z-index: 2; }
+
+.rpt-runhead-img { margin-bottom: 4mm; }
+.rpt-runhead-img img { display: block; width: 100%; max-height: 30mm; object-fit: contain; }
+.rpt-runfoot-img { position: absolute; bottom: 14mm; left: var(--rpt-ml, 15mm); right: var(--rpt-mr, 15mm); }
+.rpt-runfoot-img img { display: block; width: 100%; max-height: 20mm; object-fit: contain; }
+
+.hero-banner-eyebrow, .hero-banner-title, .hero-banner-sub { width: fit-content; max-width: 100%; position: relative; text-align: center; }
+.hero-banner-eyebrow { right: var(--be-pos, 50%); transform: translateX(var(--be-pos, 50%)); }
+.hero-banner-title { right: var(--bt-pos, 50%); transform: translateX(var(--bt-pos, 50%)); }
+.hero-banner-sub { right: var(--bs-pos, 50%); transform: translateX(var(--bs-pos, 50%)); }
