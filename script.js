@@ -3430,11 +3430,18 @@ function dashUnitStats(series, u) {
 }
 function dashUnitsCmpHtml(kind, series) {
   if (dashHidden(kind, "unitsCmp") || series.units.length < 2) return "";
-  const rows = series.units.map((u) => dashUnitStats(series, u)).sort((a, b) => (a.ind == null ? 999 : a.ind) - (b.ind == null ? 999 : b.ind));
+  const byInd = (a, b) => (a.ind == null ? 999 : a.ind) - (b.ind == null ? 999 : b.ind);
+  const rows = series.units.map((u) => dashUnitStats(series, u)).sort(byInd);
+  const deptOf = (x) => (S.departments || []).find((d) => d.id === x.unit.departmentId);
+  const grouped = new Set(rows.map((x) => x.unit.departmentId || "")).size > 1; // تجميع هرمي: القسم ثم وحداته
+  if (grouped) rows.sort((a, b) => { const da = deptOf(a), db = deptOf(b); const ka = da ? da.name : "￿", kb = db ? db.name : "￿"; return ka === kb ? byInd(a, b) : ka < kb ? -1 : 1; });
+  let lastDept = null;
   return dashCard("مقارنة الوحدات", "آخر تقرير لكل وحدة في الفترة المختارة · مرتّبة من الأقل تحققًا",
     `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:620px;"><thead><tr style="background:${GRAY_BG}"><th>الوحدة</th><th style="text-align:center">الفترة</th><th style="text-align:center">تحقق المؤشرات</th><th style="text-align:center">تحقق الأهداف</th><th style="text-align:center">إنجاز الأعمال</th><th style="text-align:center">صعوبات قائمة</th><th style="text-align:center">حالة التقرير</th></tr></thead><tbody>${rows.map((x) => {
       const m = x.latest ? reportStatusMeta(x.latest.report.status) : null;
-      return `<tr><td style="font-weight:700">${esc(x.unit.name)}</td><td style="text-align:center;color:${SUBTLE};white-space:nowrap">${x.latest ? esc(x.latest.col.label) : "—"}</td><td style="text-align:center">${dashPctCell(x.ind)}</td><td style="text-align:center">${dashPctCell(x.goal)}</td><td style="text-align:center">${x.works == null ? "—" : x.works + "٪"}</td><td style="text-align:center">${x.latest ? x.openCh : "—"}</td><td style="text-align:center">${m ? badgeHtml(m.label, m.color, m.bg) : `<span style="color:${SUBTLE}">لم يرفع</span>`}</td></tr>`;
+      const dn = grouped ? (deptOf(x) ? deptOf(x).name : "بدون قسم") : null;
+      const gh = grouped && dn !== lastDept ? (lastDept = dn, `<tr><td colspan="9" style="background:${GRAY_BG};font-weight:800;color:${ROSE};padding:8px 10px;">${esc(dn)}</td></tr>`) : "";
+      return gh + `<tr><td style="font-weight:700">${esc(x.unit.name)}</td><td style="text-align:center;color:${SUBTLE};white-space:nowrap">${x.latest ? esc(x.latest.col.label) : "—"}</td><td style="text-align:center">${dashPctCell(x.ind)}</td><td style="text-align:center">${dashPctCell(x.goal)}</td><td style="text-align:center">${x.works == null ? "—" : x.works + "٪"}</td><td style="text-align:center">${x.latest ? x.openCh : "—"}</td><td style="text-align:center">${m ? badgeHtml(m.label, m.color, m.bg) : `<span style="color:${SUBTLE}">لم يرفع</span>`}</td></tr>`;
     }).join("")}</tbody></table></div>`);
 }
 // الأجزاء المشتركة الجديدة بالترتيب (لوحة الوحدة/القسم/المكتب)
