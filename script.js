@@ -6376,14 +6376,14 @@ function rptLevelTableHtml(d, defs) {
   const list = rptOrdered(defs, d);
   const head = `<tr><th style="text-align:right;padding:6px 8px;">الفصل</th>${RPT_LEVELS.map(([, l]) => `<th style="padding:6px 6px;font-size:11px;">${esc(l)}</th>`).join("")}</tr>`;
   const rows = list.map((c) => `<tr style="border-top:1px solid ${BORDER};"><td style="padding:6px 8px;font-size:12.5px;">${esc(rptChapterTitle(c, d))}</td>${RPT_LEVELS.map(([k]) => { const off = ((d.levelHidden || {})[k] || []).includes(c.key); return `<td style="text-align:center;"><button type="button" class="rm-pill${off ? "" : " on"}" data-action="rm-lvl" data-lvl="${k}" data-key="${esc(c.key)}" aria-pressed="${!off}" style="min-width:34px;padding:2px 8px;">${off ? "—" : "✓"}</button></td>`; }).join("")}</tr>`).join("");
-  return rmFieldHtml("ما يظهر لكل حساب", `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">${head}${rows}</table></div>`, "✓ = الفصل يظهر لهذا الحساب في العرض وPDF، و«—» = مخفي عنه. مديرة النظام ترى كل الفصول دائمًا. لا يغيّر شيئًا في التعبئة.");
+  return rmFieldHtml("ما يظهر لكل حساب", `<div class="rm-soft" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">${head}${rows}</table></div>`, "✓ = الفصل يظهر لهذا الحساب في العرض وPDF، و«—» = مخفي عنه. مديرة النظام ترى كل الفصول دائمًا. لا يغيّر شيئًا في التعبئة.");
 }
 function rptExclHtml(d) {
   const ex = d.excl || { units: [], depts: [] };
   const depts = (S.departments || []).filter((x) => x.status === "active");
   const units = (S.units || []).filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive");
-  const chip = (kind, id, name, off) => `<button type="button" class="rm-pill${off ? "" : " on"}" data-action="rm-excl" data-kind="${kind}" data-id="${esc(id)}" aria-pressed="${!off}" style="margin:2px;">${off ? "مستبعد: " : ""}${esc(name)}</button>`;
-  return rmFieldHtml("الأقسام والوحدات داخل التقرير", `<div class="rm-hint" style="margin-bottom:6px;font-weight:800;">الأقسام</div><div class="rm-pills">${depts.map((x) => chip("depts", x.id, x.name, ex.depts.includes(x.id))).join("") || "—"}</div><div class="rm-hint" style="margin:10px 0 6px;font-weight:800;">الوحدات</div><div class="rm-pills">${units.map((u) => chip("units", u.id, u.name, ex.units.includes(u.id))).join("") || "—"}</div>`, "المستبعد لا يظهر في هذا التقرير الشامل، ويبقى تقريره عند صاحبه كما هو.");
+  const chip = (kind, id, name, off) => `<button type="button" class="rm-pill${off ? "" : " on"}" data-action="rm-excl" data-kind="${kind}" data-id="${esc(id)}" aria-pressed="${!off}" style="margin:2px;">${esc(name)}</button>`;
+  return rmFieldHtml("الأقسام والوحدات داخل التقرير", `<div class="rm-hint" style="margin-bottom:6px;font-weight:800;">الأقسام</div><div class="rm-pills rm-soft">${depts.map((x) => chip("depts", x.id, x.name, ex.depts.includes(x.id))).join("") || "—"}</div><div class="rm-hint" style="margin:10px 0 6px;font-weight:800;">الوحدات</div><div class="rm-pills rm-soft">${units.map((u) => chip("units", u.id, u.name, ex.units.includes(u.id))).join("") || "—"}</div>`, "المستبعد لا يظهر في هذا التقرير الشامل، ويبقى تقريره عند صاحبه كما هو.");
 }
 function rmPanelHtml(st) {
   const d = st.draft, sel = st.sel, tab = st.tab;
@@ -6543,7 +6543,7 @@ function renderReportsManage() {
   const selName = (items.find((x) => x.id === st.sel) || {}).name || "";
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "تنسيق وإنشاء التقارير", subtitle: "شكل كل تقرير وإنشاء تقارير مجمّعة جديدة — المعاينة ببيانات وهمية، بدون الاطلاع على أي تقرير حقيقي" })}
+    ${topBarHtml({ title: "تصميم وتنسيق التقارير", subtitle: "شكل كل تقرير وما يظهر فيه · المعاينة ببيانات وهمية" })}
     <div class="rm-layout">
       <div class="rm-selectbar">
         <label class="rm-label" for="rm-sel" style="margin:0;">التقرير</label>

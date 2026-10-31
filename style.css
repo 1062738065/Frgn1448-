@@ -564,3 +564,8 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .st-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:14px}
 .st-tile{font-size:12.5px;padding:10px 6px;border:1px solid #e6d9dd;border-radius:14px;background:#fff;cursor:pointer;color:#2e2430}
 .st-tile.on{border-color:var(--primary,#6a1b25);background:#fbf1f2;color:var(--primary,#6a1b25);font-weight:800}
+/* s23: أزرار خفيفة مثل التصميم (أخضر فاتح للظاهر، رمادي مشطوب للمخفي) */
+.rm-soft .rm-pill{background:#f4f1f1;border:1px solid transparent;color:#a89aa0;text-decoration:line-through;font-weight:600}
+.rm-soft .rm-pill.on{background:#e3f0e7;color:#2e7a4e;text-decoration:none;border-color:transparent}
+.rm-soft table .rm-pill{min-width:0;width:34px;height:30px;padding:0;border-radius:9px}
+.rm-soft table th{background:#fbeeee;color:#7b2d3b}
