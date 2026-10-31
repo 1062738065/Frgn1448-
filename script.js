@@ -3158,6 +3158,8 @@ const DASH_ADMIN_BLOCKS = [
   { key: "opsKpis", label: "بطاقات: متأخرة، عالقة، معادة، نسبة الالتزام" },
   { key: "opsDeptCompliance", label: "الالتزام لكل قسم" },
   { key: "opsHealth", label: "سلامة النظام" },
+  { key: "opsSections", label: "أقسام التقرير (تشغيل وإطفاء)" },
+  { key: "opsAggReports", label: "إدارة التقارير المجمّعة" },
   { key: "opsStuck", label: "تقارير واقفة في المسار" },
   { key: "opsMissing", label: "ما رفعت تقرير الفترة الحالية" },
   { key: "opsReturned", label: "تقارير معادة ما انعدّلت" },
@@ -3686,7 +3688,21 @@ function opsBlocksInner(kind, units) {
     const row = (n, label, view, bad) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><span style="width:10px;height:10px;border-radius:50%;background:${n ? (bad ? DANGER : GOLD) : GREEN};flex:none;"></span><div style="flex:1;font-size:13px;"><b>${n}</b> ${esc(label)}</div>${n ? `<button type="button" class="pill-btn pill-soft" data-action="nav-to" data-view="${view}">فتح</button>` : `<span style="font-size:11.5px;color:${GREEN};">سليم</span>`}</div>`;
     healthH = dashCard("سلامة النظام", "كل بند يفتح صفحة إصلاحه — لا تُعرض أي أرقام سرية", row(noPin, "أشخاص بلا رقم سري", "units-manage", true) + row(off, "أشخاص موقوفون", "units-manage", false) + row(noPath, "وحدات بلا مسار اعتماد فعّال", "units-manage", true) + row(noDept, "وحدات غير مربوطة بقسم", "units-manage", false));
   }
-  html += dashB(kind, "opsHealth", healthH) + dashB(kind, "opsKpis", kpiH) + dashB(kind, "opsDeptCompliance", deptH) + dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
+  let secH = "", aggH = "";
+  if (!dashHidden(kind, "opsSections")) {
+    const defs = sortedSectionDefs();
+    const off = defs.filter((d) => d.enabled === false).length;
+    secH = dashCard("أقسام التقرير", `المفعّل يظهر في كل التقارير، والمطفأ يختفي ويرجع بالتفعيل · ${defs.length - off} مفعّل · ${off} مطفأ`,
+      defs.map((d) => { const on = d.enabled !== false; return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><span style="width:10px;height:10px;border-radius:50%;background:${on ? GREEN : SUBTLE};flex:none;"></span><div style="flex:1;font-size:13px;font-weight:700;${on ? "" : `color:${SUBTLE};text-decoration:line-through;`}">${esc(d.name || d.label || d.id)}</div><button type="button" class="pill-btn pill-soft" data-action="toggle-report-section" data-id="${esc(d.id)}">${on ? "إطفاء" : "تفعيل"}</button></div>`; }).join("")
+      + `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="pill-btn pill-ghost" data-action="nav-to" data-view="sections-manage">فتح إدارة أقسام التقرير</button></div>`);
+  }
+  if (!dashHidden(kind, "opsAggReports")) {
+    const list = (rptStore().custom || []);
+    aggH = dashCard("إدارة التقارير المجمّعة", "التقارير التي أنشأتِها من «تصميم وتنسيق التقارير»",
+      (list.length ? list.map((c) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><div style="flex:1;font-size:13px;font-weight:700;">${esc(c.name || "تقرير مجمّع")}</div></div>`).join("") : `<div class="hint">لا توجد تقارير مجمّعة بعد.</div>`)
+      + `<div style="margin-top:10px;"><button type="button" class="pill-btn pill-ghost" data-action="nav-to" data-view="reports-manage">فتح تصميم وتنسيق التقارير</button></div>`);
+  }
+  html += dashB(kind, "opsHealth", healthH) + dashB(kind, "opsSections", secH) + dashB(kind, "opsAggReports", aggH) + dashB(kind, "opsKpis", kpiH) + dashB(kind, "opsDeptCompliance", deptH) + dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
   return html;
 }
 
@@ -5955,7 +5971,7 @@ function rptWrap(s, inner, isPreview) {
     `--rpt-th-align:${["right", "center", "left"].includes(s.thAlign) ? s.thAlign : "right"};--rpt-td-align:${["right", "center", "left"].includes(s.tdAlign) ? s.tdAlign : "right"};` +
     `--rpt-th-bg:${rptCssSafe(s.thBg)};--rpt-th-color:${rptCssSafe(s.thColor || main)};--rpt-table-fs:${Math.max(9, Math.min(16, Number(s.tableFs) || 12))}px;`;
   if (s.bgImage && RPT_DATA_IMG_RE.test(s.bgImage)) vars += `--rpt-bg-img:url("${s.bgImage}");`;
-  const cls = ["rpt-wrap", s.zebra ? "rpt-zebra" : "", s.tableBorders === "grid" ? "rpt-tgrid" : s.tableBorders === "none" ? "rpt-tnone" : "", s.frame ? "rpt-frame" : "", vars.indexOf("--rpt-bg-img") !== -1 ? "rpt-bgimg" : ""].filter(Boolean).join(" ");
+  const cls = ["rpt-wrap", s.oldLook ? "" : "rpt-v5", s.zebra ? "rpt-zebra" : "", s.tableBorders === "grid" ? "rpt-tgrid" : s.tableBorders === "none" ? "rpt-tnone" : "", s.frame ? "rpt-frame" : "", vars.indexOf("--rpt-bg-img") !== -1 ? "rpt-bgimg" : ""].filter(Boolean).join(" ");
   ensureReportFontsLoaded();
   const pageCss = (isPreview ? "" : `<style>@page{size:${w}mm ${h}mm;margin:0}</style>`) + `<style>.a4-page.rpt-hasbg{min-height:${h}mm}@media print{.a4-page.rpt-hasbg{min-height:100vh}}</style>`;
   return `${pageCss}<div class="${cls}" style="${vars}">${inner}</div>`;
@@ -6164,7 +6180,7 @@ function aggChapterBody(key, data, s) {
   if (key === "summary") {
     return `<div class="stat-grid" style="margin-bottom:14px;">
         ${statIconCardHtml("إجمالي التقارير", data.total, iconDocument(18, "var(--rpt-burgundy)"), "#f4ece4")}
-        ${statIconCardHtml("نسبة الإنجاز", data.completionPct + "٪", iconGauge("var(--rpt-burgundy)", 18), "#f4ece4")}
+        ${statIconCardHtml("نسبة الإنجاز", data.completionPct + "٪", iconGauge("var(--rpt-burgundy)", 18), "#fff")}
         ${statIconCardHtml("عدد الأقسام", data.deptCount, iconBuilding("var(--rpt-burgundy)", 18), "#f4ece4")}
         ${statIconCardHtml("عدد الوحدات", data.unitCount, iconLayers(18, "var(--rpt-burgundy)"), "#f4ece4")}
       </div>
@@ -11061,7 +11077,7 @@ function reportSummaryHtml(report, title) {
       <h2 class="rpt-chapter-title">${esc(title || "ملخص التقرير")}</h2>
     </div>
     <div class="stat-grid" style="margin-bottom:16px;">
-      ${statIconCardHtml("نسبة إنجاز التقرير", progress.percent + "٪", iconGauge("var(--rpt-burgundy)", 18), "#f4ece4")}
+      ${statIconCardHtml("نسبة إنجاز التقرير", progress.percent + "٪", iconGauge("var(--rpt-burgundy)", 18), "#fff")}
       ${statIconCardHtml("عدد المؤشرات", indicators.length, iconDocument(18, "var(--rpt-burgundy)"), "#f4ece4")}
       ${statIconCardHtml("عدد الأهداف التشغيلية", goalsFlat.length, iconLayers(18, "var(--rpt-burgundy)"), "#f4ece4")}
       ${statIconCardHtml("متوسط نسبة تحقق الأهداف", avgGoalPct + "٪", iconCheckCircle(18, "var(--rpt-burgundy)"), "#f4ece4")}
