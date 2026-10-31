@@ -3117,7 +3117,15 @@ function statIconCardHtml(label, value, iconHtml, iconBg) {
 const DASH_KINDS = [
   { id: "admin", label: "مديرة النظام" }, { id: "executive", label: "إدارة التعليم النسائي" },
   { id: "office", label: "المكتب" }, { id: "dept", label: "القسم" }, { id: "unit", label: "الوحدة" },
+  { id: "role_sec", label: "السكرتارية" }, { id: "role_asst", label: "مساعدة مديرة إدارة التعليم النسائي" },
 ];
+// يُتعرَّف على هذين الحسابين من اسم الدور (يحتوي «سكرتار» / «مساعد» مع «مدير»)
+function dashRoleKind() {
+  const n = String(S.currentEntryRoleName || "") + " " + String((S.currentUser && (S.currentUser.roleName || S.currentUser.name)) || "");
+  if (/سكرتار/.test(n)) return "role_sec";
+  if (/مساعد/.test(n) && /(مدير|إدارة)/.test(n)) return "role_asst";
+  return null;
+}
 // اللوحة العامة (مديرة النظام / المكتب / القسم / الوحدة)
 const DASH_STD_BLOCKS = [
   { key: "banner", label: "البانر والبحث" },
@@ -3182,7 +3190,7 @@ function dashConfig() { return S.dashboardConfig || (S.dashboardConfig = dataSto
 function dashHidden(kind, key) { const c = dashConfig()[kind]; return !!(c && Array.isArray(c.hidden) && c.hidden.indexOf(key) !== -1); }
 function dashMarkWrap(kind, html) { return String(html).replace(/\u0001(\w+)\u0002([\s\S]*?)\u0003/g, (m, k, h) => dashB(kind, k, h)); }
 function dashShow(kind, key, html) { return dashHidden(kind, key) ? "" : html; }
-function dashCatalog(kind) { return kind === "admin" ? DASH_ADMIN_BLOCKS : kind === "executive" ? DASH_EX_BLOCKS : DASH_STD_BLOCKS; }
+function dashCatalog(kind) { return kind === "admin" ? DASH_ADMIN_BLOCKS : (kind === "executive" || kind === "role_asst") ? DASH_EX_BLOCKS : DASH_STD_BLOCKS; }
 function dashOrderList(kind) {
   const keys = dashCatalog(kind).map((b) => b.key);
   const saved = ((dashConfig()[kind] || {}).order) || [];
@@ -3649,7 +3657,7 @@ function renderDashboard() {
   // — مستقل تمامًا عن اسم الصفحة. هذا فقط لحساب نطاق "لوحة المعلومات"
   // الموحّدة؛ الصفحات المخصّصة الأصلية (قسمي/مكتب الإشراف/لوحة معلومات
   // الوحدة) تبقى موجودة تمامًا بدون أي حذف أو تغيير.
-  if (S.isExecutive) return renderExecutiveDashboard();
+  if (S.isExecutive) return renderExecutiveDashboard(undefined, undefined, dashRoleKind() === "role_asst" ? { kind: "role_asst" } : undefined);
   const adminDeptPreview = S.isAdmin && S.ui.previewDeptId && (S.departments || []).some((d) => d.id === S.ui.previewDeptId);
   if ((S.isDepartmentUser && S.currentDepartmentId) || adminDeptPreview) {
     const dept = S.departments.find((d) => d.id === (adminDeptPreview ? S.ui.previewDeptId : S.currentDepartmentId));
@@ -3693,7 +3701,9 @@ function renderDashboard() {
   // العليا إن وصلت هنا) — نفس السلوك الكامل غير المُقيَّد تمامًا كما كان،
   // باستثناء "وحدات" التقارير الذاتية (self_report) حتى يبقى "عدد الوحدات"
   // صحيحًا ولا تُحتسب هذي التقارير كوحدات فعلية.
-  return renderDashboardBody(S.units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive"), {});
+  { const rk = !S.isAdmin ? dashRoleKind() : null;
+    if (rk === "role_asst") return renderExecutiveDashboard(undefined, undefined, { kind: "role_asst" });
+    return renderDashboardBody(S.units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive"), rk ? { kind: rk } : {}); }
 }
 
 // جسم "لوحة المعلومات" الكامل (البانر + بطاقات الإحصاءات + الرسوم البيانية +
@@ -5623,6 +5633,8 @@ function dashSettingsCardHtml() {
     ${group("لوحة مديرة النظام (متابعة التشغيل)", DASH_ADMIN_BLOCKS, ["admin"])}
     ${group("لوحة الوحدة والقسم والمكتب", DASH_STD_BLOCKS, DASH_STD_KINDS)}
     ${group("لوحة إدارة التعليم النسائي", DASH_EX_BLOCKS, DASH_EX_KINDS)}
+    ${group("لوحة السكرتارية", DASH_STD_BLOCKS, ["role_sec"])}
+    ${group("لوحة مساعدة مديرة إدارة التعليم النسائي", DASH_EX_BLOCKS, ["role_asst"])}
     </div>
     <div>${pillBtn("إظهار كل العناصر للجميع", { variant: "ghost", icon: iconX(14, INK), action: "dash-reset", disabled: !anyHidden })}</div>
     ${dashOrderCardHtml()}
@@ -6837,7 +6849,7 @@ function renderSiteSettingsInner() {
           opts.forEach((f) => siteFontLoad(f.value));
           const optHtml = (sel) => opts.map((f) => `<option value="${esc(f.value)}" style="font-family:'${esc(f.value)}';" ${sel === f.value ? "selected" : ""}>${esc(f.label)}</option>`).join("");
           return `${fieldLabel("خط النصوص (يشمل الأزرار والجداول بكل الصفحات — عدا التقرير المطبوع نفسه)")}
-        <div class="st-tiles">${opts.map((f) => `<button type="button" class="st-tile${mainF === f.value ? " on" : ""}" data-action="font-pick" data-sel="site-font-family" data-v="${esc(f.value)}" style="font-family:'${esc(f.value)}';">${esc(f.label.replace(" (خط مرفوع)", ""))}</button>`).join("")}</div>
+        <div class="st-tiles">${opts.map((f) => `<button type="button" class="st-tile${mainF === f.value ? " on" : ""}" data-action="font-pick" data-sel="site-font-family" data-v="${esc(f.value)}" style="font-family:'${esc(f.value)}';"><span style="display:block;font-size:11px;opacity:.7;font-family:inherit;">${esc(f.label.replace(" (خط مرفوع)", ""))}</span><span style="display:block;font-size:18px;margin-top:4px;">تقرير الأداء</span></button>`).join("")}</div>
         <select class="input" id="site-font-family" style="display:none;">${optHtml(mainF)}</select>
         ${fieldLabel("خط العناوين")}
         <div class="st-tiles"><button type="button" class="st-tile${headF ? "" : " on"}" data-action="font-pick" data-sel="site-heading-font" data-v="">نفس خط النصوص</button>${opts.map((f) => `<button type="button" class="st-tile${headF === f.value ? " on" : ""}" data-action="font-pick" data-sel="site-heading-font" data-v="${esc(f.value)}" style="font-family:'${esc(f.value)}';">${esc(f.label.replace(" (خط مرفوع)", ""))}</button>`).join("")}</div>
