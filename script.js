@@ -3888,7 +3888,7 @@ function renderDashboardBody(activeUnits, opts) {
     ${dashBlock(dkind, "banner", `<div class="hero-banner">
       <img class="hero-banner-bg" src="${esc(siteBannerSrc(site))}" alt="" />
       <div class="hero-banner-text">
-        <div class="hero-banner-eyebrow">مرحبًا بك في</div>
+        <div class="hero-banner-eyebrow">${esc(rptEyebrow(typeof site !== "undefined" ? site : S.siteSettings))}</div>
         <div class="prs-title hero-banner-title">${esc(site.bannerTitle || "منصة التقارير")}</div>
         <div class="hero-banner-sub">${esc(site.bannerSub || "نحو تقارير أكثر دقة وتنظيمًا")}</div>
       </div>
@@ -4034,7 +4034,7 @@ function renderUnitDashboard() {
     ${dashBlock("unit", "banner", `<div class="hero-banner">
       <img class="hero-banner-bg" src="${esc(siteBannerSrc(site))}" alt="" />
       <div class="hero-banner-text">
-        <div class="hero-banner-eyebrow">مرحبًا بك في</div>
+        <div class="hero-banner-eyebrow">${esc(rptEyebrow(typeof site !== "undefined" ? site : S.siteSettings))}</div>
         <div class="prs-title hero-banner-title">${esc(site.bannerTitle || "منصة التقارير")}</div>
         <div class="hero-banner-sub">${esc(site.bannerSub || "نحو تقارير أكثر دقة وتنظيمًا")}</div>
       </div>
@@ -4446,6 +4446,7 @@ function levelTypesList() {
 }
 // patch: كائن، أو دالة (theme) => كائن. الدالة تُطبَّق محليًا فورًا، ثم على آخر نسخة في القاعدة وقت الكتابة —
 // فتعديل جهاز ما يمسح تعديل جهاز ثاني على مفاتيح ثانية (أو على عناصر ثانية داخل نفس المفتاح).
+function rptEyebrow(st) { const v = st && st.theme && st.theme.bannerEyebrow; return v == null ? "مرحبًا بك في" : v; }
 function saveSiteTheme(patch) {
   const mk = (th) => (typeof patch === "function" ? patch(th || {}) : patch);
   S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
@@ -6978,6 +6979,10 @@ function renderSiteSettingsInner() {
         ${textInput("site-banner-title", current.bannerTitle, DEFAULT_BRANDING.bannerTitle)}
       </div>
       <div style="margin-bottom:14px;">
+        ${fieldLabel("الجملة الصغيرة فوق العنوان (اتركيها فارغة لإخفائها)")}
+        ${textInput("site-banner-eyebrow", rptEyebrow(current), "مرحبًا بك في")}
+      </div>
+      <div style="margin-bottom:14px;">
         ${fieldLabel("وصف البانر")}
         ${textInput("site-banner-sub", current.bannerSub, DEFAULT_BRANDING.bannerSub)}
       </div>
@@ -6989,11 +6994,12 @@ function renderSiteSettingsInner() {
         ${(() => { const row = (label, id, key, val) => `<div style="margin-bottom:14px;">${fieldLabel(label)}<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;color:${SUBTLE};">يمين</span><input type="range" id="${id}" min="0" max="100" step="1" value="${val}" style="flex:1;" /><span style="font-size:12px;color:${SUBTLE};">يسار</span><span id="${id}-label" style="font-size:12px;color:${SUBTLE};font-family:monospace;min-width:40px;">${val}%</span></div><div style="display:flex;gap:6px;margin-top:6px;">${[[0, "يمين"], [50, "وسط"], [100, "يسار"]].map(([v, l]) => `<button type="button" data-action="site-banner-set" data-key="${key}" data-val="${v}" style="font-family:inherit;min-height:34px;padding:0 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;border:1px solid ${BORDER};background:#fff;color:${INK};">${l}</button>`).join("")}</div></div>`; return row("مكان «مرحبًا بك في»", "site-banner-epos", "bannerEyebrowPos", bannerPos(theme, "e")) + row("مكان العنوان: اسحبي المؤشر للمكان اللي تبينه", "site-banner-tpos", "bannerTitlePos", bannerPos(theme, "t")) + row("مكان الوصف", "site-banner-spos", "bannerSubPos", bannerPos(theme, "s")); })()}
         <div style="margin-bottom:14px;">${fieldLabel("موضع النص")}<div style="display:flex;gap:6px;flex-wrap:wrap;">${pill("bannerPos", "top", "أعلى", ps)}${pill("bannerPos", "center", "وسط", ps)}${pill("bannerPos", "bottom", "أسفل", ps)}</div></div>
         <div class="hint" style="margin-bottom:8px;">معاينة (تنطبق الإعدادات هذه على كل صفحة فيها بانر: لوحة المعلومات، ولوحة الوحدة، و«تقارير»):</div>
-        <div class="hero-banner" style="min-height:130px;margin-bottom:0;"><img class="hero-banner-bg" src="${esc(siteBannerSrc(current))}" alt="" /><div class="hero-banner-text"><div class="hero-banner-eyebrow">مرحبًا بك في</div><div class="prs-title hero-banner-title">${esc(current.bannerTitle || DEFAULT_BRANDING.bannerTitle || "منصة التقارير")}</div><div class="hero-banner-sub">${esc(current.bannerSub || DEFAULT_BRANDING.bannerSub || "")}</div></div></div>`;
+        <div class="hero-banner" style="min-height:130px;margin-bottom:0;"><img class="hero-banner-bg" src="${esc(siteBannerSrc(current))}" alt="" /><div class="hero-banner-text"><div class="hero-banner-eyebrow">${esc(rptEyebrow(current))}</div><div class="prs-title hero-banner-title">${esc(current.bannerTitle || DEFAULT_BRANDING.bannerTitle || "منصة التقارير")}</div><div class="hero-banner-sub">${esc(current.bannerSub || DEFAULT_BRANDING.bannerSub || "")}</div></div></div>`;
       })()}
     </div>
 
     <div class="card" data-st="brand" style="${stH("brand")}margin-bottom:16px;">
+      <div class="st-mini" aria-hidden="true"><b id="st-mini-name">${esc(current.platformName || DEFAULT_BRANDING.platformName)}</b><i></i><i></i><i></i><span id="st-mini-tag">${esc(current.sidebarTagline != null ? current.sidebarTagline : DEFAULT_BRANDING.sidebarTagline)}</span></div>
       <div class="subhead" style="margin-top:0;">الشريط الجانبي</div>
       <div style="margin-bottom:14px;">
         ${fieldLabel("اسم المنصة (يظهر بعنوان الشريط الجانبي)")}
@@ -11481,11 +11487,18 @@ function attachFormListeners() {
       if (sizeLabel) sizeLabel.textContent = `${S.siteSettings.logoSize}px`;
       return;
     }
+    if (el.id === "site-banner-eyebrow") {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), bannerEyebrow: el.value } };
+      S.ui.siteSettingsSaved = false;
+      return;
+    }
     if (el.id === "site-platform-name" || el.id === "site-banner-title" || el.id === "site-banner-sub" || el.id === "site-sidebar-tagline") {
       const fieldMap = { "site-platform-name": "platformName", "site-banner-title": "bannerTitle", "site-banner-sub": "bannerSub", "site-sidebar-tagline": "sidebarTagline" };
       S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
       S.siteSettings = { ...S.siteSettings, [fieldMap[el.id]]: el.value };
       S.ui.siteSettingsSaved = false;
+      { const mn = document.getElementById("st-mini-name"), mt = document.getElementById("st-mini-tag"); if (el.id === "site-platform-name" && mn) mn.textContent = el.value; if (el.id === "site-sidebar-tagline" && mt) mt.textContent = el.value; }
       return;
     }
     if (el.id === "login-password") { S.ui.loginPasswordVal = el.value; return; }
@@ -11503,6 +11516,11 @@ function attachFormListeners() {
 
   appEl.addEventListener("change", (e) => {
     const el = e.target;
+    if (["site-platform-name", "site-banner-title", "site-banner-sub", "site-banner-eyebrow", "site-sidebar-tagline"].includes(el.id)) {
+      S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
+      dataStore.saveSiteSettings(S.siteSettings); S.ui.siteSettingsSaved = true; try { applySiteColors(S.siteSettings); } catch (e2) { /* تجاهل */ }
+      return;
+    }
     if (el.id === "rm-sel") {
       const b = document.createElement("button"); b.type = "button"; b.style.display = "none";
       if (el.value === "__new") b.dataset.action = "rm-new"; else { b.dataset.action = "rm-select"; b.dataset.id = el.value; }
