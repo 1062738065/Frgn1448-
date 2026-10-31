@@ -11076,6 +11076,7 @@ function reportSummaryHtml(report, title) {
       <div class="rpt-chapter-icon">${iconSparkles(18, "#fff")}</div>
       <h2 class="rpt-chapter-title">${esc(title || "ملخص التقرير")}</h2>
     </div>
+    ${rptChSubHtml("summary")}
     <div class="stat-grid" style="margin-bottom:16px;">
       ${statIconCardHtml("نسبة إنجاز التقرير", progress.percent + "٪", iconGauge("var(--rpt-burgundy)", 18), "#fff")}
       ${statIconCardHtml("عدد المؤشرات", indicators.length, iconDocument(18, "var(--rpt-burgundy)"), "#f4ece4")}
@@ -11091,6 +11092,8 @@ function reportSummaryHtml(report, title) {
 /* يجمع أكثر من قسم تحت عنوان فصل واحد رسمي — إذا كان الفصل يحوي أكثر من قسم،
    يضيف عنوانًا فرعيًا لكل قسم داخله بدون تكرار شارة الحالة (لا نفقد أي معلومة،
    فقط ننظمها ضمن هيكل التقرير الرسمي المطلوب). */
+const RPT_CH_SUB = { basic: "بيانات التقرير وجهة الإعداد", goals: "ما تسعى الوحدة لتحقيقه خلال الفترة", kpi: "قياس الأداء مقابل المستهدف", programs: "ما تم تنفيذه خلال الفترة", tools: "الأدوات المستخدمة في القياس", analysis: "قراءة النتائج وما وراءها", strengths: "ما تميّز به الأداء", challenges: "ما واجه العمل وأثره", improvement: "ما يمكن تطويره", initiatives: "مبادرات وممارسات نوعية", impact: "الأثر المتحقق وقصص النجاح", recommendations: "ما نوصي به للفترة القادمة", nextplan: "توجّهات الفترة القادمة", evidence: "الشواهد المؤيدة للتقرير", review: "المراجعة والاعتماد", summary: "نظرة عامة على أداء الفترة", approval: "الخلاصة والاعتماد" };
+function rptChSubHtml(key) { return RPT_CH_SUB[key] ? `<div class="rpt-chapter-sub">${esc(RPT_CH_SUB[key])}</div>` : ""; }
 function reportChapterHtml(iconFn, title, sectionIds, report, extraTop) {
   const sections = sectionIds.map((sid) => SECTIONS.find((x) => x.id === sid)).filter(Boolean);
   const showSubheadings = sections.length > 1;
@@ -11106,6 +11109,7 @@ function reportChapterHtml(iconFn, title, sectionIds, report, extraTop) {
         <div class="rpt-chapter-icon">${iconFn(16, "#fff")}</div>
         <h2 class="rpt-chapter-title">${esc(title)}</h2>
       </div>
+      ${sections.length === 1 ? rptChSubHtml(sections[0].id) : ""}
       <div class="rpt-chapter-body">${extraTop || ""}${parts}</div>
     </section>`;
 }
@@ -11157,6 +11161,7 @@ function reportApprovalHtml(report, title, boxes, extra) {
         <div class="rpt-chapter-icon">${iconCheckCircle(16, "#fff")}</div>
         <h2 class="rpt-chapter-title">${esc(title || "الإغلاق والاعتماد")}</h2>
       </div>
+      ${rptChSubHtml("approval")}
       <div class="rpt-chapter-body">
         ${textBlock("الخلاصة النهائية", (report.sections?.review?.data || {}).content)}
         ${rptApprovalGridHtml(boxes || RPT_UNIT_APPROVAL, { "{المعدة}": d.preparerName || "—", "{الرئيسة}": d.managerName || "—" })}
