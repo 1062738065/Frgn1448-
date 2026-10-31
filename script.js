@@ -6753,31 +6753,36 @@ function renderSiteSettingsInner() {
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "إعدادات الموقع", subtitle: "تخصيص هوية الموقع — الألوان، الشعار، البانر، والعبارات. التغيير يظهر فورًا هنا، ولازم الضغط على \"حفظ\" ليصير دائمًا" })}
 
-    ${(() => { const T = [["look", "المظهر"], ["brand", "الشعار والشريط"], ["dash", "لوحة المعلومات"], ["page", "قالب الصفحة"], ["report", "خيارات التقرير"], ["archive", "الأرشفة وDrive"]]; return `<div style="display:flex;flex-wrap:wrap;border-bottom:1px solid ${BORDER};margin-bottom:16px;">${T.map(([id, l]) => `<button type="button" data-action="site-tab" data-tab="${id}" data-st-btn="${id}" style="font-family:inherit;font-size:14px;cursor:pointer;padding:10px 4px;margin-inline-end:18px;background:none;border:none;border-bottom:2.5px solid ${stTab === id ? ROSE : "transparent"};margin-bottom:-1px;font-weight:${stTab === id ? 800 : 600};color:${stTab === id ? ROSE : "#8a7b82"};">${l}</button>`).join("")}</div>`; })()}
+    ${(() => { const T = [["look", "المظهر"], ["brand", "الشعار والشريط"], ["dash", "لوحة المعلومات"], ["page", "قالب الصفحة"], ["report", "خيارات التقرير"], ["archive", "الأرشفة وDrive"]]; return `<div class="st-tabs">${T.map(([id, l]) => `<button type="button" class="st-tab${stTab === id ? " on" : ""}" data-action="site-tab" data-tab="${id}" data-st-btn="${id}">${l}</button>`).join("")}</div>`; })()}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;align-items:start;">
-    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
-      <div class="subhead" style="margin-top:0;">الألوان الخمسة</div>
-      <div class="hint" style="margin-bottom:12px;">خمسة ألوان فقط تتحكم بكل الموقع، والباقي يُشتق منها. ألوان الحالة (أخضر، ذهبي، أحمر) منفصلة لأن لكل منها معنى، وتجدينها في «ألوان متقدمة».</div>
-      ${FIVE_COLORS.map((f) => { const v = fiveColorValue(f.k, current, theme); return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-        <input type="color" id="site-c5-${f.k}" value="${esc(v)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
-        <input type="text" class="input" id="site-c5-${f.k}-hex" value="${esc(v)}" maxlength="7" dir="ltr" style="width:100px;font-family:monospace;" aria-label="رمز اللون" />
-        <div style="flex:1 1 160px;min-width:0;"><div style="font-size:13px;font-weight:800;">${f.label}</div><div style="font-size:11.5px;color:${SUBTLE};">${f.hint}</div></div></div>`; }).join("")}
-      <div style="display:flex;gap:6px;margin:6px 0 14px;" aria-label="معاينة">${["primary", "secondary", "accent", "text", "background"].map((k) => `<span id="site-c5-prev-${k}" style="flex:1;height:26px;border-radius:8px;border:1px solid ${BORDER};background:${fiveColorValue(k, current, theme)};"></span>`).join("")}</div>
-      <div>${pillBtn("رجوع لألوان الشعار", { variant: "ghost", icon: iconX(14, INK), action: "restore-five-colors" })}</div>
-    </div>
-
-    <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
-      <div class="subhead" style="margin-top:0;">ألوان متقدمة (كل ألوان الموقع)</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px;">
-        ${THEME_COLOR_FIELDS.map((f) => `<div>${fieldLabel(f.label)}<div style="display:flex;align-items:center;gap:10px;">
-          <input type="color" id="site-x-${f.key}" value="${esc(theme[f.key])}" style="width:46px;height:36px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" />
-          <span id="site-x-${f.key}-hex" style="font-size:12px;color:${SUBTLE};font-family:monospace;">${esc(theme[f.key])}</span></div></div>`).join("")}
+    <div data-st="look" style="${stH("look")}grid-column:1/-1;">
+      <div class="hint" style="margin-bottom:10px;">اضغطي على المربع الملوّن لتغيير اللون، أو اكتبي الرمز. التغيير يظهر فورًا ولازم «حفظ».</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;">
+        ${(() => {
+          const row = (id, label, hint, v, c5) => `<div class="st-row"><label class="st-sw"><input type="color" id="${id}" value="${esc(v)}" /></label><div class="st-tx"><div class="st-lb">${esc(label)}</div>${hint ? `<div class="st-hn">${esc(hint)}</div>` : ""}</div>${c5 ? `<input type="text" class="st-hex" id="${id}-hex" value="${esc(v)}" maxlength="7" dir="ltr" aria-label="رمز اللون" />` : `<span class="st-hex" id="${id}-hex" dir="ltr">${esc(v)}</span>`}</div>`;
+          const c5r = (k, label, hint) => row("site-c5-" + k, label, hint, fiveColorValue(k, current, theme) || DEFAULT_SITE_COLORS[k] || "#6a1b25", true);
+          const xr = (k, label, hint) => row("site-x-" + k, label, hint, theme[k], false);
+          const card = (t, body) => `<div class="card st-card"><div class="st-ct">${t}</div>${body}</div>`;
+          return card("ألوان الهوية", c5r("primary", "اللون الأساسي", "الأزرار والعناوين وترويسة التقارير") + c5r("secondary", "اللون الثاني", "التدرجات والأشرطة") + c5r("accent", "لون التمييز", "إطار الحقل والروابط الصغيرة"))
+          + card("ألوان الحالة", xr("green", "الأخضر", "مكتمل ونجاح") + xr("gold", "الذهبي", "قيد المراجعة") + xr("danger", "الأحمر", "تنبيه وحذف") + xr("blue", "الثانوي", "بنفسجي"))
+          + card("النصوص والحدود", c5r("text", "النصوص الأساسية", "") + xr("subtle", "النصوص الفرعية", "") + xr("border", "الحدود والخطوط", "") + c5r("background", "خلفية الصفحة", ""));
+        })()}
       </div>
-      <div class="subhead">ألوان بطاقات تصفّح الهيكل</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-        ${theme.bs.map((c, i) => `<div style="text-align:center;"><input type="color" id="site-bs-${i}" value="${esc(c)}" style="width:52px;height:40px;border:1px solid ${BORDER};border-radius:8px;cursor:pointer;padding:2px;" /><div style="font-size:10.5px;color:${SUBTLE};margin-top:4px;">اللون ${i + 1}</div></div>`).join("")}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin-top:16px;">
+        <div class="card st-card"><div class="st-ct">الشريط الجانبي</div>
+          <div class="st-row"><label class="st-sw"><input type="color" id="site-x-sidebarBg" value="${esc(theme.sidebarBg)}" /></label><div class="st-tx"><div class="st-lb">خلفية الشريط</div></div><span class="st-hex" id="site-x-sidebarBg-hex" dir="ltr">${esc(theme.sidebarBg)}</span></div>
+          <div class="st-row"><label class="st-sw"><input type="color" id="site-x-navActive" value="${esc(theme.navActive)}" /></label><div class="st-tx"><div class="st-lb">الصفحة المحددة</div><div class="st-hn">مثل «جميع تقارير الوحدة»</div></div><span class="st-hex" id="site-x-navActive-hex" dir="ltr">${esc(theme.navActive)}</span></div>
+          <div class="st-lb" style="margin:12px 0 8px;">بطاقات الهيكل (٥)</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">${theme.bs.map((c, i) => `<label class="st-sw"><input type="color" id="site-bs-${i}" value="${esc(c)}" /></label>`).join("")}</div>
+        </div>
+        <div class="card st-card"><div class="st-ct">معاينة مباشرة</div>
+          <div class="st-prev" style="background:${esc(current.primary)};color:#fff;"><div>ترويسة التقرير</div><span style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:10px;background:${esc(theme.accent || current.primary)};font-weight:800;">زر</span></div>
+          <div class="st-prev" style="background:${esc(current.background)};color:${esc(theme.ink)};border:1px solid ${esc(theme.border)};margin-top:10px;"><div>بطاقة بنص أساسي</div><div style="color:${esc(theme.subtle)};font-size:12px;">نص فرعي</div></div>
+          <div class="st-prev" style="background:${esc(theme.green)}22;color:${esc(theme.green)};margin-top:10px;">حالة: مكتمل</div>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        ${pillBtn("رجوع لألوان الشعار", { variant: "ghost", icon: iconX(14, INK), action: "restore-five-colors" })}
         ${pillBtn("استعادة الألوان المتقدمة الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-theme-defaults" })}
       </div>
     </div>
@@ -6832,9 +6837,11 @@ function renderSiteSettingsInner() {
           opts.forEach((f) => siteFontLoad(f.value));
           const optHtml = (sel) => opts.map((f) => `<option value="${esc(f.value)}" style="font-family:'${esc(f.value)}';" ${sel === f.value ? "selected" : ""}>${esc(f.label)}</option>`).join("");
           return `${fieldLabel("خط النصوص (يشمل الأزرار والجداول بكل الصفحات — عدا التقرير المطبوع نفسه)")}
-        <select class="input" id="site-font-family" style="width:100%;margin-bottom:12px;">${optHtml(mainF)}</select>
+        <div class="st-tiles">${opts.map((f) => `<button type="button" class="st-tile${mainF === f.value ? " on" : ""}" data-action="font-pick" data-sel="site-font-family" data-v="${esc(f.value)}" style="font-family:'${esc(f.value)}';">${esc(f.label.replace(" (خط مرفوع)", ""))}</button>`).join("")}</div>
+        <select class="input" id="site-font-family" style="display:none;">${optHtml(mainF)}</select>
         ${fieldLabel("خط العناوين")}
-        <select class="input" id="site-heading-font" style="width:100%;margin-bottom:12px;"><option value="" ${headF ? "" : "selected"}>نفس خط النصوص</option>${optHtml(headF)}</select>
+        <div class="st-tiles"><button type="button" class="st-tile${headF ? "" : " on"}" data-action="font-pick" data-sel="site-heading-font" data-v="">نفس خط النصوص</button>${opts.map((f) => `<button type="button" class="st-tile${headF === f.value ? " on" : ""}" data-action="font-pick" data-sel="site-heading-font" data-v="${esc(f.value)}" style="font-family:'${esc(f.value)}';">${esc(f.label.replace(" (خط مرفوع)", ""))}</button>`).join("")}</div>
+        <select class="input" id="site-heading-font" style="display:none;"><option value="" ${headF ? "" : "selected"}>نفس خط النصوص</option>${optHtml(headF)}</select>
         <div style="border:1px solid ${BORDER};border-radius:10px;padding:14px 16px;background:${GRAY_BG};font-family:'${esc(mainF)}';margin-bottom:12px;">
           <div style="font-size:18px;font-weight:800;margin-bottom:4px;font-family:'${esc(headF || mainF)}';">عنوان تجريبي — تقرير الأداء الدوري</div>
           <div style="font-size:13px;color:${SUBTLE};">هذا نص تجريبي بالخط المختار: وحدة الاختبارات — جمعية فرقان لتحفيظ القرآن الكريم ١٢٣٤٥٦٧٨٩٠</div>
@@ -8960,14 +8967,19 @@ function scopeLabel(kind, id) {
   const names = l.map((u) => ((S.units || []).find((x) => x.id === u) || {}).name).filter(Boolean);
   return names.length <= 2 ? names.join("، ") : names.length + " وحدات";
 }
-function scopeControlHtml(kind, id) {
+function scopeChipBtn(kind, id) {
+  const l = scopeOf(kind, id); const all = !l.length;
+  return `<button type="button" data-action="scope-toggle" data-kind="${kind}" data-id="${esc(id)}" style="font-family:inherit;border:none;cursor:pointer;border-radius:999px;padding:7px 16px;font-size:12.5px;font-weight:700;background:${all ? "#e4eee2" : "#f6e4e6"};color:${all ? "#3f6b4b" : "#7a2a3a"};">${esc(scopeLabel(kind, id))}</button>`;
+}
+function scopePanelHtml(kind, id) {
+  if (S.ui.scopeOpen !== kind + ":" + id) return "";
   const cur = scopeOf(kind, id);
   const units = (S.units || []).filter((u) => u.status !== "inactive");
-  return `<details style="flex-basis:100%;margin-top:4px;"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--rose);">الجهة: ${esc(scopeLabel(kind, id))}</summary>
-    <div class="hint" style="margin:6px 0;">بدون اختيار = للجميع. اختاري وحدة أو أكثر لتظهر لها فقط.</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;">${units.map((u) => `<label style="font-size:12.5px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" data-scope-kind="${kind}" data-scope-id="${esc(id)}" data-scope-unit="${esc(u.id)}" ${cur.includes(u.id) ? "checked" : ""} />${esc(u.name)}</label>`).join("")}</div>
-  </details>`;
+  return `<div style="flex-basis:100%;background:#faf6f6;border-radius:12px;padding:12px 16px;">
+    <div class="hint" style="margin:0 0 8px;">بدون اختيار = للجميع. اختاري وحدة أو أكثر لتظهر لها فقط.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 16px;">${units.map((u) => `<label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" data-scope-kind="${kind}" data-scope-id="${esc(id)}" data-scope-unit="${esc(u.id)}" ${cur.includes(u.id) ? "checked" : ""} />${esc(u.name)}</label>`).join("")}</div></div>`;
 }
+function scopeControlHtml(kind, id) { return scopePanelHtml(kind, id); }
 // يحلّل عنوان «[وحدة الجودة، وحدة التدريب]» أو «[للجميع]» إلى معرّفات وحدات
 function scopeParseHeading(txt) {
   const t = String(txt || "").trim();
@@ -8992,52 +9004,86 @@ function indImpParse(text) {
   return String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
     const hm = line.match(/^\[(.*)\]$/);
     if (hm) { const sp = scopeParseHeading(hm[1]); scope = { ...sp, label: hm[1].trim() || "للجميع" }; return { line, heading: true, errs: sp.err ? [sp.err] : [], rec: {}, scope }; }
-    const parts = line.split("|").map((x) => x.trim()); const rec = {}; const errs = []; if (scope.err) errs.push("الجهة غير صحيحة: " + scope.err);
+    const parts = line.split("|").map((x) => x.trim()); const rec = {}, errs = [], badF = {}, raws = {};
+    if (scope.err) errs.push("الجهة غير صحيحة: " + scope.err);
     IND_IMP_FIELDS.forEach((f, i) => {
-      const raw = parts[i] || "";
-      if (!raw) { if (f.required) errs.push(`«${f.label}» ناقص`); return; }
-      if (f.num) { const n = bkNum(raw); if (n === "" || isNaN(Number(n))) errs.push(`«${f.label}» لازم رقم`); else rec[f.id] = n; }
-      else if (f.opts) { const hit = f.opts.find((o) => o === raw) || f.opts.find((o) => o.includes(raw) || raw.includes(o)); if (hit) rec[f.id] = hit; else errs.push(`«${f.label}»: «${raw}» ليس من الخيارات`); }
+      const raw = parts[i] || ""; raws[f.id] = raw;
+      if (!raw) { if (f.required) { errs.push(`«${f.label}» ناقص`); badF[f.id] = true; } return; }
+      if (f.num) { const n = bkNum(raw); if (n === "" || isNaN(Number(n))) { errs.push(`«${f.label}» لازم رقم`); badF[f.id] = true; } else rec[f.id] = n; }
+      else if (f.opts) { const hit = f.opts.find((o) => o === raw) || f.opts.find((o) => o.includes(raw) || raw.includes(o)); if (hit) rec[f.id] = hit; else { errs.push(`«${f.label}»: «${raw}» ليس من الخيارات`); badF[f.id] = true; } }
       else rec[f.id] = raw;
     });
     if (parts.length > IND_IMP_FIELDS.length) errs.push("حقول زائدة عن المطلوب");
-    return { line, rec, errs, scope, isNew: !exist.includes(String(rec.name || "").trim()) };
+    return { line, rec, raws, badF, errs, scope, isNew: !exist.includes(String(rec.name || "").trim()) };
   });
 }
+function uiBadge(t, kind) {
+  const m = { green: ["#e4eee2", "#3f6b4b"], grey: ["#efeae8", "#8b7e82"], rose: ["#f6e4e6", "#7a2a3a"], gold: ["#fbefc9", "#7a5a00"] }[kind || "green"];
+  return `<span style="display:inline-block;background:${m[0]};color:${m[1]};border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:800;">${esc(t)}</span>`;
+}
+function uiCard(inner, style) { return `<div class="card" style="margin-bottom:16px;border-radius:20px;padding:22px 24px;${style || ""}">${inner}</div>`; }
+function uiSoftBtn(label, action, data, solid) {
+  const attrs = Object.entries(data || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
+  return `<button type="button" data-action="${action}" ${attrs} style="font-family:inherit;min-height:44px;padding:0 24px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:800;background:${solid ? "#f4e2e5" : "#efeae8"};color:${solid ? "#7a2a3a" : "#8b7e82"};">${esc(label)}</button>`;
+}
+const IND_IMP_EXAMPLE = "رضا المستفيدات | جودة | كلما زاد أفضل | فصلي | نسبة مئوية | 90 | استبيان\nزمن إعداد التقرير | كفاءة | كلما قل أفضل | شهري | يوم | 3 | نظام التقارير";
+function indArrow(d) { return /تصاعدي|زاد/.test(d || "") ? "↑" : /تنازلي|قل/.test(d || "") ? "↓" : d ? "↔" : "—"; }
 function indImpPanelHtml() {
   const b = S.ui.indImp; if (!b) return "";
   const pv = b.preview;
-  const order = IND_IMP_FIELDS.map((f, i) => `<span style="white-space:nowrap;">${i + 1}) ${esc(f.label)}${f.required ? " *" : ""}</span>`).join(" &nbsp;|&nbsp; ");
-  const optsHtml = `<details style="margin:10px 0 0;"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--rose);">الخيارات المسموحة</summary>${IND_IMP_FIELDS.filter((f) => f.opts).map((f) => `<div class="hint" style="margin-top:6px;"><b>${esc(f.label)}:</b> ${esc(f.opts.join(" ، "))}</div>`).join("")}</details>`;
-  const pvHtml = pv ? `<div style="margin-top:14px;">${pv.map((r, i) => r.heading ? `<div style="padding:6px 12px;margin-bottom:8px;font-size:13px;font-weight:800;color:${r.errs.length ? "#b03030" : "var(--rose)"};">الجهة: ${esc(r.line)}${r.errs.length ? " — " + esc(r.errs.join("، ")) : ""}</div>` : `<div style="padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px solid ${r.errs.length ? "#e7b4b4" : "#b9dcc4"};background:${r.errs.length ? "#fdf2f2" : "#f1faf4"};font-size:13px;line-height:1.8;"><div style="font-weight:700;">${esc(r.line.slice(0, 90))}</div>${r.errs.length ? `<div style="color:#b03030;">يحتاج تصحيح: ${esc(r.errs.join("، "))}</div>` : `<div style="color:#1f7a45;">${r.isNew ? "جديد — يُضاف" : "موجود — يُحدَّث"} · الجهة: ${esc((r.scope && r.scope.label) || "للجميع")}</div>`}</div>`).join("")}</div>` : "";
-  const ok = pv ? pv.filter((r) => !r.heading && !r.errs.length).length : 0;
-  return `<div class="card" style="margin-bottom:22px;">
-    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:8px;">إدخال المؤشرات من نص</div>
-    <div class="hint" style="margin-bottom:8px;">سطر لكل مؤشر، وافصلي الحقول بـ «|» بهذا الترتيب. الحقل الفارغ اتركيه فاضي، والأخيرة تقدرين تحذفينها. (* = مطلوب)<br>لتحديد الجهة: اكتبي سطر عنوان بين قوسين مثل <b>[وحدة الجودة]</b> أو <b>[وحدة أ، وحدة ب]</b> أو <b>[للجميع]</b>، وكل المؤشرات تحته تتبعه حتى عنوان آخر. بدون عنوان = تبقى جهتها كما هي (والجديد للجميع).</div>
-    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;line-height:2;">${order}</div>
-    ${optsHtml}
-    <textarea class="input" id="ind-imp-text" rows="6" style="margin-top:12px;font-family:inherit;line-height:1.9;min-height:140px;">${esc(b.text || "")}</textarea>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">${pillBtn("معاينة", { variant: "ghost", action: "ind-imp-preview" })}${ok ? pillBtn(`تطبيق (${ok})`, { action: "ind-imp-apply" }) : ""}${pillBtn("إغلاق", { variant: "ghost", action: "ind-imp-close" })}</div>
-    ${pvHtml}
-    <div class="hint" style="margin-top:12px;">يضيف الجديد ويحدّث الموجود (بنفس الاسم) فقط، ولا يحذف أبدًا. السطر اللي يحتاج تصحيح ما يُطبّق قبل تصحيحه.</div>
-  </div>`;
+  let table = "", warn = "", ok = 0;
+  if (pv) {
+    const rows = pv.map((r) => r.heading
+      ? `<tr><td colspan="7" style="padding:10px 14px;font-weight:800;color:${r.errs.length ? "#b04060" : "#7a2a3a"};background:#faf6f6;">الجهة: ${esc(r.line)}${r.errs.length ? " — " + esc(r.errs.join("، ")) : ""}</td></tr>`
+      : `<tr style="border-top:1px solid #efe6e6;"><td style="padding:14px;font-weight:600;">${esc(r.raws.name || "—")}</td>
+        ${["category", "direction", "frequency", "unit", "target"].map((f) => { const bad = r.badF[f]; const v = f === "direction" ? indArrow(r.rec.direction || r.raws.direction) : (r.raws[f] || "—"); return `<td style="padding:14px;text-align:center;${bad ? "color:#b04060;font-weight:800;" : ""}">${esc(f === "direction" ? v : v)}</td>`; }).join("")}
+        <td style="padding:14px;text-align:center;">${r.errs.length ? `<span style="color:#b04060;font-weight:800;">يحتاج تصحيحه</span>` : r.isNew ? uiBadge("جديد", "green") : uiBadge("موجود: يُحدَّث", "grey")}</td></tr>`).join("");
+    ok = pv.filter((r) => !r.heading && !r.errs.length).length;
+    const errs = pv.filter((r) => !r.heading && r.errs.length);
+    table = `<div style="overflow-x:auto;margin-top:6px;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><tr style="background:#f6e4e6;color:#7a2a3a;font-weight:800;">${["المؤشر", "التصنيف", "الاتجاه", "الدورية", "الوحدة", "المستهدف", "الحالة"].map((h, i) => `<th style="padding:12px 14px;${i ? "text-align:center;" : "text-align:right;"}">${h}</th>`).join("")}</tr>${rows}</table></div>`;
+    if (errs.length) warn = `<div style="margin-top:12px;background:#fbefc9;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#7a5a00;">${errs.map((r) => esc(r.errs.join("، "))).join("<br>")}. لن يُضاف السطر قبل تصحيحه.</div>`;
+  }
+  return uiCard(`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:16px;font-weight:800;">إدخال من نص</span>${uiBadge("جديد", "green")}</div>
+    <div class="hint" style="margin-bottom:12px;font-size:12.5px;">كل سطر مؤشر، والحقول بينها «|» بهذا الترتيب: الاسم | التصنيف | الاتجاه | الدورية | وحدة القياس | المستهدف | مصدر البيانات<br>للجهة: سطر عنوان بين قوسين مثل [وحدة الجودة] أو [للجميع]، وكل ما تحته يتبعه حتى عنوان آخر.</div>
+    <textarea class="input" id="ind-imp-text" rows="6" placeholder="${esc(IND_IMP_EXAMPLE)}" style="font-family:inherit;line-height:2.1;min-height:150px;border:1.5px dashed #d9cfcf;border-radius:14px;background:#fbf9f8;padding:16px;">${esc(b.text || "")}</textarea>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">${uiSoftBtn("معاينة", "ind-imp-preview")}${pv && ok ? uiSoftBtn(`إضافة ${ok} مؤشرات`, "ind-imp-apply", {}, true) : ""}${pv ? uiSoftBtn("مسح", "ind-imp-clear") : ""}${uiSoftBtn("إغلاق", "ind-imp-close")}</div>
+    ${table}${warn}`);
+}
+function indAddFromReportOn() { return (((S.siteSettings || {}).theme || {}).indAddFromReport) === true; }
+function indTabsHtml() {
+  const cur = S.ui.indTab || "all";
+  const usedUnits = []; const seen = new Set();
+  Object.values(scopeMap().ind || {}).forEach((l) => (l || []).forEach((u) => { if (!seen.has(u)) { seen.add(u); usedUnits.push(u); } }));
+  const tabs = [["all", "الكل"], ["common", "للجميع"], ...usedUnits.map((u) => [u, (((S.units || []).find((x) => x.id === u)) || {}).name || u])];
+  return `<div style="display:flex;gap:4px;flex-wrap:wrap;background:#f3eeea;border-radius:16px;padding:6px;margin-bottom:12px;">${tabs.map(([k, l]) => `<button type="button" data-action="ind-tab" data-tab="${esc(k)}" style="font-family:inherit;border:none;cursor:pointer;border-radius:12px;padding:10px 18px;font-size:13.5px;font-weight:${cur === k ? 800 : 600};background:${cur === k ? "#fff" : "transparent"};color:${cur === k ? "#7a2a3a" : "#8b7e82"};${cur === k ? "box-shadow:0 1px 4px rgba(0,0,0,.08);" : ""}">${esc(l)}</button>`).join("")}</div>`;
 }
 function renderIndicatorsManage() {
-  const ui = S.ui;
+  const defs = S.indicatorDefinitions || [];
+  const tab = S.ui.indTab || "all";
+  const shown = defs.filter((d) => tab === "all" ? true : tab === "common" ? !scopeOf("ind", d.id).length : scopeOf("ind", d.id).includes(tab));
+  const units = (S.units || []).filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive");
+  const see = units.map((u) => {
+    const common = defs.filter((d) => !scopeOf("ind", d.id).length), own = defs.filter((d) => scopeOf("ind", d.id).includes(u.id));
+    const parts = [...common.map((d) => `«${d.name}» (للجميع)`), ...own.map((d) => `«${d.name}»`)];
+    return `<div style="padding:14px 0;border-top:1px solid #efe6e6;display:flex;gap:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#8aa38f;margin-top:9px;flex-shrink:0;"></span><div><div style="font-weight:800;font-size:15px;">${esc(u.name)}</div><div class="hint" style="margin:2px 0 0;">${own.length ? esc(parts.join(" + ")) : common.length ? esc(common.map((d) => `«${d.name}»`).join(" + ")) + " فقط، لأنه لا يوجد لها مؤشرات خاصة" : "لا توجد مؤشرات"}</div></div></div>`;
+  }).join("");
   return `
   <div class="page-wrap"><div class="page-inner narrow">
-    ${topBarHtml({ title: "إدارة مؤشرات الأداء", subtitle: "عرّفي بيانات المؤشر مرة واحدة — لن تحتاج إعادة كتابتها داخل التقارير", backAction: "nav-back-admin" })}
+    <div style="margin-bottom:18px;">${topBarHtml({ title: "إدارة مؤشرات الأداء", subtitle: "كل مؤشر وهدف له «الجهة»: للكل أو قسم أو وحدة محددة", backAction: "nav-back-admin" })}</div>
 
-    <div class="card" style="margin-bottom:22px;">
-      <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:12px;">إضافة مؤشر جديد</div>
-      ${indicatorDefFieldsHtml("new-ind", indicatorFormState("new-ind"))}
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator-def" })}${pillBtn("إدخال من نص", { variant: "ghost", icon: iconLayers(15, ROSE), action: "ind-imp-open" })}</div>
-    </div>
-    ${indImpPanelHtml()}
+    ${uiCard(`<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;"><div style="flex:1;min-width:220px;"><div style="font-size:16px;font-weight:800;">إضافة مؤشرات من صفحة تعبئة التقرير</div><div class="hint" style="margin:4px 0 0;">${indAddFromReportOn() ? "مفعّلة: الوحدة تقدر تضيف مؤشرًا جديدًا وهي تعبّي التقرير." : "مقفلة: الوحدة تختار من المؤشرات المعتمدة فقط، ولا تستطيع إضافة مؤشر جديد."}</div></div>${uiSoftBtn(indAddFromReportOn() ? "إيقاف" : "تفعيل", "ind-add-toggle", {}, true)}</div>`)}
 
-    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:10px;">المؤشرات المعتمدة (${S.indicatorDefinitions.length})</div>
-    ${S.indicatorDefinitions.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px 20px;border-style:dashed;">لا توجد مؤشرات معتمدة بعد — أضيفي أول مؤشر من الأعلى، أو أضيفيها لاحقًا من داخل نموذج التقرير.</div>` :
-      `<div style="display:flex;flex-direction:column;gap:8px;">${S.indicatorDefinitions.map((def) => indicatorDefRowHtml(def)).join("")}</div>`}
+    ${S.ui.indImp ? indImpPanelHtml() : uiCard(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><div><div style="font-size:16px;font-weight:800;">إدخال من نص ${uiBadge("جديد", "green")}</div><div class="hint" style="margin:4px 0 0;">أضيفي أو حدّثي عدة مؤشرات دفعة واحدة، مع تحديد الجهة بسطر عنوان.</div></div>${uiSoftBtn("فتح الإدخال من نص", "ind-imp-open", {}, true)}</div>`)}
+
+    ${uiCard(`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;"><span style="font-size:17px;font-weight:800;color:#7a2a3a;">المؤشرات المعتمدة</span>${uiBadge("جديد: الجهة", "green")}</div>
+      ${indTabsHtml()}
+      ${shown.length ? shown.map((def) => indicatorDefRowHtml(def)).join("") : `<div class="hint" style="padding:24px;text-align:center;">لا توجد مؤشرات هنا.</div>`}
+      <div class="hint" style="margin-top:14px;">الإضافة من النص أو من النموذج المعتاد (تحت). لا تُحذف بالنص، بل من هنا فقط. عدد المؤشرات المعتمدة: ${defs.length}</div>`)}
+
+    ${uiCard(`<div style="font-size:16px;font-weight:800;margin-bottom:12px;cursor:pointer;" data-action="ind-form-toggle">إضافة مؤشر بالنموذج المعتاد ${S.ui.indFormOpen ? "▴" : "▾"}</div>${S.ui.indFormOpen ? `${indicatorDefFieldsHtml("new-ind", indicatorFormState("new-ind"))}${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator-def" })}` : ""}`)}
+
+    ${uiCard(`<div style="font-size:17px;font-weight:800;color:#7a2a3a;margin-bottom:6px;">ماذا ترى الوحدة؟</div>${see || `<div class="hint">لا توجد وحدات.</div>`}<div style="margin-top:12px;background:#fbefc9;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#7a5a00;">الأهداف التشغيلية تعمل بنفس الطريقة: الهدف الاستراتيجي للجميع، والتشغيلي لوحدة أو أكثر.</div>`)}
   </div></div>`;
 }
 
@@ -9045,28 +9091,25 @@ function indicatorDefRowHtml(def) {
   const editing = S.ui.editingIndicatorId === def.id;
   const confirming = S.ui.confirmDeleteIndicatorId === def.id;
   if (confirming) {
-    return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <span style="font-size:12px;font-weight:700;">حذف "${esc(def.name)}" نهائيًا؟</span>${goalDelNote("ind", def.name)}
-      <div style="display:flex;gap:6px;">${pillBtn("حذف", { variant: "danger", action: "delete-indicator-def", data: { id: def.id } })}${pillBtn("تراجع", { variant: "ghost", action: "cancel-confirm-indicator" })}</div>
-    </div>`;
+    const n = goalDefUsage("ind", def.name);
+    return `<div style="padding:16px 0;border-top:1px solid #efe6e6;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#b04060;flex-shrink:0;"></span>
+      <div style="flex:1;min-width:200px;"><div style="font-weight:800;font-size:15px;">حذف «${esc(def.name)}»؟</div><div class="hint" style="margin:3px 0 0;">${n ? `مستخدم في ${n} تقريرًا. الحذف لا يمس التقارير المكتوبة، لكن المؤشر لن يظهر في التقارير الجديدة.` : "غير مستخدم في أي تقرير."}</div></div>
+      <button type="button" data-action="delete-indicator-def" data-id="${esc(def.id)}" style="font-family:inherit;min-height:42px;padding:0 22px;border-radius:999px;border:none;cursor:pointer;font-weight:800;background:#b04060;color:#fff;">نعم، احذف</button>
+      <button type="button" data-action="cancel-confirm-indicator" style="font-family:inherit;min-height:42px;padding:0 22px;border-radius:999px;border:none;cursor:pointer;font-weight:800;background:#f4e2e5;color:#7a2a3a;">إلغاء</button></div>`;
   }
   if (editing) {
-    return `<div class="card">${indicatorDefFieldsHtml("edit-ind", indicatorFormState("edit-ind"))}
-      <div style="display:flex;gap:6px;">${pillBtn("حفظ", { action: "save-indicator-edit", data: { id: def.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "cancel-indicator-edit" })}</div>
-    </div>`;
+    return `<div style="padding:16px 0;border-top:1px solid #efe6e6;">${indicatorDefFieldsHtml("edit-ind", indicatorFormState("edit-ind"))}
+      <div style="display:flex;gap:6px;">${pillBtn("حفظ", { action: "save-indicator-edit", data: { id: def.id } })}${pillBtn("إلغاء", { variant: "ghost", action: "cancel-indicator-edit" })}</div></div>`;
   }
-  const details = [def.category, def.direction, def.frequency, def.unit].filter(Boolean).join(" · ") || "بدون تفاصيل إضافية";
-  const targetTxt = def.target !== "" && def.target != null ? ` · المستهدف: ${def.target}` : "";
-  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-      <div style="width:34px;height:34px;border-radius:10px;background:${GOLD_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconGauge(GOLD, 16)}</div>
-      <div style="min-width:0;"><div style="font-size:13.5px;font-weight:700;">${esc(def.name)}</div><div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(details + targetTxt)}</div></div>
-    </div>
-    <div style="display:flex;gap:6px;flex-shrink:0;">
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-indicator-edit" data-id="${esc(def.id)}" title="تعديل">${iconPencil(14, INK)}</button>
-      <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-indicator" data-id="${esc(def.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
-    </div>
-    ${scopeControlHtml("ind", def.id)}
+  const details = [def.category, def.frequency, def.target !== "" && def.target != null ? "المستهدف " + def.target : ""].filter(Boolean).join(" · ") || "بدون تفاصيل إضافية";
+  return `<div style="padding:16px 0;border-top:1px solid #efe6e6;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="width:8px;height:8px;border-radius:50%;background:#8aa38f;flex-shrink:0;"></span>
+    <div style="flex:1;min-width:180px;"><div style="font-size:15px;font-weight:800;">${esc(def.name)}</div><div class="hint" style="margin:2px 0 0;">${esc(details)}</div></div>
+    ${scopeChipBtn("ind", def.id)}
+    <button type="button" data-action="start-indicator-edit" data-id="${esc(def.id)}" style="font-family:inherit;min-height:38px;padding:0 18px;border-radius:999px;border:none;cursor:pointer;font-weight:800;background:#f4e2e5;color:#7a2a3a;">تعديل</button>
+    <button type="button" data-action="confirm-delete-indicator" data-id="${esc(def.id)}" title="حذف" aria-label="حذف" style="width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;background:#f4e2e5;display:flex;align-items:center;justify-content:center;">${iconTrash(15, "#b04060")}</button>
+    ${scopePanelHtml("ind", def.id)}
   </div>`;
 }
 
@@ -9108,6 +9151,7 @@ function goalsListRowHtml(kind, g) {
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="start-${kind}-goal-edit" data-id="${esc(g.id)}" data-name="${esc(g.name)}" title="تعديل">${iconPencil(14, INK)}</button>
       <button class="icon-btn" style="width:32px;height:32px;border:1px solid ${BORDER}" data-action="confirm-delete-${kind}-goal" data-id="${esc(g.id)}" title="حذف">${iconTrash(14, DANGER)}</button>
     </div>
+    ${kind === "Operational" ? scopeChipBtn("og", g.id) : ""}
     ${kind === "Operational" ? `<div style="flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12px;"><span>نسبة المستهدف %</span><input type="number" class="input" min="0" max="100" inputmode="numeric" data-og-target="${esc(g.id)}" value="${esc(ogTarget(g.id))}" placeholder="—" style="width:90px;padding:4px 8px;" /></div>` + scopeControlHtml("og", g.id) : ""}
   </div>`;
 }
@@ -9131,25 +9175,20 @@ function goalImpParse(text) {
   });
   return out;
 }
+const GOAL_IMP_EXAMPLE = "الإسهام في بناء بيئة تطوعية منظمة\n- تنفيذ البرامج المخطط لها | 100\n- استقطاب المتطوعات | 85\nرفع جودة الخدمة\n- رفع رضا المستفيدات | 90";
 function goalImpPanelHtml() {
   const b = S.ui.goalImp; if (!b) return "";
-  const pv = b.preview;
-  const pvHtml = pv ? `<div style="margin-top:14px;">${pv.map((r) => r.heading ? `<div style="padding:6px 12px;margin-bottom:8px;font-size:13px;font-weight:800;color:${r.errs.length ? "#b03030" : "var(--rose)"};">الجهة: ${esc(r.line)}${r.errs.length ? " — " + esc(r.errs.join("، ")) : ""}</div>` : `<div style="padding:8px 12px;margin-bottom:6px;border-radius:10px;border:1px solid ${r.errs.length ? "#e7b4b4" : "#b9dcc4"};background:${r.errs.length ? "#fdf2f2" : "#f1faf4"};font-size:13px;line-height:1.8;${r.kind === "operational" ? "margin-right:22px;" : ""}"><div style="font-weight:700;">${esc(r.line.slice(0, 90))}</div>${r.errs.length ? `<div style="color:#b03030;">يحتاج تصحيح: ${esc(r.errs.join("، "))}</div>` : `<div style="color:#1f7a45;">${r.kind === "strategic" ? "هدف استراتيجي" : "هدف تشغيلي"} — ${r.isNew ? "جديد، يُضاف" : "موجود"}${r.kind === "operational" ? " · الجهة: " + esc((r.scope && r.scope.label) || "كما هي") + (r.target ? " · المستهدف: " + esc(r.target) + "%" : "") : ""}</div>`}</div>`).join("")}</div>` : "";
-  const ok = pv ? pv.filter((r) => !r.heading && !r.errs.length).length : 0;
-  return `<div class="card" style="margin-bottom:16px;">
-    <div style="font-size:12.5px;font-weight:800;color:${ROSE};margin-bottom:8px;">إدخال الأهداف من نص</div>
-    <div class="hint" style="margin-bottom:8px;">الهدف الاستراتيجي في سطر بدون شرطة، وتحته أهدافه التشغيلية كل واحد في سطر يبدأ بـ «-»، وبعده «|» ونسبة المستهدف (اختياري).<br>لتحديد الجهة للأهداف التشغيلية: سطر عنوان بين قوسين مثل <b>[وحدة الجودة]</b> أو <b>[للجميع]</b>، وكل ما تحته يتبعه حتى عنوان آخر.</div>
-    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;line-height:2;white-space:pre-line;">تحسين جودة الاختبارات
-- تطوير أدوات القياس | 90
-- تحسين زمن إصدار النتائج | 80
-[وحدة الجودة]
-رفع كفاءة الإجراءات
-- أتمتة التقارير</div>
-    <textarea class="input" id="goal-imp-text" rows="8" style="margin-top:12px;font-family:inherit;line-height:1.9;min-height:160px;">${esc(b.text || "")}</textarea>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">${pillBtn("معاينة", { variant: "ghost", action: "goal-imp-preview" })}${ok ? pillBtn(`تطبيق (${ok})`, { action: "goal-imp-apply" }) : ""}${pillBtn("إغلاق", { variant: "ghost", action: "goal-imp-close" })}</div>
-    ${pvHtml}
-    <div class="hint" style="margin-top:12px;">يضيف الجديد فقط ولا يحذف ولا يغيّر هدفًا موجودًا (يُحدَّث فقط «الجهة» إذا كتبتِ عنوانًا). السطر اللي يحتاج تصحيح ما يُطبّق.</div>
-  </div>`;
+  const pv = b.preview; const ok = pv ? pv.filter((r) => !r.heading && !r.errs.length).length : 0;
+  const rows = pv ? pv.map((r) => r.heading
+    ? `<div style="padding:8px 4px;font-weight:800;color:${r.errs.length ? "#b04060" : "#7a2a3a"};">الجهة: ${esc(r.line)}${r.errs.length ? " — " + esc(r.errs.join("، ")) : ""}</div>`
+    : `<div style="display:flex;align-items:center;gap:10px;padding:12px 4px;border-top:1px solid #efe6e6;${r.kind === "operational" ? "padding-right:24px;" : ""}"><div style="flex:1;font-weight:${r.kind === "strategic" ? 800 : 600};">${esc(r.name)}${r.kind === "operational" && r.target ? ` <span class="hint">· المستهدف ${esc(r.target)}%</span>` : ""}${r.errs.length ? `<div style="color:#b04060;font-size:12px;font-weight:700;">${esc(r.errs.join("، "))}</div>` : ""}</div><span style="font-size:12px;color:#8b7e82;">${r.kind === "strategic" ? "استراتيجي" : "تشغيلي"}</span>${r.errs.length ? `<span style="color:#b04060;font-weight:800;">يحتاج تصحيحه</span>` : r.isNew ? uiBadge("جديد", "green") : uiBadge("موجود", "grey")}</div>`).join("") : "";
+  return uiCard(`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:16px;font-weight:800;">إدخال من نص</span>${uiBadge("جديد", "green")}</div>
+    <div class="hint" style="margin-bottom:12px;font-size:12.5px;">الهدف الاستراتيجي بدون شرطة، وتحته أهدافه التشغيلية بـ «-» (وبعدها | نسبة المستهدف اختياري).<br>للجهة: سطر عنوان بين قوسين مثل [وحدة الجودة] أو [للجميع]، وكل ما تحته يتبعه حتى عنوان آخر.</div>
+    <textarea class="input" id="goal-imp-text" rows="8" placeholder="${esc(GOAL_IMP_EXAMPLE)}" style="font-family:inherit;line-height:2.1;min-height:180px;border:1.5px dashed #d9cfcf;border-radius:14px;background:#fbf9f8;padding:16px;">${esc(b.text || "")}</textarea>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">${uiSoftBtn(pv ? "معاينة" : "معاينة ثم إضافة", "goal-imp-preview", {}, !pv)}${pv && ok ? uiSoftBtn(`إضافة ${ok}`, "goal-imp-apply", {}, true) : ""}${uiSoftBtn("إغلاق", "goal-imp-close")}</div>
+    ${rows ? `<div style="margin-top:12px;">${rows}</div>` : ""}
+    <div class="hint" style="margin-top:12px;">يضيف الجديد فقط ولا يحذف ولا يغيّر هدفًا موجودًا. السطر اللي يحتاج تصحيح ما يُطبّق.</div>`);
 }
 function renderGoalsManage() {
   const strategic = S.goalsDefinitions.strategic || [], operational = S.goalsDefinitions.operational || [];
@@ -9157,16 +9196,8 @@ function renderGoalsManage() {
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "إدارة الأهداف والمستهدفات", subtitle: "عرّفي الأهداف الاستراتيجية والتشغيلية المعتمدة", backAction: "nav-back-admin" })}
 
-    <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:220px;">
-        <div style="font-size:13px;font-weight:800;">إضافة أهداف من صفحة تعبئة التقرير</div>
-        <div class="hint" style="margin:2px 0 0;">${goalAddFromReportOn() ? "مفعّلة: الموظفة تقدر تضيف هدفًا غير موجود وهي تعبّي «الأهداف والمستهدفات»، ويُضاف هنا للقائمة العامة." : "متوقفة: الأهداف تُضاف من هذه الصفحة فقط."}</div>
-      </div>
-      ${pillBtn(goalAddFromReportOn() ? "إيقاف" : "تفعيل", { variant: goalAddFromReportOn() ? "ghost" : "primary", action: "goal-add-toggle" })}
-    </div>
-
-    <div style="margin-bottom:14px;">${pillBtn("إدخال من نص", { variant: "ghost", icon: iconLayers(15, ROSE), action: "goal-imp-open" })}</div>
-    ${goalImpPanelHtml()}
+    ${uiCard(`<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;"><div style="flex:1;min-width:220px;"><div style="font-size:16px;font-weight:800;">إضافة أهداف من صفحة تعبئة التقرير</div><div class="hint" style="margin:4px 0 0;">${goalAddFromReportOn() ? "مفعّلة: الموظفة تقدر تضيف هدفًا غير موجود وهي تعبّي التقرير، ويُضاف هنا للقائمة العامة." : "مقفلة: الوحدة تختار من الأهداف المعتمدة فقط."}</div></div>${uiSoftBtn(goalAddFromReportOn() ? "إيقاف" : "تفعيل", "goal-add-toggle", {}, true)}</div>`)}
+    ${S.ui.goalImp ? goalImpPanelHtml() : uiCard(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><div><div style="font-size:16px;font-weight:800;">إدخال من نص ${uiBadge("جديد", "green")}</div><div class="hint" style="margin:4px 0 0;">الهدف الاستراتيجي بدون شرطة، وتحته أهدافه التشغيلية بـ «-».</div></div>${uiSoftBtn("فتح الإدخال من نص", "goal-imp-open", {}, true)}</div>`)}
     <div style="font-size:13px;font-weight:800;color:${ROSE};margin:6px 0 10px;">الأهداف الاستراتيجية</div>
     <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:8px;">
       <input class="input" id="new-strategic-goal" style="flex:1;" placeholder="نص الهدف الاستراتيجي" />
@@ -10073,7 +10104,7 @@ function basicSectionHtml(d, unit) {
 /* ---- مؤشرات الأداء ---- */
 function indicatorCardHtml(row, index, def, report, isOpen, d) {
   const approvedNames = S.indicatorDefinitions.filter((x) => scopeAllows("ind", x.id, S.currentUnitId) || x.name === row.name).map((x) => x.name);
-  const nameSelector = fieldWrap("اسم المؤشر", true, sel("indicators", row.id, "name", row.name, [...approvedNames, NEW_INDICATOR_LABEL], approvedNames.length ? "اختاري من مؤشرات الوحدة المعتمدة" : "لا توجد مؤشرات معتمدة بعد"));
+  const nameSelector = fieldWrap("اسم المؤشر", true, sel("indicators", row.id, "name", row.name, [...approvedNames, ...(indAddFromReportOn() ? [NEW_INDICATOR_LABEL] : [])], approvedNames.length ? "اختاري من مؤشرات الوحدة المعتمدة" : "لا توجد مؤشرات معتمدة بعد"));
   const isNewFlow = row.name === NEW_INDICATOR_LABEL;
   const newForm = isNewFlow ? newIndicatorInlineFormHtml(row.id) : "";
 
@@ -11834,10 +11865,11 @@ function attachClickListener() {
         const c = h.querySelector("[data-chev]"); if (c) c.textContent = closed ? "◂ توسيع" : "▾ تضييق";
         break;
       }
+      case "font-pick": { const se = document.getElementById(ds.sel); if (se) { se.value = ds.v; se.dispatchEvent(new Event("change", { bubbles: true })); } break; }
       case "site-tab": {
         S.ui.siteTab = ds.tab;
         document.querySelectorAll("[data-st]").forEach((el) => { el.style.display = el.getAttribute("data-st") === ds.tab ? "" : "none"; });
-        document.querySelectorAll("[data-st-btn]").forEach((b) => { const on = b.getAttribute("data-st-btn") === ds.tab; b.style.borderBottomColor = on ? ROSE : "transparent"; b.style.color = on ? ROSE : "#8a7b82"; b.style.fontWeight = on ? 800 : 600; });
+        document.querySelectorAll("[data-st-btn]").forEach((b) => { b.classList.toggle("on", b.getAttribute("data-st-btn") === ds.tab); });
         break;
       }
       case "save-site-settings": {
@@ -12575,9 +12607,14 @@ function attachClickListener() {
         S.goalsDefinitions = { ...S.goalsDefinitions, strategic: strat, operational: op }; dataStore.saveGoalsDefinitions(S.goalsDefinitions);
         if (jobs.length) saveSiteTheme((th) => { const all = { ind: { ...(((th || {}).itemScopes || {}).ind || {}) }, og: { ...(((th || {}).itemScopes || {}).og || {}) } }; jobs.forEach(([id, ids]) => { if (ids.length) all.og[id] = ids; else delete all.og[id]; }); return { itemScopes: all }; });
         if (tgt.length) saveSiteTheme((th) => { const m = { ...((th || {}).ogTargets || {}) }; tgt.forEach(([id, v]) => { m[id] = v; }); return { ogTargets: m }; });
-        S.ui.goalImp = bad.size ? { text: [...bad].join("\n"), preview: null } : null;
+        S.ui.goalImp = (() => { const out = []; let hd = null, hdDone = true, st = null, stDone = true; rows.forEach((r) => { if (r.heading) { hd = r.line; hdDone = false; } else if (r.kind === "strategic") { st = r.line; stDone = false; } else if (r.errs.length) { if (hd && !hdDone) { out.push(hd); hdDone = true; } if (st && !stDone) { out.push(st); stDone = true; } out.push(r.line); } }); return out.length ? { text: out.join("\n"), preview: null } : null; })();
         render(); break;
       }
+      case "ind-tab": S.ui.indTab = ds.tab; render(); break;
+      case "scope-toggle": { const k = ds.kind + ":" + ds.id; S.ui.scopeOpen = S.ui.scopeOpen === k ? null : k; render(); break; }
+      case "ind-add-toggle": saveSiteTheme({ indAddFromReport: !indAddFromReportOn() }); render(); break;
+      case "ind-form-toggle": S.ui.indFormOpen = !S.ui.indFormOpen; render(); break;
+      case "ind-imp-clear": S.ui.indImp = { text: "", preview: null }; render(); break;
       case "ind-imp-open": S.ui.indImp = { text: "", preview: null }; render(); break;
       case "ind-imp-close": S.ui.indImp = null; render(); break;
       case "ind-imp-preview": { const el = document.getElementById("ind-imp-text"); const b = S.ui.indImp || {}; b.text = el ? el.value : b.text; b.preview = indImpParse(b.text); S.ui.indImp = b; render(); break; }
@@ -12593,8 +12630,7 @@ function attachClickListener() {
         });
         if (scopeJobs.length) saveSiteTheme((th) => { const all = { ind: { ...(((th || {}).itemScopes || {}).ind || {}) }, og: { ...(((th || {}).itemScopes || {}).og || {}) } }; scopeJobs.forEach(([id, ids]) => { if (ids.length) all.ind[id] = ids; else delete all.ind[id]; }); return { itemScopes: all }; });
         S.indicatorDefinitions = list; dataStore.saveIndicatorDefinitions(list);
-        const bad = rows.filter((r) => r.errs.length && !r.heading).map((r) => r.line);
-        S.ui.indImp = bad.length ? { text: bad.join("\n"), preview: null } : null;
+        S.ui.indImp = (() => { const out = []; let hd = null, hdDone = true; rows.forEach((r) => { if (r.heading) { hd = r.line; hdDone = false; } else if (r.errs.length) { if (hd && !hdDone) { out.push(hd); hdDone = true; } out.push(r.line); } }); return out.length ? { text: out.join("\n"), preview: null } : null; })();
         render(); break;
       }
       case "add-indicator-def": {
