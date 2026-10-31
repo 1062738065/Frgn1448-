@@ -518,7 +518,7 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 @media (min-width: 1100px) {
   .page-inner.dash-wide { display: grid; }
   .page-inner.dash-wide > .dash-blk > * { margin-top: 0 !important; margin-bottom: 0 !important; }
-  .page-inner.dash-wide > .dash-blk:has(> .hero-banner, > .stat-grid, > .search-bar, > .card[style*="flex-wrap"]), .page-inner.dash-wide > .dash-blk[data-dk="periodFilter"], .page-inner.dash-wide > .dash-blk[data-dk="exKpis"], .page-inner.dash-wide > .dash-blk[data-dk="exHeat"], .page-inner.dash-wide > .dash-blk[data-dk="opsCounts"], .page-inner.dash-wide > .dash-blk[data-dk="exStats"], .page-inner.dash-wide > .dash-blk[data-dk="recent"] { grid-column: 1 / -1; }
+  .page-inner.dash-wide > .dash-blk:has(> .hero-banner, > .stat-grid, > .search-bar, > .card[style*="flex-wrap"]), .page-inner.dash-wide > .dash-blk[data-dk="periodFilter"], .page-inner.dash-wide > .dash-blk[data-dk="exKpis"], .page-inner.dash-wide > .dash-blk[data-dk="exHeat"], .page-inner.dash-wide > .dash-blk[data-dk="opsCounts"], .page-inner.dash-wide > .dash-blk[data-dk="opsKpis"], .page-inner.dash-wide > .dash-blk[data-dk="exStats"], .page-inner.dash-wide > .dash-blk[data-dk="recent"] { grid-column: 1 / -1; }
   .page-inner.dash-wide > nav.card { grid-column: 1 / -1; }
 }
 
@@ -569,3 +569,19 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .rm-soft .rm-pill.on{background:#e3f0e7;color:#2e7a4e;text-decoration:none;border-color:transparent}
 .rm-soft table .rm-pill{min-width:0;width:34px;height:30px;padding:0;border-radius:9px}
 .rm-soft table th{background:#fbeeee;color:#7b2d3b}
+/* s10/s11: شرائح الفلتر ومفاتيح التشغيل بتنسيق التصميم */
+.flt-chip{display:inline-flex;align-items:center;gap:8px;font-family:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:999px;border:1px solid #e6d9dd;background:#fff;color:#4a3a40;cursor:pointer}
+.flt-chip.on{background:#f8e9ea;border-color:#d9aeb4;color:var(--primary,#6a1b25)}
+.flt-n{min-width:20px;height:20px;border-radius:999px;background:#b9777f;color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.flt-n.z{background:#cfc4c7}
+.sw-tg{position:relative;width:40px;height:24px;border-radius:999px;background:#d7d0cd;flex:none;display:inline-block}
+.sw-tg i{position:absolute;top:3px;inset-inline-end:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.15s}
+.sw-tg.on{background:#8aa894}.sw-tg.on i{inset-inline-end:auto;inset-inline-start:3px}
+.sw-tg.lk{opacity:.6}
+/* s26: بطاقات نوع الفترة */
+.ptc-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.ptc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 8px;border:1px solid #e6d9dd;border-radius:16px;background:#fff;cursor:pointer;font-family:inherit;color:#4a3a40}
+.ptc .ptc-l{font-size:13px;color:#7a6a71}.ptc .ptc-n{font-size:26px;font-weight:800;color:var(--primary,#6a1b25)}.ptc .ptc-s{font-size:12px;color:#8a7b82}
+.ptc.on{background:#fdf1f2;border-color:#c98a93}
+.ptc.z{opacity:.55}
+@media(max-width:700px){.ptc-row{display:flex;overflow-x:auto;gap:10px}.ptc{min-width:120px}}

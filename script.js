@@ -841,7 +841,7 @@ const REPORT_TABS_DEFAULT = [
   { id: "draft", label: "مسوداتي", special: "", statuses: ["draft"], adminStatuses: [], enabled: true },
   { id: "returned", label: "بحاجة إلى تعديل", special: "", statuses: ["returned"], adminStatuses: [], enabled: true },
   { id: "needs_completion", label: "بحاجة إلى استكمال", special: "", statuses: ["needs_completion"], adminStatuses: [], enabled: true },
-  { id: "custom_pending", label: "قيد المراجعة", special: "", statuses: ["custom_pending"], adminStatuses: [], enabled: true },
+  { id: "custom_pending", label: "المرسلة", special: "", statuses: ["custom_pending"], adminStatuses: [], enabled: true },
   { id: "completed", label: "التقارير الكاملة", special: "", statuses: ["completed"], adminStatuses: [], enabled: true },
   { id: "approved", label: "معتمد", special: "", statuses: ["approved"], adminStatuses: [], enabled: true },
   { id: "archived", label: "أرشيف التقارير", special: "archived", statuses: [], adminStatuses: [], enabled: true },
@@ -854,7 +854,8 @@ const MINE_TAB_ID = "pending_mine";
 const MINE_TAB = { id: MINE_TAB_ID, label: "بانتظار مراجعتي", special: "mine", statuses: [], adminStatuses: [], enabled: true };
 function reportTabsList() {
   if (!S.reportTabs) S.reportTabs = dataStore.getReportTabs();
-  const base = S.reportTabs.length ? S.reportTabs : REPORT_TABS_DEFAULT;
+  const base0 = S.reportTabs.length ? S.reportTabs : REPORT_TABS_DEFAULT;
+  const base = base0.map((t) => (t.id === "custom_pending" && t.label === "قيد المراجعة" ? { ...t, label: "المرسلة" } : t));
   if (base.some((t) => t.id === MINE_TAB_ID)) return base;
   const i = base.length && base[0].special === "all" ? 1 : 0;
   return [...base.slice(0, i), MINE_TAB, ...base.slice(i)];
@@ -3154,6 +3155,9 @@ const DASH_ADMIN_BLOCKS = [
   { key: "banner", label: "البانر والبحث" },
   { key: "periodFilter", label: "فلتر نوع الفترة (لـ«ما رفعت تقرير الفترة الحالية»)" },
   { key: "opsCounts", label: "أعداد التقارير حسب الحالة" },
+  { key: "opsKpis", label: "بطاقات: متأخرة، عالقة، معادة، نسبة الالتزام" },
+  { key: "opsDeptCompliance", label: "الالتزام لكل قسم" },
+  { key: "opsHealth", label: "سلامة النظام" },
   { key: "opsStuck", label: "تقارير واقفة في المسار" },
   { key: "opsMissing", label: "ما رفعت تقرير الفترة الحالية" },
   { key: "opsReturned", label: "تقارير معادة ما انعدّلت" },
@@ -3230,6 +3234,8 @@ function reportTermInfo(r) {
 const DASH_REPORT_RANK = { approved: 3, completed: 2 };
 function dashRank(r) { return DASH_REPORT_RANK[r.status] || 1; }
 // نوع الفترة الافتراضي: الأكثر استخدامًا في تقارير النطاق (وإلا فصلي)
+// تقارير وحدة مفلترة بنوع الفترة المضغوط (إن وُجد) — تُستخدم في أرقام اللوحة وقوائمها
+function dashRepsOf(unitId) { const all = ensureUnitReportsLoaded(unitId); const pt = /dashboard/.test(String(S.view || "")) ? S.ui.dashPeriod : ""; return pt ? all.filter((r) => reportPeriodType(r) === pt) : all; }
 function dashPeriodFor(units) {
   if (S.ui.dashPeriod) return S.ui.dashPeriod;
   const n = {};
@@ -3291,10 +3297,14 @@ function dashFiltersInner(kind, series) {
   // عدد التقارير اللي فيها بيانات لكل نوع فترة — يوضح وين البيانات
   const per = {};
   series.units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => { if (reportHasContent(r)) { const p = reportPeriodType(r); if (p) per[p] = (per[p] || 0) + 1; } }));
-  return `<div class="card" style="margin-bottom:18px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span style="font-size:12.5px;font-weight:800;">نوع الفترة</span>${PERIOD_TYPES.map((p) => pill(p + (per[p] ? ` (${per[p]})` : ""), series.period === p, "dash-period", p)).join("")}</div>
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span style="font-size:12.5px;font-weight:800;">السنة</span>${pill("كل السنوات", series.year === "all", "dash-year", "all")}${years.map((y) => pill(hijriYearLabel(y), series.year === String(y), "dash-year", String(y))).join("")}</div>
-    <div class="hint" style="margin:0;">${series.cols.length} ${series.cols.length === 1 ? "فترة" : "فترات"} · التقارير الفاضية لا تُحسب</div>
+  const ptCard = (p) => { const n = per[p] || 0, on = S.ui.dashPeriod === p; return `<button type="button" class="ptc${on ? " on" : ""}${n ? "" : " z"}" data-action="dash-period" data-v="${esc(on ? "" : p)}"><span class="ptc-l">${esc(p)}</span><span class="ptc-n">${n}</span><span class="ptc-s">${n === 1 ? "تقرير" : "تقارير"}</span></button>`; };
+  return `<div style="margin-bottom:18px;">
+    <div class="hint" style="margin:0 0 8px;">نوع الفترة: اضغطي بطاقة لعرض لوحة هذا النوع فقط · إعادة الضغط ترجع للكل (الرسوم تعرض النوع الأكثر بيانات)</div>
+    <div class="ptc-row">${PERIOD_TYPES.map(ptCard).join("")}</div>
+    <div class="card" style="margin:10px 0 0;display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span style="font-size:12.5px;font-weight:800;">السنة</span>${pill("كل السنوات", series.year === "all", "dash-year", "all")}${years.map((y) => pill(hijriYearLabel(y), series.year === String(y), "dash-year", String(y))).join("")}</div>
+      <div class="hint" style="margin:0;">${series.cols.length} ${series.cols.length === 1 ? "فترة" : "فترات"} · التقارير الفاضية لا تُحسب</div>
+    </div>
   </div>`;
 }
 
@@ -3585,9 +3595,15 @@ function exBlocksInner(kind, units) {
 const OPS_STUCK_DAYS = 5;
 function opsDays(ts) { return ts ? Math.floor((Date.now() - ts) / 86400000) : 0; }
 function opsBlocksHtml(kind, units) { return dashMarkWrap(kind, opsBlocksInner(kind, units)); }
+// «رفعت تقرير الفترة»: تقرير أُرسل فعلًا (في المسار أو مكتمل/معتمد) — المسودة والمعاد للتعديل لا يُحسبان
+const OPS_SENT_STATUSES = ["custom_pending", "completed", "approved"];
+function opsUnitSent(u, series, lc) {
+  if (!lc) return false;
+  return ensureUnitReportsLoaded(u.id).some((r) => reportHasContent(r) && reportPeriodType(r) === series.period && reportTermInfo(r).key === lc.key && OPS_SENT_STATUSES.includes(r.status));
+}
 function opsBlocksInner(kind, units) {
   const flat = [];
-  units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => flat.push({ unit: u, report: r })));
+  units.forEach((u) => dashRepsOf(u.id).forEach((r) => flat.push({ unit: u, report: r })));
   let html = "";
   if (!dashHidden(kind, "opsCounts")) { html += "\u0001opsCounts\u0002";
     const c = (st) => flat.filter((x) => st.includes(x.report.status)).length;
@@ -3609,8 +3625,8 @@ function opsBlocksInner(kind, units) {
   if (!dashHidden(kind, "opsMissing")) { html += "\u0001opsMissing\u0002";
     const series = dashSeries(units);
     const lastCol = series.cols[series.cols.length - 1];
-    const miss = lastCol ? units.filter((u) => !(series.byUnit[u.id] || {})[lastCol.key]) : [];
-    missingH = dashCard("ما رفعت تقرير الفترة الحالية", lastCol ? `«${series.period}» · ${lastCol.label}` : "", lastCol ? (miss.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${miss.map((u) => badgeHtml(u.name, "#7a4d16", GOLD_BG)).join("")}</div>` : emptyHint("كل الوحدات رفعت تقريرها.")) : emptyHint("لا توجد تقارير بعد."));
+    const miss = lastCol ? units.filter((u) => !opsUnitSent(u, series, lastCol)) : [];
+    missingH = dashCard("ما رفعت تقرير الفترة الحالية", lastCol ? `«${series.period}» · ${lastCol.label} · المسودة والمعاد للتعديل يُحسبان غير مرفوع` : "", lastCol ? (miss.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${miss.map((u) => badgeHtml(u.name, "#7a4d16", GOLD_BG)).join("")}</div>` : emptyHint("كل الوحدات رفعت تقريرها.")) : emptyHint("لا توجد تقارير بعد."));
     html += "\u0003";
   }
   if (!dashHidden(kind, "opsReturned")) { html += "\u0001opsReturned\u0002";
@@ -3642,7 +3658,35 @@ function opsBlocksInner(kind, units) {
     actH = dashCard("آخر الحركات", "", log.length ? log.slice(0, 8).map((l) => `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid ${BORDER};"><span style="width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0;background:${col[l.kind] || ROSE}"></span><div style="flex:1;min-width:0;"><div style="font-size:12.5px;line-height:1.7;"><b>${esc(l.unit.name)}</b> — ${esc(l.text || "")}</div><div style="font-size:11px;color:${SUBTLE};">${esc(l.by || "")}${l.by ? " · " : ""}${l.at ? new Date(l.at).toLocaleString("ar-SA-u-ca-islamic", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : ""}</div></div></div>`).join("") : emptyHint("لا توجد حركات بعد."));
     html += "\u0003";
   }
-  html += dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
+  // بطاقات أرقام وقراءة الالتزام لكل قسم (لوحة مديرة النظام)
+  let kpiH = "", deptH = "";
+  { const series2 = dashSeries(units); const lc = series2.cols[series2.cols.length - 1];
+    const miss2 = lc ? units.filter((u) => !opsUnitSent(u, series2, lc)) : [];
+    const pct = units.length && lc ? Math.round(((units.length - miss2.length) / units.length) * 100) : null;
+    const stuckN = flat.filter((x) => x.report.status === "custom_pending").length;
+    const retN = flat.filter((x) => x.report.status === "returned" || x.report.status === "needs_completion").length;
+    const kc = (n, l, col, sub) => `<div class="card" style="padding:14px 16px;text-align:start;"><div style="font-size:28px;font-weight:800;color:${col};">${n}</div><div style="font-size:12.5px;color:${SUBTLE};">${esc(l)}</div>${sub ? `<div style="font-size:11px;color:${SUBTLE};margin-top:2px;">${esc(sub)}</div>` : ""}</div>`;
+    if (!dashHidden(kind, "opsKpis")) kpiH = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px;margin-bottom:18px;">${kc(lc ? miss2.length : "—", "تقارير متأخرة", DANGER, lc ? "ما رفعت تقرير " + lc.label : "")}${kc(stuckN, "تقارير عالقة بانتظار مراجعة", GOLD)}${kc(retN, "تقرير معاد للتعديل", ROSE)}${kc(pct == null ? "—" : pct + "٪", "نسبة الالتزام", GREEN, units.length ? `(${units.length - miss2.length} من ${units.length} وحدات)` : "")}</div>`;
+    if (!dashHidden(kind, "opsDeptCompliance")) {
+      const depts = (S.departments || []).filter((d) => d.status !== "inactive");
+      const deptIds = new Set(depts.map((d) => d.id));
+      const groups = depts.map((d) => ({ d, us: units.filter((u) => u.departmentId === d.id) }));
+      groups.push({ d: { id: "_none", name: "بدون قسم (غير مربوطة بالهيكل)" }, us: units.filter((u) => !u.departmentId || !deptIds.has(u.departmentId)) });
+      const rowsD = groups.map(({ d, us }) => { if (!us.length) return null; const sent = lc ? us.filter((u) => opsUnitSent(u, series2, lc)).length : 0; return { d, n: us.length, sent }; }).filter(Boolean);
+      deptH = dashCard("الالتزام لكل قسم", lc ? `«${series2.period}» · ${lc.label}` : "", rowsD.length && lc ? rowsD.map((x) => { const pc = Math.round((x.sent / x.n) * 100); return `<div style="padding:8px 0;border-top:1px solid ${BORDER};"><div style="display:flex;justify-content:space-between;font-size:13px;"><b>${esc(x.d.name)}</b><span style="color:${SUBTLE};">${x.sent} من ${x.n} · ${pc}٪</span></div><div style="height:8px;border-radius:999px;background:#f0e6e9;margin-top:6px;overflow:hidden;"><div style="height:100%;width:${pc}%;background:${pc >= 80 ? GREEN : pc >= 40 ? GOLD : DANGER};"></div></div></div>`; }).join("") : `<div class="hint">لا توجد بيانات للفترة الحالية بعد.</div>`);
+    }
+  }
+  let healthH = "";
+  if (!dashHidden(kind, "opsHealth")) {
+    const pers = personsList();
+    const noPin = pers.filter((x) => x.status !== "disabled" && !personEffectivePin(x)).length;
+    const off = pers.filter((x) => x.status === "disabled").length;
+    const noPath = units.filter((u) => { const ap = autoPathObj(); return !ap || ap.status !== "active" || !apFlow(apStageList(ap, u)).length; }).length;
+    const noDept = units.filter((u) => !u.departmentId).length;
+    const row = (n, label, view, bad) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><span style="width:10px;height:10px;border-radius:50%;background:${n ? (bad ? DANGER : GOLD) : GREEN};flex:none;"></span><div style="flex:1;font-size:13px;"><b>${n}</b> ${esc(label)}</div>${n ? `<button type="button" class="pill-btn pill-soft" data-action="nav-to" data-view="${view}">فتح</button>` : `<span style="font-size:11.5px;color:${GREEN};">سليم</span>`}</div>`;
+    healthH = dashCard("سلامة النظام", "كل بند يفتح صفحة إصلاحه — لا تُعرض أي أرقام سرية", row(noPin, "أشخاص بلا رقم سري", "units-manage", true) + row(off, "أشخاص موقوفون", "units-manage", false) + row(noPath, "وحدات بلا مسار اعتماد فعّال", "units-manage", true) + row(noDept, "وحدات غير مربوطة بقسم", "units-manage", false));
+  }
+  html += dashB(kind, "opsHealth", healthH) + dashB(kind, "opsKpis", kpiH) + dashB(kind, "opsDeptCompliance", deptH) + dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
   return html;
 }
 
@@ -3666,9 +3710,10 @@ function renderDashboard() {
     // القسم التابعة هنا (ما تظهر ببطاقات الإحصاءات/الرسوم، ولا يُطلب من
     // القسم مراجعة تقريرها الخاص) — تقريرها يظهر فقط عبر "جميع التقارير"
     // لمن هو أعلى من القسم (مكتب الإشراف/الإدارة العليا/مديرة النظام).
-    const units = S.units.filter((u) => u.departmentId === dept.id && u.status === "active" && u.role !== "self_report");
+    const units = S.units.filter((u) => u.departmentId === dept.id && u.status === "active");
     return renderDashboardBody(units, {
       kind: "dept",
+      deptId: dept.id,
       title: dept.name,
       subtitle: `مرحبًا — نظرة شاملة على ${units.length} وحدة تابعة لهذا القسم`,
       topBarRight: adminDeptPreview && S.adminPreviewOrigin
@@ -3719,7 +3764,7 @@ function renderDashboardBody(activeUnits, opts) {
   const series = dashSeries(activeUnits);
   activeUnits.forEach((u) => {
     const dept = S.departments.find((d) => d.id === u.departmentId);
-    ensureUnitReportsLoaded(u.id).forEach((r) => allReportsFlat.push({ unit: u, dept, report: r }));
+    dashRepsOf(u.id).forEach((r) => allReportsFlat.push({ unit: u, dept, report: r }));
     const p = computeProgress(latestReportForUnit(u.id));
     totalCompleted += p.completed; totalSections += p.total;
   });
@@ -3732,9 +3777,26 @@ function renderDashboardBody(activeUnits, opts) {
   const overallPct = totalSections ? Math.round((totalCompleted / totalSections) * 100) : 0;
   const avgGoalPct = allGoals.length ? Math.round(allGoals.reduce((s, g) => s + (Number(g.percentage) || 0), 0) / allGoals.length) : 0;
   const unitBarData = activeUnits.map((u) => ({ label: u.name, value: computeProgress(latestReportForUnit(u.id)).percent, color: ROSE }));
+  // ترتيب هرمي: كل قسم وتحته وحداته، ومعها تقرير القسم نفسه (الذاتي)
+  const selfOf = (d) => (S.units || []).find((x) => x.role === "self_report" && x.status === "active" && x.departmentId === d.id);
+  const hierBars = () => {
+    const deptIds = [...new Set(activeUnits.map((u) => u.departmentId).filter(Boolean))];
+    const depts = (S.departments || []).filter((d) => deptIds.includes(d.id) || (dkind === "dept" && opts.deptId === d.id));
+    const groupHtml = (title, items) => items.length ? `<div style="margin:${title ? "14px" : "0"} 0 8px;">${title ? `<div style="font-size:13px;font-weight:800;color:${ROSE};margin-bottom:8px;border-bottom:1px solid ${BORDER};padding-bottom:4px;">${esc(title)}</div>` : ""}${progressListHtml(items)}</div>` : "";
+    const item = (u, label) => ({ label: label || u.name, value: computeProgress(latestReportForUnit(u.id)).percent, color: ROSE });
+    let out = "";
+    depts.forEach((d) => {
+      const items = activeUnits.filter((u) => u.departmentId === d.id && u.role !== "self_report").map((u) => item(u));
+      const self = selfOf(d); if (self) items.push(item(self, "تقرير القسم نفسه — " + d.name));
+      out += groupHtml(d.name, items);
+    });
+    const loose = activeUnits.filter((u) => u.role !== "self_report" && (!u.departmentId || !depts.some((d) => d.id === u.departmentId))).map((u) => item(u));
+    out += groupHtml(depts.length ? "بدون قسم" : "", loose);
+    return out || `<div style="font-size:12.5px;color:${SUBTLE}">لا توجد وحدات بعد.</div>`;
+  };
   const barsHtml = unitBarData.length === 0
     ? `<div style="font-size:12.5px;color:${SUBTLE}">لا توجد وحدات بعد.</div>`
-    : progressListHtml(unitBarData);
+    : (dkind === "unit" ? progressListHtml(unitBarData) : hierBars());
 
   // Reports-wide counts (for the weekly stat and the "إجمالي التقارير" donut)
   const nowTs = Date.now(), weekMs = 7 * 24 * 60 * 60 * 1000;
@@ -3879,7 +3941,7 @@ function renderUnitDashboard() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
   if (!unit && S.isAdmin) return unitNotFoundPageHtml();
   const dept = S.departments.find((d) => d.id === unit?.departmentId);
-  const reports = ensureUnitReportsLoaded(S.currentUnitId);
+  const reports = dashRepsOf(S.currentUnitId);
   // المؤشرات والأهداف من آخر تقرير فيه بيانات في الفترة المختارة (المعتمد أولًا)
   const series = dashSeries(unit ? [unit] : []);
   const latest = unit ? dashUnitLatest(series, unit.id) : null;
@@ -4017,7 +4079,7 @@ function usLevelUnitSwitcherHtml() {
 }
 function renderUnitSettings() {
   const unit = (S.units || []).find((u) => u.id === S.currentUnitId);
-  const body = !unit ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">اختاري الوحدة أولًا.</div>` : `${usLetterheadCardHtml(unit)}${usSectionsCardHtml(unit)}${usSkipCardHtml(unit)}`;
+  const body = !unit ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">اختاري الوحدة أولًا.</div>` : (() => { const t = S.ui.usTab || "sections"; return `<div class="st-tabs" style="margin-bottom:14px;">${[["sections", "الأقسام"], ["path", "المسار"], ["format", "التنسيق"]].map(([id, l]) => `<button type="button" class="st-tab${t === id ? " on" : ""}" data-action="us-tab" data-tab="${id}">${l}</button>`).join("")}</div>${t === "path" ? usSkipCardHtml(unit) : t === "format" ? usLetterheadCardHtml(unit) : usSectionsCardHtml(unit)}`; })();
   return `
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "الإعدادات", subtitle: unit ? unit.name : "" })}
@@ -4069,7 +4131,7 @@ function usSectionsCardHtml(unit) {
     <div style="display:flex;flex-direction:column;gap:6px;">${SECTIONS.map((sc) => {
       const locked = SECTIONS_ALWAYS.includes(sc.id), on = locked || !off.includes(sc.id);
       return `<button type="button" data-action="us-sec-toggle" data-sid="${esc(sc.id)}" data-pt="${esc(pt)}" ${locked ? "disabled" : ""} style="display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid ${on ? ROSE : BORDER};background:${on ? "#fff" : GRAY_BG};cursor:${locked ? "default" : "pointer"};font-family:inherit;text-align:start;">
-        <span style="width:20px;height:20px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${on ? ROSE : "#fff"};border:1.5px solid ${on ? ROSE : BORDER};">${on ? iconCheck(12, "#fff") : ""}</span>
+        <span class="sw-tg${on ? " on" : ""}${locked ? " lk" : ""}"><i></i></span>
         <span style="flex:1;font-size:13px;font-weight:700;color:${on ? INK : SUBTLE};${on ? "" : "text-decoration:line-through;"}">${esc(sc.label)}</span>
         ${locked ? `<span style="font-size:10.5px;color:${SUBTLE};">دائمًا (فيه اختيار الفترة)</span>` : ""}
       </button>`;
@@ -7478,7 +7540,7 @@ function latestReportsPerUnitByYear(units, years) {
   const out = {}; years.forEach((y) => { out[y] = []; });
   units.forEach((u) => {
     const best = {};
-    ensureUnitReportsLoaded(u.id).forEach((r) => {
+    dashRepsOf(u.id).forEach((r) => {
       const y = reportHijriYearNum(r);
       if (!(y in out) || !reportHasContent(r)) return; // التقارير الفاضية لا تُحسب
       if (!best[y] || (r.createdAt || 0) >= (best[y].createdAt || 0)) best[y] = r;
@@ -7630,7 +7692,7 @@ function collectProgramsForUnits(units, yearFilter) {
   const map = new Map();
   units.forEach((u) => {
     const dept = S.departments.find((d) => d.id === u.departmentId);
-    ensureUnitReportsLoaded(u.id).slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((r) => {
+    dashRepsOf(u.id).slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((r) => {
       const y = reportHijriYearNum(r);
       if (yearFilter && y !== yearFilter) return;
       (r.sections?.programs?.data?.programs || []).forEach((p) => {
@@ -7667,14 +7729,14 @@ function achievementStats(progs) {
 }
 function programsYearOptions(units) {
   const set = new Set(lastThreeHijriYears());
-  units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => { if ((r.sections?.programs?.data?.programs || []).length) { const y = reportHijriYearNum(r); if (y) set.add(y); } }));
+  units.forEach((u) => dashRepsOf(u.id).forEach((r) => { if ((r.sections?.programs?.data?.programs || []).length) { const y = reportHijriYearNum(r); if (y) set.add(y); } }));
   return [...set].sort((a, b) => b - a);
 }
 // السنة المختارة لكتلتي البرامج والإحصائية: "all" = كل السنوات؛ افتراضيًا أحدث سنة
 // فيها أعمال مُدخلة فعلًا (وإن لم توجد أي أعمال: السنة الهجرية الحالية).
 function latestProgramsYear(units) {
   let best = null;
-  units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => {
+  units.forEach((u) => dashRepsOf(u.id).forEach((r) => {
     if (!(r.sections?.programs?.data?.programs || []).some((p) => p && String(p.name || "").trim())) return;
     const y = reportHijriYearNum(r);
     if (y && (best == null || y > best)) best = y;
@@ -8114,7 +8176,7 @@ function renderAllReports() {
       </div>
     </div>` : ""}
     <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
-      ${tabs.map((t) => `<button class="pill-btn ${filter === t.id ? "pill-primary" : "pill-ghost"}" data-action="set-all-reports-filter" data-filter="${t.id}">${esc(t.label)} (${t.id === "all" ? rows.length : rows.filter((x) => x.report.status === t.id).length})</button>`).join("")}
+      ${tabs.map((t) => `<button class="flt-chip${filter === t.id ? " on" : ""}" data-action="set-all-reports-filter" data-filter="${t.id}">${esc(t.label)}<span class="flt-n${(t.id === "all" ? rows.length : rows.filter((x) => x.report.status === t.id).length) ? "" : " z"}">${t.id === "all" ? rows.length : rows.filter((x) => x.report.status === t.id).length}</span></button>`).join("")}
     </div>
     ${filtered.length === 0 ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير مطابقة.</div>` :
       `<div class="table-wrap" style="margin-bottom:10px;"><table class="prs-table" id="all-reports-table">
@@ -8125,11 +8187,20 @@ function renderAllReports() {
 }
 
 /* =============================== Unit reports hub: "منصة توثيق الأداء" ======== */
+// «أرشيف التقارير» = المعتمد فقط، ولا علاقة له بتاريخ نهاية الفترة (المسودة تبقى في «مسوداتي» و«الكل» دائمًا)
 function isReportArchived(report) {
-  const endDate = report.sections?.basic?.data?.endDate;
-  if (!endDate) return false;
-  const end = new Date(endDate).getTime();
-  return !isNaN(end) && end < Date.now();
+  return report.status === "approved";
+}
+// «عند: ...» — الجهة اللي يقف عندها التقرير المرسل في المسار
+function opsAtChipHtml(report, unit) {
+  try {
+    const ref = apRefOf(report.customStageId); const p = ref && apPathById(ref.pathId);
+    const st = p && apStagesNamed(p, unit).find((x) => x.id === ref.stageId);
+    if (!st) return "";
+    const lvl = String(st.approver || "").indexOf(AP_TREE_UP) === 0 ? apStageTreeLevel(st, unit) : null;
+    const who = lvl ? lvl.name : apApproverLabel(st.approver);
+    return who && who !== "—" ? `<span style="display:inline-block;margin-inline-start:6px;padding:3px 10px;border-radius:999px;background:#fbefd9;color:#8a5a00;font-size:11.5px;font-weight:800;">عند: ${esc(who)}</span>` : "";
+  } catch (e) { return ""; }
 }
 function reportCardHtml(unit, entry) {
   const meta = reportStatusMeta(entry.status);
@@ -8177,7 +8248,7 @@ function reportCardHtml(unit, entry) {
         <div style="width:30px;height:30px;border-radius:9px;background:${DANGER_BG};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconDocument(14, ROSE)}</div>
         <div><div style="font-size:14px;font-weight:800;">${esc(entry.label || "تقرير")}</div><div style="font-size:10.5px;color:${SUBTLE};margin-top:2px;">${esc(dateStr)}</div></div>
       </div>
-      ${badgeHtml(meta.label, meta.color, meta.bg)}
+      ${badgeHtml(meta.label, meta.color, meta.bg)}${entry.status === "custom_pending" ? opsAtChipHtml(entry, unit) : ""}
     </div>
     <div style="margin-bottom:10px;">${progressBarHtml(progress.percent, meta.color)}<div style="font-size:10.5px;color:${SUBTLE};margin-top:4px;">${progress.completed} من ${progress.total} أقسام مكتملة</div></div>
     ${actionsHtml}
@@ -8254,7 +8325,7 @@ function renderUnitReportsHub() {
     </div>
 
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      ${tabs.map((t) => `<button class="pill-btn ${filter === t.id ? "pill-primary" : "pill-ghost"}" data-action="set-unit-reports-filter" data-filter="${t.id}">${esc(t.label)} (${countFor(t.id)})</button>`).join("")}
+      ${tabs.map((t) => `<button class="flt-chip${filter === t.id ? " on" : ""}" data-action="set-unit-reports-filter" data-filter="${t.id}">${esc(t.label)}<span class="flt-n${countFor(t.id) ? "" : " z"}">${countFor(t.id)}</span></button>`).join("")}
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -11878,6 +11949,7 @@ function attachClickListener() {
         break;
       }
       case "font-pick": { const se = document.getElementById(ds.sel); if (se) { se.value = ds.v; se.dispatchEvent(new Event("change", { bubbles: true })); } break; }
+      case "us-tab": S.ui.usTab = ds.tab; render(); break;
       case "site-tab": {
         S.ui.siteTab = ds.tab;
         document.querySelectorAll("[data-st]").forEach((el) => { el.style.display = el.getAttribute("data-st") === ds.tab ? "" : "none"; });
