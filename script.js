@@ -192,7 +192,8 @@ const CONFIDENTIALITY_LEVELS = ["متاح في التقرير العام", "مت
 const YES_NO_OPTIONS = ["نعم", "لا"];
 const CHALLENGE_AREAS_BASE = ["الموظفات", "الإجراءات", "الأنظمة التقنية", "الميزانية", "التجهيزات", "المبنى", "الحضور", "التواصل", "المستفيدات", "البيانات", "الصلاحيات", "التنسيق بين الأقسام", "الشراكات"];
 const CHALLENGE_SEVERITY = ["منخفض", "متوسط", "مرتفع", "حرج"];
-const CHALLENGE_SCOPE = ["داخل الوحدة", "مشتركة مع وحدة أخرى", "تحتاج تدخل القسم", "تحتاج قرار إدارة التعليم النسائي", "تحتاج قرار الإدارة العليا", "مرتبطة بجهة خارجية"];
+const CHALLENGE_SCOPE = ["داخل الوحدة", "مشتركة مع وحدة أخرى", "تحتاج تدخل القسم", "تحتاج مساعدة مدير إدارة التعليم النسائي", "تحتاج قرار إدارة التعليم النسائي", "تحتاج قرار الإدارة العليا", "مرتبطة بجهة خارجية"];
+const ROUTE_TO_OPTIONS = ["الوحدة فقط", "مديرة القسم", "مساعدة مدير إدارة التعليم النسائي", "إدارة التعليم النسائي"];
 const IMPROVEMENT_EASE_OPTIONS = ["سهلة", "متوسطة", "معقدة"];
 const IMPROVEMENT_PRIORITY_OPTIONS = ["عاجلة", "عالية", "متوسطة", "منخفضة"];
 const INITIATIVE_ENTRY_TYPES = ["مبادرة جديدة", "ممارسة ناجحة", "فكرة قيد الدراسة", "تجربة أولية", "نموذج قابل للتعميم", "تطوير إجراء قائم"];
@@ -204,7 +205,7 @@ const CHANGE_REASONS = ["تحسن التخطيط", "زيادة الكادر", "�
 
 const IMPACT_TYPES = ["تعليمي", "تربوي", "سلوكي", "اجتماعي", "مهني", "تقني", "مؤسسي", "مالي", "أثر في الأسرة", "أثر في فئة خاصة"];
 const RECOMMENDATION_SOURCES = ["نتيجة مؤشر", "أداة قياس", "صعوبة", "فرصة تحسين", "قصة أثر", "ملاحظة إشرافية", "شكوى متكررة", "تحليل بيانات", "أخرى"];
-const RECOMMENDATION_LEVELS = ["تنفذها الوحدة", "تنفذها إدارة القسم", "تحتاج تعاون عدة أقسام", "تحتاج قرار إدارة التعليم", "تحتاج قرار الإدارة العليا"];
+const RECOMMENDATION_LEVELS = ["تنفذها الوحدة", "تنفذها إدارة القسم", "تحتاج تعاون عدة أقسام", "تحتاج مساعدة مدير إدارة التعليم النسائي", "تحتاج قرار إدارة التعليم", "تحتاج قرار الإدارة العليا"];
 const RECOMMENDATION_PRIORITIES = ["عاجلة", "عالية", "متوسطة", "منخفضة"];
 
 /* =============================== محرك الأقسام الديناميكية (تجريبي) =============
@@ -317,6 +318,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "responsiblePerson", type: "text", label: "المسؤولة", placeholder: "اسم المسؤولة" },
       { id: "implementationDate", type: "date", label: "تاريخ التنفيذ" },
       { id: "successIndicator", type: "text", label: "مؤشر قياس نجاح التحسين", placeholder: "كيف ستعرفين أن التحسين نجح؟" },
+      { id: "routeTo", type: "select", label: "يُرفع إلى", options: ROUTE_TO_OPTIONS, placeholder: "اختاري الجهة التي يصلها هذا البند" },
     ],
   },
   initiatives: {
@@ -337,6 +339,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "scalability", type: "radio", label: "قابلية التعميم", options: YES_NO_OPTIONS },
       { id: "needs", type: "textarea", label: "الاحتياجات", placeholder: "ما الدعم أو الموارد المطلوبة؟" },
       { id: "fileLink", type: "text", label: "رابط ملف المبادرة", placeholder: "رابط المستند أو العرض التقديمي" },
+      { id: "routeTo", type: "select", label: "يُرفع إلى", options: ROUTE_TO_OPTIONS, placeholder: "اختاري الجهة التي يصلها هذا البند" },
     ],
   },
   impact: {
@@ -355,6 +358,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "testimonial", type: "textarea", label: "شهادة مستفيدة إن وجدت", placeholder: "اقتباس أو شهادة من مستفيدة" },
       { id: "evidenceLink", type: "text", label: "رابط الشاهد", placeholder: "https://..." },
       { id: "publicConsent", type: "radio", label: "هل يسمح بعرض القصة في التقرير العام؟", options: YES_NO_OPTIONS },
+      { id: "routeTo", type: "select", label: "يُرفع إلى", options: ROUTE_TO_OPTIONS, placeholder: "اختاري الجهة التي يصلها هذا البند" },
     ],
   },
   strengths: {
@@ -370,6 +374,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "continuity", type: "radio", label: "هل هي مستمرة أم مرتبطة بفترة؟", options: CONTINUITY_OPTIONS },
       { id: "maintainHow", type: "textarea", label: "كيف يمكن المحافظة عليها؟", placeholder: "ما الإجراءات اللازمة للحفاظ عليها؟" },
       { id: "transferable", type: "radio", label: "هل يمكن نقلها إلى وحدات أخرى؟", options: YES_NO_OPTIONS },
+      { id: "routeTo", type: "select", label: "يُرفع إلى", options: ROUTE_TO_OPTIONS, placeholder: "اختاري الجهة التي يصلها هذا البند" },
     ],
   },
   nextplan: {
@@ -491,7 +496,8 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "periodType", type: "select", label: "الفترة التي يغطيها التقرير", options: PERIOD_TYPES, placeholder: "اختاري (اختياري)" },
       { id: "startDate", type: "date", label: "تاريخ البداية", rowGroup: "dates" },
       { id: "endDate", type: "date", label: "تاريخ النهاية", rowGroup: "dates" },
-      { id: "hijriYear", type: "select", label: "العام الهجري", options: HIJRI_YEARS, visibleWhen: { field: "periodType", notEmpty: true } },
+      { id: "hijriYear", type: "select", label: "العام الهجري (من)", options: HIJRI_YEARS, visibleWhen: { field: "periodType", notEmpty: true } },
+      { id: "hijriYearTo", type: "select", label: "إلى العام (اختياري — لتقرير يمتد أكثر من عام)", options: HIJRI_YEARS, visibleWhen: { field: "periodType", notEmpty: true } },
       { id: "month", type: "select", label: "الشهر", options: MONTHS, visibleWhen: { field: "periodType", equals: "شهري" } },
       { id: "term", type: "expandableSelect", label: "الفصل", baseOptions: TERM_OPTIONS_BASE, customKey: "customTerms", otherLabel: "أخرى", placeholder: "اختاري الفصل", visibleWhen: { field: "periodType", equals: "فصلي" } },
       { id: "preparerName", type: "text", label: "الاسم", required: true, placeholder: "اسم معدة التقرير", subheadBefore: "بيانات معدة التقرير" },
@@ -1371,7 +1377,7 @@ function apAutoBuildStages(cfg, old) {
   return st;
 }
 // وش تسوي كل مرحلة: لأدوار الوحدة بمفتاح الدور (ast/head) ولمستويات الهيكل بمفتاح "lvl:<id>"
-const AUTO_PERM_DEFAULT = { mode: "approve", ret: true, comp: true, edit: false, note: false, back: false, final: false, curate: false, info: false, skip: true };
+const AUTO_PERM_DEFAULT = { mode: "approve", ret: true, comp: true, edit: false, note: false, back: true, final: false, curate: false, info: false, skip: true };
 const AUTO_PERM_OPTS = [
   { k: "ret", label: "تعيد للتعديل", color: "#B23B37", t: "ترجعه لصاحبته «بحاجة إلى تعديل» بملاحظة." },
   { k: "comp", label: "تعيد للاستكمال", color: "#b0601e", t: "ترجعه لصاحبته «بحاجة إلى استكمال» — لو ناقص بيانات." },
@@ -2084,6 +2090,7 @@ const BUTTON_CATALOG = [
   { id: "card-preview", g: "بطاقة التقرير", label: "متابعة الكتابة (كانت «معاينة»)", sel: '[data-btn="card-preview"]' },
   { id: "card-view", g: "بطاقة التقرير", label: "عرض التقرير", sel: '[data-btn="card-view"]' },
   { id: "card-download", g: "بطاقة التقرير", label: "تنزيل PDF / طباعة", sel: '[data-btn="card-download"],[data-action="print-page"]' },
+  { id: "share-report", g: "بطاقة التقرير", label: "مشاركة التقرير", sel: '[data-btn="share-report"]' },
   { id: "card-reedit", g: "بطاقة التقرير", label: "إعادة التعديل", sel: '[data-btn="card-reedit"]' },
   { id: "delete-report", g: "بطاقة التقرير", label: "حذف تقرير (مسودة)", sel: '[data-action="confirm-delete-report"],[data-action="delete-report"]' },
   { id: "toggle-report-notes", g: "بطاقة التقرير", label: "عرض ملاحظات التقرير", sel: '[data-action="toggle-report-notes"]' },
@@ -3159,6 +3166,8 @@ const DASH_STD_BLOCKS = [
   { key: "followUp", label: "يحتاج متابعة" },
   { key: "highlights", label: "أبرز ما يُعرض" },
   { key: "programs", label: "جدول الأعمال والبرامج" },
+  { key: "routed", label: "المرفوع إليّ (صعوبات وتوصيات وغيرها)", not: ["unit"] },
+  { key: "sharedInd", label: "المؤشرات المشتركة بين وحدات" },
 ];
 const DASH_STD_KINDS = ["office", "dept", "unit"];
 // لوحة مديرة النظام: متابعة تشغيل الموقع فقط
@@ -3189,6 +3198,8 @@ const DASH_EX_BLOCKS = [
   { key: "exStacks", label: "حالات المؤشرات لكل مكتب/قسم" },
   { key: "exBenef", label: "المستفيدون حسب نوع العمل" },
   { key: "exChal", label: "الصعوبات القائمة حسب المستوى" },
+  { key: "routed", label: "المرفوع إليّ (صعوبات وتوصيات وغيرها)" },
+  { key: "sharedInd", label: "المؤشرات المشتركة بين وحدات" },
   { key: "exSubm", label: "رفع التقارير واعتمادها" },
   { key: "exTopBottom", label: "أفضل 5 وأضعف 5 وحدات" },
   { key: "followUp", label: "يحتاج متابعة" },
@@ -3214,35 +3225,96 @@ const DASH_FLD_LABEL = { analysisComparisons: "تحليل النتائج — ا�
 function dashFieldSecIds() { return Object.keys(SECTION_FIELD_SCHEMAS).filter((id) => { const sc = SECTION_FIELD_SCHEMAS[id]; return sc && sc.arrayKey && Array.isArray(sc.fields) && sc.fields.length; }); }
 function dashFieldSecLabel(id) { return DASH_FLD_LABEL[id] || ((SECTIONS.find((x) => x.id === id) || DEFAULT_SECTIONS.find((x) => x.id === id) || {}).label) || id; }
 function dashFieldCatalog() { return dashFieldSecIds().map((id) => ({ key: "fld_" + id, label: "حقول: " + dashFieldSecLabel(id) })); }
-function dashCatalog(kind) { const base = kind === "admin" ? DASH_ADMIN_BLOCKS : (kind === "executive" || kind === "role_asst") ? DASH_EX_BLOCKS : DASH_STD_BLOCKS; return base.concat(dashFieldCatalog()); }
+function dashCatalog(kind) {
+  const base = (kind === "admin" ? DASH_ADMIN_BLOCKS : (kind === "executive" || kind === "role_asst") ? DASH_EX_BLOCKS : DASH_STD_BLOCKS).slice();
+  const all = dashFieldCatalog(), tools = all.filter((b) => b.key === "fld_tools"), rest = all.filter((b) => b.key !== "fld_tools");
+  // «أدوات القياس» مهمة لإدارة التعليم النسائي: تُوضع بعد البرامج (أو بعد خرائط الأداء) لا في آخر اللوحة
+  let at = base.findIndex((b) => b.key === "programs"); if (at < 0) at = base.findIndex((b) => b.key === "exHeatGoal");
+  if (at >= 0) base.splice(at + 1, 0, ...tools); else rest.unshift(...tools);
+  return base.concat(rest);
+}
+const DASH_SEC_VIEW = {
+  tools: { title: "name", meta: ["toolType", "relatedProgram"], badges: ["resultQuality"], dist: ["toolType", "resultQuality"], stats: [{ k: "count", l: "أداة" }, { k: "sum", f: "sampleSize", l: "إجمالي العينات" }, { k: "sum", f: "respondentsCount", l: "المستجيبات" }, { k: "rate", f: "respondentsCount", of: "sampleSize", l: "نسبة الاستجابة" }] },
+  recommendations: { title: "text", meta: ["responsibleParty", "proposedDuration"], badges: ["priority", "level"], dist: ["priority", "level", "source"], stats: [{ k: "count", l: "توصية" }, { k: "is", f: "priority", v: /عاجل|عالي/, l: "أولوية عالية" }] },
+  challenges: { title: "name", meta: ["area"], badges: ["severity", "scope"], dist: ["severity", "area"], stats: [{ k: "count", l: "صعوبة" }, { k: "is", f: "severity", v: /حرج|مرتفع/, l: "حرجة أو مرتفعة" }, { k: "is", f: "stillOngoing", v: /نعم|قائم/, l: "ما زالت قائمة" }] },
+  improvement: { title: "name", meta: ["field", "responsiblePerson"], badges: ["priority", "ease"], dist: ["priority", "ease"], stats: [{ k: "count", l: "فرصة" }, { k: "is", f: "priority", v: /عاجل|عالي/, l: "أولوية عالية" }] },
+  initiatives: { title: "name", meta: ["targetGroup"], badges: ["entryType", "stage"], dist: ["stage", "entryType"], stats: [{ k: "count", l: "مبادرة" }, { k: "sum", f: "beneficiariesCount", l: "مستفيدة" }] },
+  impact: { title: "title", meta: ["change"], badges: ["impactType"], dist: ["impactType"], stats: [{ k: "count", l: "قصة أثر" }, { k: "sum", f: "beneficiariesCount", l: "مستفيدة" }] },
+  strengths: { title: "name", meta: ["description"], badges: ["area", "continuity"], dist: ["area", "continuity"], stats: [{ k: "count", l: "نقطة قوة" }, { k: "is", f: "transferable", v: /نعم/, l: "قابلة للنقل لوحدات أخرى" }] },
+  programs: { title: "name", meta: ["targetGroup", "location"], badges: ["workType", "executionStatus"], dist: ["workType", "executionStatus", "deliveryMode"], stats: [{ k: "count", l: "عمل/برنامج" }, { k: "sum", f: "actualBeneficiaries", l: "مستفيدة فعليًا" }, { k: "sum", f: "attendeesCount", l: "حاضرات" }, { k: "avg", f: "completionPercent", l: "متوسط الإنجاز", pct: 1 }] },
+  evidence: { title: "name", meta: ["description"], badges: ["evidenceType", "confidentiality"], dist: ["evidenceType"], stats: [{ k: "count", l: "شاهد" }] },
+  kpiDeviation: { title: "deviationReason", meta: ["responsiblePerson", "correctiveAction"], badges: ["causeType"], dist: ["causeType"], stats: [{ k: "count", l: "تحليل انحراف" }] },
+  analysisComparisons: { title: "topic", meta: ["resultValue"], badges: ["judgment", "changeReason"], dist: ["judgment"], stats: [{ k: "count", l: "مقارنة" }] },
+  nextplan: { title: "name", meta: ["responsiblePerson", "expectedDate"], badges: [], dist: [], stats: [{ k: "count", l: "عمل مخطط" }] },
+};
+const DASH_SEV_COL = [[/عاجل|حرج/, "#b03a3a"], [/عالي|مرتفع|متعثر/, "#c9863a"], [/متوسط|مؤجل/, "#b89a5a"], [/منخفض|سهل|مكتمل/, "#5f8a6a"]];
+const DASH_PAL = ["#6b2337", "#c9863a", "#5f8a6a", "#a05a72", "#7d8fa8", "#b89a5a"];
 function dashFieldBlockHtml(kind, sid, units) {
   const sc = SECTION_FIELD_SCHEMAS[sid]; if (!sc) return "";
   const owner = DASH_FLD_OWNER[sid] || sid;
-  const rows = []; let reports = 0;
-  units.forEach((u) => dashRepsOf(u.id).forEach((r) => { const d = r && r.sections && r.sections[owner] && r.sections[owner].data; const arr = d && d[sc.arrayKey]; if (Array.isArray(arr)) { const ok = arr.filter((x) => x && typeof x === "object" && rptHasValue(x)); if (ok.length) { reports++; ok.forEach((x) => rows.push(x)); } } }));
+  const rows = [], unitOf = new Map(); let reports = 0;
+  units.forEach((u) => dashRepsOf(u.id).forEach((r) => { const d = r && r.sections && r.sections[owner] && r.sections[owner].data; const arr = d && d[sc.arrayKey]; if (Array.isArray(arr)) { const ok = arr.filter((x) => x && typeof x === "object" && rptHasValue(x)); if (ok.length) { reports++; ok.forEach((x) => { rows.push(x); unitOf.set(x, u.name); }); } } }));
   if (!rows.length) return "";
-  const cards = sc.fields.map((f) => {
-    const vals = rows.map((x) => x[f.id]).filter((v) => v != null && String(v).trim() !== "" && !(Array.isArray(v) && !v.length));
-    if (!vals.length) return "";
-    const t = f.type;
-    if (t === "number") {
-      const nums = vals.map((v) => Number(String(v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)))).filter((n) => isFinite(n));
-      if (!nums.length) return "";
-      const sum = nums.reduce((a, b) => a + b, 0);
-      if (/نسبة|٪|%/.test(f.label)) { const av = Math.round((sum / nums.length) * 10) / 10; return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${esc(f.label)} (المتوسط)</div><div style="font-size:24px;font-weight:800;color:${ROSE};">${fmtNum(av)}٪</div><div style="font-size:11px;color:${SUBTLE};">${nums.length} إدخال</div></div>`; }
-      return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${esc(f.label)}</div><div style="font-size:24px;font-weight:800;color:${ROSE};">${fmtNum(Math.round(sum * 100) / 100)}</div><div style="font-size:11px;color:${SUBTLE};">المتوسط ${fmtNum(Math.round((sum / nums.length) * 10) / 10)} · ${nums.length} إدخال</div></div>`;
-    }
-    if (["select", "radio", "expandableSelect", "checkbox", "checkboxes", "multiselect"].includes(t)) {
-      const cnt = {}; vals.forEach((v) => (Array.isArray(v) ? v : [v]).forEach((x) => { const k = String(x); cnt[k] = (cnt[k] || 0) + 1; }));
-      const ent = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 6); const mx = ent[0][1];
-      return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;font-weight:700;margin-bottom:8px;">${esc(f.label)}</div>${ent.map(([k, n]) => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:5px;"><span style="flex:0 0 38%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(k)}</span><span style="flex:1;height:8px;border-radius:6px;background:${GRAY_BG};"><i style="display:block;height:100%;width:${Math.round((n / mx) * 100)}%;background:${ROSE};border-radius:6px;"></i></span><b style="min-width:22px;text-align:left;">${n}</b></div>`).join("")}</div>`;
-    }
-    return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${esc(f.label)}</div><div style="font-size:22px;font-weight:800;color:${INK};">${vals.length}</div><div style="font-size:11px;color:${SUBTLE};">إدخال مكتوب</div></div>`;
-  }).filter(Boolean).join("");
-  if (!cards) return "";
-  return dashCard(dashFieldSecLabel(sid), `${rows.length} ${esc(sc.itemLabel || "إدخال")} من ${reports} تقرير — الفترة المختارة`, `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:10px;">${cards}</div>`);
+  const fld = (id) => sc.fields.find((f) => f.id === id);
+  const txt = (x, id) => { const v = x[id]; return v == null ? "" : schemaFieldText(v).trim(); };
+  const num = (v) => { const n = Number(String(v == null ? "" : v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c))); return isFinite(n) && String(v).trim() !== "" ? n : null; };
+  let cfg = DASH_SEC_VIEW[sid];
+  if (!cfg) { const ts = sc.fields.filter((f) => f.type === "text" || f.type === "textarea"), ss = sc.fields.filter((f) => ["select", "radio", "expandableSelect"].includes(f.type)); cfg = { title: (ts[0] || {}).id, meta: [], badges: ss.slice(0, 2).map((f) => f.id), dist: ss.slice(0, 2).map((f) => f.id), stats: [{ k: "count", l: esc(sc.itemLabel || "إدخال") }] }; }
+  const tile = (n, l) => `<div style="flex:1;min-width:110px;background:#faf5f3;border-radius:14px;padding:10px 12px;"><div style="font-size:22px;font-weight:800;color:${ROSE};line-height:1.2;">${n}</div><div style="font-size:11.5px;color:${SUBTLE};margin-top:2px;">${l}</div></div>`;
+  const tiles = cfg.stats.map((s) => {
+    if (s.k === "count") return tile(fmtNum(rows.length), s.l);
+    if (s.k === "is") { const n = rows.filter((x) => s.v.test(txt(x, s.f))).length; return tile(fmtNum(n), s.l); }
+    if (s.k === "sum" || s.k === "avg") { const ns = rows.map((x) => num(x[s.f])).filter((n) => n != null); if (!ns.length) return ""; const sm = ns.reduce((a, b) => a + b, 0); return tile(s.k === "sum" ? fmtNum(Math.round(sm * 100) / 100) : fmtNum(Math.round((sm / ns.length) * 10) / 10) + (s.pct ? "٪" : ""), s.l); }
+    if (s.k === "rate") { const a = rows.reduce((t, x) => t + (num(x[s.f]) || 0), 0), b = rows.reduce((t, x) => t + (num(x[s.of]) || 0), 0); return b ? tile(fmtNum(Math.round((a / b) * 100)) + "٪", s.l) : ""; }
+    return "";
+  }).join("");
+  const distH = (cfg.dist || []).map((id) => {
+    const f = fld(id); if (!f) return "";
+    const cnt = {}; let tot = 0;
+    rows.forEach((x) => { const v = x[id]; (Array.isArray(v) ? v : [v]).forEach((y) => { const k = schemaFieldText(y).trim(); if (k) { cnt[k] = (cnt[k] || 0) + 1; tot++; } }); });
+    const ent = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 6); if (!tot || (ent.length < 2 && rows.length < 3)) return "";
+    const colOf = (k, i) => { const m = DASH_SEV_COL.find(([re]) => re.test(k)); return (id === "severity" || id === "priority" || id === "executionStatus") && m ? m[1] : DASH_PAL[i % DASH_PAL.length]; };
+    return `<div style="margin-top:12px;"><div style="font-size:12px;font-weight:800;margin-bottom:6px;">${esc(f.label)}</div>
+      <div style="display:flex;height:12px;border-radius:8px;overflow:hidden;background:${GRAY_BG};">${ent.map(([k, n], i) => `<i title="${esc(k)}" style="display:block;width:${(n / tot) * 100}%;background:${colOf(k, i)};"></i>`).join("")}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:11.5px;">${ent.map(([k, n], i) => `<span style="display:inline-flex;align-items:center;gap:5px;"><i style="width:9px;height:9px;border-radius:50%;background:${colOf(k, i)};display:inline-block;"></i>${esc(k.length > 28 ? k.slice(0, 28) + "…" : k)} <b>${fmtNum(Math.round((n / tot) * 100))}٪</b></span>`).join("")}</div></div>`;
+  }).join("");
+  const badge = (id, v) => { const m = DASH_SEV_COL.find(([re]) => re.test(v)); const c = (id === "severity" || id === "priority" || id === "executionStatus") && m ? m[1] : ROSE; return `<span style="font-size:10.5px;font-weight:700;color:${c};background:${c}1a;border-radius:999px;padding:2px 9px;white-space:nowrap;">${esc(v.length > 24 ? v.slice(0, 24) + "…" : v)}</span>`; };
+  const items = rows.filter((x) => txt(x, cfg.title)).slice(0, 6);
+  const listH = items.length ? `<div style="margin-top:14px;border-top:1px solid ${BORDER};">${items.map((x) => {
+    const meta = [unitOf.get(x), ...(cfg.meta || []).map((id) => txt(x, id)).filter(Boolean)].filter(Boolean).map((m) => m.length > 60 ? m.slice(0, 60) + "…" : m).join(" · ");
+    const bs = (cfg.badges || []).map((id) => { const v = txt(x, id); return v ? badge(id, v) : ""; }).join("");
+    const t = txt(x, cfg.title);
+    return `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid ${BORDER};"><div style="min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.6;">${esc(t.length > 110 ? t.slice(0, 110) + "…" : t)}</div><div style="font-size:11.5px;color:${SUBTLE};">${esc(meta)}</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;flex:none;max-width:45%;">${bs}</div></div>`;
+  }).join("")}${rows.length > items.length ? `<div style="font-size:11.5px;color:${SUBTLE};padding-top:8px;">و ${fmtNum(rows.length - items.length)} أخرى — تجدينها في التقارير</div>` : ""}</div>` : "";
+  if (!tiles && !distH && !listH) return "";
+  return dashCard(dashFieldSecLabel(sid), `${rows.length} ${esc(sc.itemLabel || "إدخال")} من ${reports} تقرير — الفترة المختارة`, `<div style="display:flex;gap:8px;flex-wrap:wrap;">${tiles}</div>${distH}${listH}`);
 }
-function dashFieldBlocksHtml(kind, units) { return dashFieldSecIds().map((id) => dashHidden(kind, "fld_" + id) ? "" : dashB(kind, "fld_" + id, dashFieldBlockHtml(kind, id, units))).join(""); }
+
+const ROUTE_SECS = ["challenges", "recommendations", "improvement", "initiatives", "impact", "strengths"];
+const ROUTE_KIND_LEVEL = { dept: "dept", role_asst: "asst", executive: "exec" };
+function routeLevelOf(sid, it) {
+  if (!it || typeof it !== "object") return "unit";
+  const t = String(sid === "challenges" ? it.scope : sid === "recommendations" ? it.level : it.routeTo) || "";
+  if (/قرار/.test(t)) return "exec";
+  if (/مساعدة مدير/.test(t)) return "asst";
+  if (/القسم|تعاون|مشتركة/.test(t)) return "dept";
+  return "unit";
+}
+function dashRoutedHtml(kind, units) {
+  const lv = ROUTE_KIND_LEVEL[kind]; if (!lv) return "";
+  const rows = [];
+  units.forEach((u) => dashRepsOf(u.id).forEach((r) => ROUTE_SECS.forEach((sid) => {
+    const sc = SECTION_FIELD_SCHEMAS[sid]; const owner = DASH_FLD_OWNER[sid] || sid;
+    const d = r && r.sections && r.sections[owner] && r.sections[owner].data; const arr = d && d[sc.arrayKey];
+    if (Array.isArray(arr)) arr.forEach((it) => { if (it && routeLevelOf(sid, it) === lv) rows.push({ u, r, sid, it }); });
+  })));
+  if (!rows.length) return "";
+  const ttl = (x) => String(x.it.name || x.it.title || x.it.text || x.it.impactType || "—").slice(0, 90);
+  const lab = { dept: "مرفوع إلى القسم", asst: "مرفوع إلى مساعدة مدير إدارة التعليم النسائي", exec: "مرفوع إلى إدارة التعليم النسائي" }[lv];
+  const list = rows.slice(0, 40).map((x) => `<tr><td style="padding:8px 6px;font-size:12px;color:${SUBTLE};white-space:nowrap;">${esc(dashFieldSecLabel(x.sid))}</td><td style="padding:8px 6px;font-size:12.5px;font-weight:700;">${esc(ttl(x))}</td><td style="padding:8px 6px;font-size:12px;color:${SUBTLE};">${esc(x.u.name)}</td></tr>`).join("");
+  return dashCard(lab, `${rows.length} بند — يظهر هنا ما يخصّ هذا المستوى فقط`, `<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><tbody>${list}</tbody></table></div>`);
+}
+function dashFieldBlocksHtml(kind, units) { return dashB(kind, "sharedInd", dashSharedIndHtml(kind, units)) + dashB(kind, "routed", dashRoutedHtml(kind, units)) + dashFieldSecIds().map((id) => dashHidden(kind, "fld_" + id) ? "" : dashB(kind, "fld_" + id, dashFieldBlockHtml(kind, id, units))).join(""); }
 function dashOrderList(kind) {
   const keys = dashCatalog(kind).map((b) => b.key);
   const saved = ((dashConfig()[kind] || {}).order) || [];
@@ -3743,7 +3815,7 @@ function opsBlocksInner(kind, units) {
     const noPath = units.filter((u) => { const ap = autoPathObj(); return !ap || ap.status !== "active" || !apFlow(apStageList(ap, u)).length; }).length;
     const noDept = units.filter((u) => !u.departmentId).length;
     const row = (n, label, view, bad) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><span style="width:10px;height:10px;border-radius:50%;background:${n ? (bad ? DANGER : GOLD) : GREEN};flex:none;"></span><div style="flex:1;font-size:13px;"><b>${n}</b> ${esc(label)}</div>${n ? `<button type="button" class="pill-btn pill-soft" data-action="nav-to" data-view="${view}">فتح</button>` : `<span style="font-size:11.5px;color:${GREEN};">سليم</span>`}</div>`;
-    healthH = dashCard("سلامة النظام", "كل بند يفتح صفحة إصلاحه — لا تُعرض أي أرقام سرية", row(noPin, "أشخاص بلا رقم سري", "units-manage", true) + row(off, "أشخاص موقوفون", "units-manage", false) + row(noPath, "وحدات بلا مسار اعتماد فعّال", "units-manage", true) + row(noDept, "وحدات غير مربوطة بقسم", "units-manage", false));
+    healthH = dashCard("سلامة النظام", "كل بند يفتح صفحة إصلاحه — لا تُعرض أي أرقام سرية", row(noPin, "أشخاص بلا رقم سري", "units-manage", true) + row(off, "أشخاص موقوفون", "units-manage", false) + row(noPath, "وحدات بلا مسار اعتماد فعّال", "units-manage", true) + row(noDept, "وحدات غير مربوطة بقسم", "units-manage", false) + (() => { const a = archiveCfg(S.siteSettings && S.siteSettings.theme); const dBad = a.drive && (!String(a.scriptUrl || "").trim() || !String(a.rootFolder || "").trim()) ? 1 : 0; const shBad = a.sheet && !String(a.scriptUrl || "").trim() ? 1 : 0; return row(dBad, a.drive ? "Drive مفعّل ينقصه رابط السكربت أو المجلد" : "Drive غير مفعّل (القاعدة تحفظ دائمًا)", "site-settings", true) + row(shBad, a.sheet ? "الشيت مفعّل وينقصه رابط السكربت" : "الشيت غير مفعّل", "site-settings", true); })());
   }
   let secH = "", aggH = "";
   if (!dashHidden(kind, "opsSections")) {
@@ -9265,10 +9337,63 @@ function renderIndicatorsManage() {
 
     ${uiCard(`<div style="font-size:16px;font-weight:800;margin-bottom:12px;cursor:pointer;" data-action="ind-form-toggle">إضافة مؤشر بالنموذج المعتاد ${S.ui.indFormOpen ? "▴" : "▾"}</div>${S.ui.indFormOpen ? `${indicatorDefFieldsHtml("new-ind", indicatorFormState("new-ind"))}${pillBtn("إضافة مؤشر", { icon: iconPlus(15, "#fff"), action: "add-indicator-def" })}` : ""}`)}
 
+    ${sharedIndManageHtml()}
+
     ${uiCard(`<div style="font-size:17px;font-weight:800;color:#7a2a3a;margin-bottom:6px;">ماذا ترى الوحدة؟</div>${see || `<div class="hint">لا توجد وحدات.</div>`}<div style="margin-top:12px;background:#fbefc9;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#7a5a00;">الأهداف التشغيلية تعمل بنفس الطريقة: الهدف الاستراتيجي للجميع، والتشغيلي لوحدة أو أكثر.</div>`)}
   </div></div>`;
 }
 
+
+/* ---- المؤشرات المشتركة بين وحدات (تُحفظ في إعدادات الموقع: theme.sharedInds) ---- */
+function sharedIndList() { return ((S.siteSettings && S.siteSettings.theme && S.siteSettings.theme.sharedInds) || []).filter((x) => x && x.indName && (x.units || []).length); }
+function sharedIndNum(v) { const n = Number(String(v == null ? "" : v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c))); return isFinite(n) && String(v).trim() !== "" ? n : null; }
+function sharedIndCompute(cfg) {
+  const def = findIndicatorDef(cfg.indName);
+  const parts = [];
+  (cfg.units || []).forEach((uid) => {
+    const u = (S.units || []).find((x) => x.id === uid); if (!u) return;
+    let best = null;
+    dashRepsOf(uid).forEach((r) => { const rows = (r.sections && r.sections.kpi && r.sections.kpi.data && r.sections.kpi.data.indicators) || []; const row = rows.find((x) => String(x.name || "").trim() === cfg.indName); const a = row ? sharedIndNum(row.actual) : null; if (a != null && (!best || (r.createdAt || 0) >= (best.t || 0))) best = { t: r.createdAt || 0, a }; });
+    parts.push({ name: u.name, actual: best ? best.a : null });
+  });
+  const have = parts.filter((x) => x.actual != null);
+  const total = have.length ? have.reduce((a, b) => a + b.actual, 0) : null;
+  const actual = total == null ? null : (cfg.mode === "avg" ? Math.round((total / have.length) * 100) / 100 : total);
+  const target = cfg.target !== "" && cfg.target != null ? cfg.target : (def ? def.target : "");
+  const st = computeIndicatorStatus({ target, actual: actual == null ? "" : actual, direction: def ? def.direction : "" });
+  return { parts, actual, target, st, missing: parts.length - have.length };
+}
+function dashSharedIndHtml(kind, units) {
+  if (kind === "admin") return "";
+  const ids = new Set((units || []).map((u) => u.id));
+  const list = sharedIndList().filter((c) => (c.units || []).some((id) => ids.has(id)));
+  if (!list.length) return "";
+  const cards = list.map((c) => {
+    const r = sharedIndCompute(c);
+    return `<div class="card" style="padding:14px 16px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><b style="font-size:13.5px;">${esc(c.indName)}</b><span style="font-size:11px;font-weight:800;color:${r.st.color};background:${r.st.bg};border-radius:999px;padding:2px 10px;">${esc(r.st.label)}</span></div>
+      <div style="font-size:11.5px;color:${SUBTLE};margin-bottom:8px;">مؤشر مشترك — ${c.mode === "avg" ? "المتوسط" : "المجموع"} · المستهدف ${esc(String(r.target === "" || r.target == null ? "—" : r.target))}</div>
+      <div style="font-size:26px;font-weight:800;color:${ROSE};">${r.actual == null ? "—" : fmtNum(r.actual)}</div>
+      ${r.parts.map((p) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:1px solid ${BORDER};"><span>${esc(p.name)}</span><b>${p.actual == null ? "لم يُدخل" : fmtNum(p.actual)}</b></div>`).join("")}</div>`;
+  }).join("");
+  return dashCard("المؤشرات المشتركة", "هدف واحد تشترك فيه أكثر من وحدة", `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:10px;">${cards}</div>`);
+}
+function sharedIndManageHtml() {
+  const f = S.ui.shInd || (S.ui.shInd = { indName: "", units: [], mode: "sum", target: "" });
+  const defs = S.indicatorDefinitions || [];
+  const units = (S.units || []).filter((u) => u.status === "active" && u.role !== "admin" && u.role !== "executive");
+  const all = (S.siteSettings && S.siteSettings.theme && S.siteSettings.theme.sharedInds) || [];
+  const chip = (on, label, attrs) => `<button type="button" ${attrs} style="border:1px solid ${on ? ROSE : BORDER};background:${on ? ROSE : "#fff"};color:${on ? "#fff" : INK};border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer;">${esc(label)}</button>`;
+  return uiCard(`<div style="font-size:17px;font-weight:800;color:#7a2a3a;margin-bottom:6px;">المؤشرات المشتركة بين وحدات</div>
+    <div class="hint" style="margin-bottom:12px;">مؤشر واحد بمستهدف واحد تشترك فيه عدة وحدات؛ يُجمع (أو يُتوسَّط) إنجازها ويظهر في لوحات القسم والإدارة.</div>
+    ${all.map((c) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid ${BORDER};"><div style="flex:1;font-size:13px;"><b>${esc(c.indName)}</b><div class="hint" style="margin:2px 0 0;">${(c.units || []).map((id) => esc((units.find((u) => u.id === id) || {}).name || id)).join("، ")} — ${c.mode === "avg" ? "المتوسط" : "المجموع"}${c.target !== "" && c.target != null ? " — المستهدف " + esc(String(c.target)) : ""}</div></div>${pillBtn("حذف", { variant: "ghost", action: "shind-del", data: { id: c.id } })}</div>`).join("")}
+    <div style="border-top:1px solid ${BORDER};padding-top:12px;margin-top:6px;">
+      ${fieldWrap("المؤشر", `<select class="input" data-shind="indName"><option value="">اختاري المؤشر</option>${defs.map((d) => `<option value="${esc(d.name)}" ${f.indName === d.name ? "selected" : ""}>${esc(d.name)}</option>`).join("")}</select>`)}
+      ${fieldWrap("الوحدات المشتركة", `<div style="display:flex;gap:6px;flex-wrap:wrap;">${units.map((u) => chip(f.units.includes(u.id), u.name, `data-action="shind-unit" data-id="${esc(u.id)}"`)).join("")}</div>`)}
+      ${fieldWrap("طريقة الدمج", `<div style="display:flex;gap:6px;">${chip(f.mode === "sum", "المجموع", 'data-action="shind-mode" data-m="sum"')}${chip(f.mode === "avg", "المتوسط", 'data-action="shind-mode" data-m="avg"')}</div>`)}
+      ${fieldWrap("المستهدف المشترك (اختياري — وإلا يُؤخذ من المؤشر)", `<input class="input" data-shind="target" value="${esc(f.target)}" inputmode="decimal" />`)}
+      <div style="margin-top:10px;">${pillBtn("إضافة المؤشر المشترك", { action: "shind-add", disabled: !f.indName || f.units.length < 2 })}</div>
+    </div>`);
+}
 function indicatorDefRowHtml(def) {
   const editing = S.ui.editingIndicatorId === def.id;
   const confirming = S.ui.confirmDeleteIndicatorId === def.id;
@@ -10078,6 +10203,7 @@ function loadSectionIntoDraft(sectionId) {
   const saved = entry.sections?.[sectionId] || { status: "not_started", data: {} };
   S.activeSectionId = sectionId;
   S.sectionDraft = JSON.parse(JSON.stringify(saved.data || {}));
+  if (sectionId === "basic" && !S.sectionDraft.entityName) { const un = (S.units || []).find((u) => u.id === S.currentUnitId); const dp = un && (S.departments || []).find((x) => x.id === un.departmentId); if (dp) S.sectionDraft.entityName = dp.name; }
   S.sectionCompleted = saved.status === "completed";
   S.sectionSaveStatus = ""; S.sectionSaveError = "";
   S.ui.openMultiDropdown = null;
@@ -10136,7 +10262,7 @@ function persistSection(sectionId, data, status) {
   let updatedLabel = current.label;
   if (sectionId === "basic") {
     updatedShared = { ...updatedShared, reportingEntityType: data.reportingEntityType || "", entityName: data.entityName || "",
-      periodType: data.periodType || "", hijriYear: data.hijriYear || "", month: data.month || "", term: data.term || "",
+      periodType: data.periodType || "", hijriYear: data.hijriYear || "", hijriYearTo: data.hijriYearTo || "", month: data.month || "", term: data.term || "",
       preparerName: data.preparerName || "", preparerTitle: data.preparerTitle || "", managerName: data.managerName || "" };
     // تسمية التقرير تلقائيًا حسب نوع الفترة، بدل "تقرير 1، 2" العام — فقط
     // إذا كان الاسم لسا افتراضيًا (ما بدّلته الموظفة يدويًا).
@@ -10160,7 +10286,7 @@ function sectionEditorHtml(unit, report) {
   const sharedBar = (section.id !== "basic" && (shared.periodType || shared.preparerName)) ? `
     <div style="display:flex;flex-wrap:wrap;gap:8px;background:#fdfbfa;border:1px solid ${BORDER};border-radius:12px;padding:10px 12px;margin-bottom:18px;font-size:11.5px;color:${SUBTLE}">
       ${shared.periodType ? `<span>الفترة: <strong style="color:${INK}">${esc(shared.periodType)}</strong></span>` : ""}
-      ${shared.hijriYear ? `<span>· العام: <strong style="color:${INK}">${esc(shared.hijriYear)}</strong></span>` : ""}
+      ${shared.hijriYear ? `<span>· العام: <strong style="color:${INK}">${esc(shared.hijriYear)}${shared.hijriYearTo && shared.hijriYearTo !== shared.hijriYear ? " – " + esc(shared.hijriYearTo) : ""}</strong></span>` : ""}
       ${shared.preparerName ? `<span>· أعدّته: <strong style="color:${INK}">${esc(shared.preparerName)}</strong></span>` : ""}
     </div>` : "";
 
@@ -10177,11 +10303,13 @@ function sectionEditorHtml(unit, report) {
         <div style="width:42px;height:42px;border-radius:12px;background:${color.bg};display:flex;align-items:center;justify-content:center;">${iconLayers(20, color.fg)}</div>
         <div class="prs-title" style="font-size:17px;font-weight:800;">${esc(section.label)}</div>
       </div>
+      ${(section.id !== "basic" && section.id !== "review" && /ربع|سنوي|نصف|فصلي/.test(reportPeriodType(report) || "")) ? `<button data-action="imp-open" style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid ${BORDER};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;color:${ROSE};cursor:pointer;margin-inline-end:8px;">${iconDownload(14, ROSE)} استيراد من تقارير سابقة</button>` : ""}
       ${actionAllowed("toggle-section-completed") ? `<button data-action="toggle-section-completed" style="display:flex;align-items:center;gap:6px;background:${S.sectionCompleted ? GREEN_BG : "#fff"};border:1px solid ${S.sectionCompleted ? GREEN : BORDER};border-radius:999px;padding:6px 12px;cursor:pointer;font-size:11.5px;font-weight:700;color:${S.sectionCompleted ? GREEN : SUBTLE}">
         ${S.sectionCompleted ? iconCheckCircle(14, GREEN) : iconCircle(14, SUBTLE)} ${S.sectionCompleted ? "مكتمل" : "تحديد كمكتمل"}
       </button>` : ""}
     </div>
     ${(() => { const rn = report.sections && report.sections[section.id] && report.sections[section.id].reviewNote; return rn && REVIEW_NOTE_STATUSES.includes(report.status) ? `<div class="hint bad" style="margin-bottom:14px;text-align:right;line-height:1.9;"><strong>ملاحظة على هذا القسم${rn.by ? " من " + esc(rn.by) : ""}:</strong> ${esc(rn.text)}</div>` : ""; })()}
+    ${S.ui.imp && S.ui.imp.open ? importModalHtml(unit, report) : ""}
     ${sharedBar}
     ${fieldsHtml}
     ${S.sectionSaveError ? `<div class="error-box" style="margin-top:16px;">${esc(S.sectionSaveError)}</div>` : ""}
@@ -10914,16 +11042,51 @@ function rptFieldCellHtml(sid, f, it) {
   return esc(t);
 }
 // جدول عام لعناصر قسم + النصوص الطويلة تحته
+// تحليل تلقائي: الحقول الاختيارية تُعرض نسبًا (٪) والرقمية مجاميع بدل أعمدة مكررة في الجدول (عند ٣ عناصر فأكثر)
+const RPT_ANALYSIS_FIELDS = {
+  tools: ["toolType", "resultQuality", "sampleSize", "respondentsCount"],
+  challenges: ["area", "scope", "stillOngoing"],
+  improvement: ["priority", "ease", "field"],
+  initiatives: ["entryType", "stage"],
+  impact: ["impactType", "ongoing"],
+  strengths: ["area", "continuity", "transferable"],
+  recommendations: ["source", "level"],
+  evidence: ["evidenceType", "confidentiality"],
+};
+const RPT_ANALYSIS_MIN = 3;
+function rptAnalysisFields(sid, items) {
+  if (!RPT_ANALYSIS_FIELDS[sid] || items.length < RPT_ANALYSIS_MIN) return [];
+  return rptVisibleFields(sid).filter((f) => RPT_ANALYSIS_FIELDS[sid].includes(f.id) && (["select", "radio", "expandableSelect", "checkbox", "checkboxes", "multiselect", "number"].includes(f.type)) && items.some((it) => schemaFieldText(it[f.id])));
+}
+function rptAnalysisHtml(sid, items, fields) {
+  const cards = fields.map((f) => {
+    const vals = items.map((it) => it[f.id]).filter((v) => schemaFieldText(v) !== "");
+    if (f.type === "number") {
+      const nums = vals.map((v) => Number(String(v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)))).filter((n) => isFinite(n));
+      if (!nums.length) return "";
+      return `<div class="rpt-an-card"><div class="rpt-an-t">${esc(f.label || f.id)}</div><div class="rpt-an-n">${arabicDigits(Math.round(nums.reduce((a, b) => a + b, 0) * 100) / 100)}</div><div class="rpt-an-s">المجموع من ${arabicDigits(nums.length)} إدخال</div></div>`;
+    }
+    const cnt = {}; let tot = 0;
+    vals.forEach((v) => (Array.isArray(v) ? v : typeof v === "object" ? Object.keys(v).filter((k) => v[k]) : [v]).forEach((x) => { const k = String(x); cnt[k] = (cnt[k] || 0) + 1; tot++; }));
+    const ent = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    if (!ent.length) return "";
+    return `<div class="rpt-an-card"><div class="rpt-an-t">${esc(f.label || f.id)}</div>${ent.map(([k, n]) => { const pc = Math.round((n / tot) * 100); return `<div class="rpt-an-row"><span class="rpt-an-l">${esc(k)}</span><span class="rpt-an-bar"><i style="width:${pc}%"></i></span><b>${arabicDigits(pc)}٪</b></div>`; }).join("")}</div>`;
+  }).join("");
+  return cards ? `<div class="rpt-an-grid">${cards}</div>` : "";
+}
 function rptSchemaItemsHtml(sid, items, emptyText) {
   items = (items || []).filter(rptHasValue);
   if (!items.length) return emptyHint(emptyText || "لم يُدخل محتوى بعد.");
-  const fields = rptVisibleFields(sid);
+  const anFields = rptAnalysisFields(sid, items);
+  const anHtml = anFields.length ? rptAnalysisHtml(sid, items, anFields) : "";
+  const anIds = anHtml ? anFields.map((f) => f.id) : [];
+  const fields = rptVisibleFields(sid).filter((f) => !anIds.includes(f.id));
   // النص الطويل يُكتب تحت الجدول، إلا ما كان عمودًا أصلًا في الجدول القديم (مثل «نص التوصية»)
   const asCol = (f) => f.type !== "textarea" || ((RPT_LEGACY_COLS[sid] || []).includes(f.id) && !(RPT_LEGACY_BLOCKS[sid] || []).includes(f.id));
   const short = fields.filter(asCol);
   const long = fields.filter((f) => !asCol(f));
   const titleOf = (it, i) => schemaFieldText(it.name) || schemaFieldText(it.title) || schemaFieldText(it[(short[0] || {}).id]) || arabicDigits(i + 1);
-  let html = short.length ? reportTable(short.map((f) => f.label || f.id), items.map((it) => short.map((f) => rptFieldCellHtml(sid, f, it)))) : "";
+  let html = anHtml + (short.length ? reportTable(short.map((f) => f.label || f.id), items.map((it) => short.map((f) => rptFieldCellHtml(sid, f, it)))) : "");
   items.forEach((it, i) => long.forEach((f) => { const t = schemaFieldText(it[f.id]); if (t) html += textBlock(`${f.label || f.id}${items.length > 1 || !short.length ? " — " + titleOf(it, i) : ""}`, t); }));
   return html;
 }
@@ -11226,7 +11389,7 @@ function rptUnifiedCoverHtml(s, c) {
 }
 function reportCoverPageHtml(unit, report, dept, s, totalPages) {
   const d = report.sections?.basic?.data || {};
-  const yearLabel = d.hijriYear || hijriYearLabel(hijriYearFromTs(report.createdAt || Date.now()));
+  const yearLabel = (d.hijriYear && d.hijriYearTo && d.hijriYearTo !== d.hijriYear ? d.hijriYear.replace(/هـ/, "") + " – " + d.hijriYearTo : d.hijriYear) || hijriYearLabel(hijriYearFromTs(report.createdAt || Date.now()));
   return rptUnifiedCoverHtml(s, {
     title: (s.coverTitle || "").trim() || report.label || "التقرير الدوري للأداء",
     sub: `${yearLabel}${d.startDate ? ` (${d.startDate} – ${d.endDate || "—"})` : ""}`,
@@ -11330,6 +11493,105 @@ function apReviewPanelHtml(item) {
   </div>`;
 }
 
+/* ===== نافذة «مشاركة التقرير»: تنزيل PDF، نسخ رابط، واتساب، مشاركة من الجهاز، بريد، رمز QR ===== */
+function shareReportUrl(unit, report) { return location.href.split("#")[0].split("?")[0]; }
+function shareReportText(unit, report) { return `تقرير «${report.label || "التقرير الدوري"}» — ${unit.name}`; }
+
+/* ---- استيراد من تقارير سابقة ---- */
+function impSourceReports(unit, report) {
+  return ensureUnitReportsLoaded(unit.id).filter((r) => r.id !== report.id && isReportArchived(r));
+}
+function impKeyLabel(sid, key) {
+  const sc = SECTION_FIELD_SCHEMAS[sid];
+  if (sc && sc.arrayKey === key) return sc.itemLabel ? "عناصر: " + sc.itemLabel : key;
+  return key;
+}
+function impKeysOf(rep, sid) {
+  const data = (rep.sections && rep.sections[sid] && rep.sections[sid].data) || {};
+  return Object.keys(data).filter((k) => { const v = data[k]; return Array.isArray(v) ? v.length : (v && typeof v === "object" ? Object.keys(v).length : String(v == null ? "" : v).trim() !== ""); });
+}
+function importModalHtml(unit, report) {
+  const im = S.ui.imp, sid = S.activeSectionId, sc = SECTION_FIELD_SCHEMAS[sid];
+  const chk = (on) => `<span style="width:20px;height:20px;border-radius:6px;border:1.5px solid ${on ? ROSE : BORDER};background:${on ? ROSE : "#fff"};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none;">${on ? "✓" : ""}</span>`;
+  const rowBtn = (act, attrs, on, title, sub) => `<button type="button" data-action="${act}" ${attrs} style="display:flex;align-items:center;gap:10px;width:100%;text-align:right;background:#fff;border:1px solid ${on ? ROSE : BORDER};border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;">${chk(on)}<span style="flex:1;"><span style="display:block;font-weight:700;font-size:13px;color:${INK};">${esc(title)}</span>${sub ? `<span style="display:block;font-size:11px;color:${SUBTLE};">${esc(sub)}</span>` : ""}</span></button>`;
+  let body = "";
+  if (im.step === 1) {
+    const all = impSourceReports(unit, report);
+    const types = [...new Set(all.map((r) => reportPeriodType(r) || "أخرى"))];
+    const list = all.filter((r) => !im.type || (reportPeriodType(r) || "أخرى") === im.type);
+    body = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${["", ...types].map((t) => `<button type="button" data-action="imp-type" data-t="${esc(t)}" style="border:1px solid ${im.type === t ? ROSE : BORDER};background:${im.type === t ? ROSE : "#fff"};color:${im.type === t ? "#fff" : INK};border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;">${t ? esc(t) : "الكل"}</button>`).join("")}</div>
+      ${list.length ? list.map((r) => rowBtn("imp-pick", `data-id="${esc(r.id)}"`, !!im.sel[r.id], r.label || "تقرير", reportPeriodType(r) || "")).join("") : `<div class="hint">لا توجد تقارير معتمدة سابقة لهذه الجهة.</div>`}
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">${pillBtn("التالي", { action: "imp-next", disabled: !Object.values(im.sel).some(Boolean) })}</div>`;
+  } else {
+    const reps = impSourceReports(unit, report).filter((r) => im.sel[r.id]);
+    body = reps.map((r) => {
+      const keys = impKeysOf(r, sid);
+      return `<div style="font-weight:800;font-size:13px;margin:6px 0;">${esc(r.label || "تقرير")}</div>` + (keys.length ? keys.map((k) => {
+        const on = !!im.keys[r.id + "|" + k];
+        let sub = "";
+        const v = r.sections[sid].data[k];
+        if (Array.isArray(v)) sub = v.length + " عنصر";
+        let cols = "";
+        if (on && sc && sc.arrayKey === k && Array.isArray(v)) {
+          cols = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 10px;padding-inline-start:30px;">${sc.fields.map((f) => { const co = im.cols[r.id + "|" + f.id] !== false; return `<button type="button" data-action="imp-col" data-id="${esc(r.id)}" data-f="${esc(f.id)}" style="border:1px solid ${co ? ROSE : BORDER};background:${co ? "#fff0f4" : "#fff"};border-radius:8px;padding:3px 8px;font-size:11px;cursor:pointer;">${co ? "✓ " : ""}${esc(f.label)}</button>`; }).join("")}</div>`;
+        }
+        return rowBtn("imp-key", `data-id="${esc(r.id)}" data-k="${esc(k)}"`, on, impKeyLabel(sid, k), sub) + cols;
+      }).join("") : `<div class="hint">لا توجد بيانات في هذا القسم.</div>`);
+    }).join("") + `<div style="font-weight:800;font-size:13px;margin:12px 0 6px;">طريقة الإدخال</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">${[["append", "إضافة بعد الموجود"], ["replace", "استبدال الموجود"]].map(([v, l]) => `<button type="button" data-action="imp-mode" data-m="${v}" style="flex:1;border:1px solid ${im.mode === v ? ROSE : BORDER};background:${im.mode === v ? ROSE : "#fff"};color:${im.mode === v ? "#fff" : INK};border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">${l}</button>`).join("")}</div>
+      <div class="hint" style="margin-bottom:10px;">التقرير الأصلي لا يتغير، وما يُستورد قابل للتعديل.</div>
+      <div style="display:flex;justify-content:space-between;">${pillBtn("رجوع", { variant: "ghost", action: "imp-back" })}${pillBtn("استيراد", { action: "imp-do", disabled: !Object.values(im.keys).some(Boolean) })}</div>`;
+  }
+  return `<div class="no-print" data-action="imp-close" style="position:fixed;inset:0;background:rgba(40,20,30,.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;">
+    <div data-stop="1" style="background:#faf6f6;width:min(520px,100%);max-height:88vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 18px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:16px;font-weight:800;">استيراد من تقارير سابقة — ${im.step === 1 ? "اختيار التقرير" : "اختيار المحتوى"}</div><button type="button" data-action="imp-close" style="background:none;border:none;cursor:pointer;">${iconX(18, SUBTLE)}</button></div>
+      ${body}
+    </div></div>`;
+}
+function importDoDraft(unit, report) {
+  const im = S.ui.imp, sid = S.activeSectionId, sc = SECTION_FIELD_SCHEMAS[sid];
+  const reps = impSourceReports(unit, report).filter((r) => im.sel[r.id]);
+  const d = S.sectionDraft;
+  const fresh = {}; // key -> merged value
+  reps.forEach((r) => {
+    const data = (r.sections[sid] && r.sections[sid].data) || {};
+    Object.keys(data).forEach((k) => {
+      if (!im.keys[r.id + "|" + k]) return;
+      let v = JSON.parse(JSON.stringify(data[k]));
+      if (Array.isArray(v)) {
+        if (sc && sc.arrayKey === k) v = v.map((it) => { const o = { ...it, id: uid("imp") }; sc.fields.forEach((f) => { if (im.cols[r.id + "|" + f.id] === false) delete o[f.id]; }); return o; });
+        fresh[k] = (fresh[k] || []).concat(v);
+      } else if (v && typeof v === "object") fresh[k] = { ...(fresh[k] || {}), ...v };
+      else fresh[k] = v;
+    });
+  });
+  Object.keys(fresh).forEach((k) => {
+    const v = fresh[k];
+    if (im.mode === "append" && Array.isArray(v)) d[k] = (Array.isArray(d[k]) ? d[k] : []).concat(v);
+    else if (im.mode === "append" && v && typeof v === "object") d[k] = { ...v, ...(d[k] || {}) };
+    else if (im.mode === "append" && typeof v === "string" && d[k]) d[k] = d[k] + "\n" + v;
+    else d[k] = v;
+  });
+}
+function shareReportModalHtml(unit, report) {
+  const url = shareReportUrl(unit, report), txt = shareReportText(unit, report);
+  let qr = "";
+  if (S.ui.shareQr) { try { const q = qrcode(0, "M"); q.addData(url); q.make(); qr = `<div style="width:170px;margin:12px auto 0;">${q.createSvgTag({ cellSize: 5, margin: 2, scalable: true })}</div>`; } catch (e) { qr = ""; } }
+  const row = (ic, label, action, sub) => `<button type="button" data-action="${action}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;background:#fff;border:1px solid ${BORDER};border-radius:14px;padding:12px 14px;cursor:pointer;font-family:inherit;margin-bottom:8px;"><span style="width:34px;height:34px;border-radius:10px;background:${GOLD_BG};display:flex;align-items:center;justify-content:center;flex:none;">${ic}</span><span style="flex:1;"><b style="font-size:13px;">${label}</b>${sub ? `<div style="font-size:11px;color:${SUBTLE};">${sub}</div>` : ""}</span></button>`;
+  return `<div class="no-print" data-action="share-report-close" style="position:fixed;inset:0;background:rgba(40,20,30,.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;">
+    <div data-stop="1" style="background:#faf6f6;width:min(480px,100%);max-height:88vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 18px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:16px;font-weight:800;">مشاركة التقرير</div><button type="button" data-action="share-report-close" class="icon-btn" aria-label="إغلاق">${iconX(16, INK)}</button></div>
+      <div class="hint" style="margin-bottom:12px;">${esc(txt)}</div>
+      ${row(iconDownload(16, ROSE), "تنزيل PDF", "print-page", "يفتح الطباعة — اختاري «حفظ كـ PDF»")}
+      ${row(iconDocument(16, ROSE), "نسخ الرابط", "share-copy-link", "رابط المنصة — يحتاج صاحب الرابط حسابًا للدخول")}
+      ${row(iconArrowRight(16, ROSE), "واتساب", "share-whatsapp", "برسالة جاهزة")}
+      ${row(iconArrowRight(16, ROSE), "مشاركة من الجهاز", "share-native", "آيباد أو جوال أو حاسب")}
+      ${row(iconArrowRight(16, ROSE), "بريد إلكتروني", "share-mail", "")}
+      ${row(iconLayers(16, ROSE), S.ui.shareQr ? "إخفاء رمز QR" : "رمز QR", "share-qr", "")}
+      ${qr}
+      <div class="hint" style="margin-top:10px;line-height:1.8;">ملاحظة: الرابط العام للمشاهدة بدون دخول، مع «إيقاف الرابط»، يحتاج ربطًا بالقاعدة وأضيفه مع بند «الحفظ والأرشيف وDrive».</div>
+    </div></div>`;
+}
 function renderFullReport() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
   const report = getCurrentReportEntry();
@@ -11341,7 +11603,8 @@ function renderFullReport() {
   <div class="page-wrap"><div class="page-inner report">
     ${topBarHtml({ title: "عرض التقرير كاملاً", subtitle: `${unit.name} — ${esc(report.label)} — ${progress.completed} من ${progress.total} أقسام مكتملة`,
       backAction: rvItem ? "nav-to" : (readOnlyVisit ? "nav-to" : "nav-to-unit-report"), backData: rvItem ? { view: "custom-path-inbox" } : (readOnlyVisit ? { view: "all-reports" } : undefined),
-      right: RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : "" })}
+      right: `<div style="display:flex;gap:8px;flex-wrap:wrap;">${pillBtn("تنزيل PDF", { icon: iconDownload(15, "#fff"), action: "print-page" })}${pillBtn("مشاركة", { variant: "ghost", icon: iconArrowRight(15, INK), action: "share-report-open", data: { btn: "share-report" } })}${RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : ""}</div>` })}
+    ${S.ui.shareOpen ? shareReportModalHtml(unit, report) : ""}
     ${rptWrap(rptUnitSettings(unit), fullReportOrPreviewBody(unit, report, rvItem ? apReviewAfterPageHtml(rvItem) : null))}
     ${rvItem ? apReviewPanelHtml(rvItem) : ""}
     ${readOnlyVisit ? "" : `<div class="hint" style="margin-top:12px;">للتعديل على أي قسم، ارجعي إلى "مسودة التقرير" واختاري القسم من قائمة المراحل.</div>`}
@@ -11578,6 +11841,8 @@ function attachFormListeners() {
     if (el.dataset && el.dataset.field && el.tagName !== "SELECT") {
       setFieldFromEl(el);
       liveUpdateComputed(el);
+    } else if (el.dataset && el.dataset.shind) {
+      (S.ui.shInd = S.ui.shInd || { indName: "", units: [], mode: "sum", target: "" })[el.dataset.shind] = el.value;
     } else if (el.dataset && el.dataset.newind) {
       const key = `newIndicatorForm_${el.dataset.newind}`;
       (S.ui[key] = S.ui[key] || {})[el.dataset.newindField] = el.value;
@@ -12481,6 +12746,23 @@ function attachClickListener() {
         break;
       }
       case "print-page": window.print(); break;
+      case "imp-open": S.ui.imp = { open: true, step: 1, type: "", sel: {}, keys: {}, cols: {}, mode: "append" }; render(); break;
+      case "imp-close": if (e.target.closest("[data-stop]") && !e.target.closest("button[data-action=imp-close]")) break; S.ui.imp = null; render(); break;
+      case "imp-type": S.ui.imp.type = ds.t || ""; render(); break;
+      case "imp-pick": S.ui.imp.sel[ds.id] = !S.ui.imp.sel[ds.id]; render(); break;
+      case "imp-next": { const im = S.ui.imp; im.step = 2; Object.keys(im.sel).filter((i) => im.sel[i]).forEach((i) => { const r = ensureUnitReportsLoaded(S.currentUnitId).find((x) => x.id === i); if (r) impKeysOf(r, S.activeSectionId).forEach((k) => { if (im.keys[i + "|" + k] === undefined) im.keys[i + "|" + k] = true; }); }); render(); break; }
+      case "imp-back": S.ui.imp.step = 1; render(); break;
+      case "imp-key": { const k = ds.id + "|" + ds.k; S.ui.imp.keys[k] = !S.ui.imp.keys[k]; render(); break; }
+      case "imp-col": { const k = ds.id + "|" + ds.f; S.ui.imp.cols[k] = S.ui.imp.cols[k] === false; render(); break; }
+      case "imp-mode": S.ui.imp.mode = ds.m; render(); break;
+      case "imp-do": { const unit = S.units.find((u) => u.id === S.currentUnitId); importDoDraft(unit, getCurrentReportEntry()); S.ui.imp = null; S.sectionSaveStatus = "تم الاستيراد — احفظي المسودة"; render(); break; }
+      case "share-report-open": S.ui.shareOpen = true; S.ui.shareQr = false; render(); break;
+      case "share-report-close": if (e.target.closest("[data-stop]") && !e.target.closest("button[data-action=share-report-close]")) break; S.ui.shareOpen = false; render(); break;
+      case "share-qr": S.ui.shareQr = !S.ui.shareQr; render(); break;
+      case "share-copy-link": { const u = shareReportUrl(); try { navigator.clipboard.writeText(u); } catch (er) { /* تجاهل */ } btn.textContent = "تم النسخ ✓"; break; }
+      case "share-whatsapp": { const un = S.units.find((x) => x.id === S.currentUnitId), rp = getCurrentReportEntry(); window.open("https://wa.me/?text=" + encodeURIComponent((un && rp ? shareReportText(un, rp) : "تقرير") + "\n" + shareReportUrl()), "_blank", "noopener"); break; }
+      case "share-native": { const un = S.units.find((x) => x.id === S.currentUnitId), rp = getCurrentReportEntry(); const t = un && rp ? shareReportText(un, rp) : "تقرير"; if (navigator.share) { navigator.share({ title: t, text: t, url: shareReportUrl() }).catch(() => {}); } else { try { navigator.clipboard.writeText(t + "\n" + shareReportUrl()); } catch (er) { /* تجاهل */ } btn.textContent = "تم نسخ الرابط ✓"; } break; }
+      case "share-mail": { const un = S.units.find((x) => x.id === S.currentUnitId), rp = getCurrentReportEntry(); location.href = "mailto:?subject=" + encodeURIComponent(un && rp ? shareReportText(un, rp) : "تقرير") + "&body=" + encodeURIComponent(shareReportUrl()); break; }
 
       /* ---------- units overview ---------- */
       case "bs-open": {
@@ -12820,6 +13102,10 @@ function attachClickListener() {
         S.ui.goalImp = (() => { const out = []; let hd = null, hdDone = true, st = null, stDone = true; rows.forEach((r) => { if (r.heading) { hd = r.line; hdDone = false; } else if (r.kind === "strategic") { st = r.line; stDone = false; } else if (r.errs.length) { if (hd && !hdDone) { out.push(hd); hdDone = true; } if (st && !stDone) { out.push(st); stDone = true; } out.push(r.line); } }); return out.length ? { text: out.join("\n"), preview: null } : null; })();
         render(); break;
       }
+      case "shind-unit": { const f = S.ui.shInd; f.units = f.units.includes(ds.id) ? f.units.filter((x) => x !== ds.id) : [...f.units, ds.id]; render(); break; }
+      case "shind-mode": S.ui.shInd.mode = ds.m; render(); break;
+      case "shind-add": { const f = S.ui.shInd; const cur = (S.siteSettings.theme && S.siteSettings.theme.sharedInds) || []; saveSiteTheme({ sharedInds: [...cur, { id: uid("shind"), indName: f.indName, units: f.units.slice(), mode: f.mode, target: f.target }] }); S.ui.shInd = null; render(); break; }
+      case "shind-del": { const cur = (S.siteSettings.theme && S.siteSettings.theme.sharedInds) || []; saveSiteTheme({ sharedInds: cur.filter((x) => x.id !== ds.id) }); render(); break; }
       case "ind-tab": S.ui.indTab = ds.tab; render(); break;
       case "scope-toggle": { const k = ds.kind + ":" + ds.id; S.ui.scopeOpen = S.ui.scopeOpen === k ? null : k; render(); break; }
       case "ind-add-toggle": saveSiteTheme({ indAddFromReport: !indAddFromReportOn() }); render(); break;
