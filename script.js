@@ -1403,7 +1403,9 @@ function apAutoAuthorAllowed(unit, personId) {
 function apAutoGuessRoles() {
   const rs = rolesList().filter((r) => r.status !== "disabled");
   const f = (re) => (rs.find((r) => re.test(r.name || "")) || {}).id || "";
-  return { idr: f(/إداري/), ast: f(/مساعد/), head: f(/رئيس/), sec: f(/سكرتار/) };
+  // «مساعدة مدير إدارة التعليم النسائي» دور مستقل عن «مساعدة الوحدة» — لا يدخل مسار الوحدة التلقائي
+  const fa = (rs.find((r) => /مساعد/.test(r.name || "") && !/(مدير|إدارة)/.test(r.name || "")) || {}).id || "";
+  return { idr: f(/إداري/), ast: fa, head: f(/رئيس/), sec: f(/سكرتار/) };
 }
 function apAutoSave(patch) {
   const cfg = { ...autoPathCfg(), ...patch };
@@ -2037,7 +2039,7 @@ const SIDEBAR_PAGES = [
   { id: "executive-summary", label: "الملخص التنفيذي", group: "standalone", icon: "document" },
   { id: "executive-final-report", label: "التقرير الإداري النهائي", group: "standalone", icon: "layers" },
   { id: "office-dashboard", label: "لوحة المعلومات", group: "مكتب الإشراف", icon: "home" },
-  { id: "office-archive", label: "الأرشفة", group: "standalone", icon: "layers" },
+  { id: "office-archive", label: "الأرشيف الكامل", group: "standalone", icon: "layers" },
   { id: "office-summary", label: "ملخص الوحدات", group: "standalone", icon: "document" },
   { id: "office-curation", label: "اعتماد أبرز النتائج والتوصيات", group: "مكتب الإشراف", icon: "target" },
   { id: "unit-dashboard", label: "لوحة المعلومات", group: "unit-home", scope: "unit", icon: "home" },
@@ -2054,7 +2056,7 @@ const SIDEBAR_PAGES = [
 // مستقلة بالشريط الجانبي — بلا طي وبلا اشتراط مسبق بوحدة/قسم محدّد، تمامًا
 // بنفس أسلوب "جميع التقارير" — حسب طلب نجود الصريح.
 const SIDEBAR_GROUPS = ["الرئيسية", "إدارة التقارير", "__standalone__all-reports", "__standalone__units-manage", "__standalone__browse-structure", "__standalone__office-archive", "__standalone__office-summary", "__standalone__executive-summary", "__standalone__executive-final-report", "التقارير المجمّعة", "الإدارة العليا", "مكتب الإشراف", "الهيكل التنظيمي", "__standalone__unit-dashboard", "__standalone__unit-reports", "__standalone__unit-report", "__standalone__unit-settings", "__standalone__unit-notifications", "__standalone__unit-all-reports"];
-const SIDEBAR_GROUP_LABELS = { "unit-home": "الرئيسية" };
+const SIDEBAR_GROUP_LABELS = { "unit-home": "الرئيسية", "الإدارة العليا": "إدارة التعليم النسائي" };
 
 // كتالوج "إجراءات" التقرير — يُستخدم لصلاحيات الأزرار في الأدوار. كل id هنا
 // يطابق حرفيًا قيمة data-action المستخدمة بالفعل بالأزرار/بمُعالج النقر —
@@ -2079,7 +2081,7 @@ const BUTTON_CATALOG = [
   { id: "chip:archived", g: "قائمة التقارير", label: "زر «أرشيف التقارير»", sel: '[data-action="set-unit-reports-filter"][data-filter="archived"]' },
   { id: "open-or-create-report", g: "بطاقة التقرير", label: "إنشاء تقرير (يكمل آخر مفتوح أو ينشئ جديدًا)", sel: '[data-action="open-or-create-report"]' },
   { id: "create-new-report", g: "بطاقة التقرير", label: "تقرير جديد (إضافي حتى مع وجود مسودة)", sel: '[data-action="create-new-report"]' },
-  { id: "card-preview", g: "بطاقة التقرير", label: "معاينة التقرير", sel: '[data-btn="card-preview"]' },
+  { id: "card-preview", g: "بطاقة التقرير", label: "متابعة الكتابة (كانت «معاينة»)", sel: '[data-btn="card-preview"]' },
   { id: "card-view", g: "بطاقة التقرير", label: "عرض التقرير", sel: '[data-btn="card-view"]' },
   { id: "card-download", g: "بطاقة التقرير", label: "تنزيل PDF / طباعة", sel: '[data-btn="card-download"],[data-action="print-page"]' },
   { id: "card-reedit", g: "بطاقة التقرير", label: "إعادة التعديل", sel: '[data-btn="card-reedit"]' },
@@ -2161,7 +2163,7 @@ function computeVisibleSidebarPages() {
   const ids = new Set(raw.map((p) => MERGED_PAGE_MAP[p.id] || p.id));
   // «بانتظار مراجعتي» صار زرًّا داخل صفحة التقارير؛ لا يبقى رابطًا مستقلًّا إلا لمن لا يملك صفحة التقارير (حساب قسم/مكتب مثلًا).
   if (inboxViaReportsHub(ids)) ids.delete("custom-path-inbox");
-  return SIDEBAR_PAGES.filter((p) => ids.has(p.id) && !(p.id === "unit-report" && adminReportsReadOnly()));
+  return SIDEBAR_PAGES.filter((p) => ids.has(p.id) && !(p.id === "all-reports" && S.isExecutive) && p.id !== "unit-all-reports" /* دُمجت في «تقارير» كزر «أرشيف التقارير» — الصفحة وكودها محفوظان */ && !(p.id === "unit-report" && adminReportsReadOnly()));
 }
 function computeVisibleSidebarPagesRaw() {
   // مجموعة "unit-home" (تُعرض الآن كروابط رئيسية مستقلة بالشريط الجانبي —
@@ -2413,7 +2415,7 @@ function personsList() { return S.persons || (S.persons = dataStore.getPersons()
 // «كيف تريدين الدخول؟» ويدخل كل دور بصفحاته هو فقط (بلا جمع صلاحيات).
 function baseRoleIdsRaw(e) { return e && e.baseRoleId ? String(e.baseRoleId).split(",").map((x) => x.trim()).filter(Boolean) : []; }
 // «دور كل نوع»: الحساب اللي ما له دور خاص ياخذ دور نوعه (theme.typeRoles) — يتغيّر عند الكل بتعديل واحد
-const TYPE_ROLE_KINDS = [{ k: "unit", label: "الوحدات" }, { k: "center", label: "المراكز" }, { k: "dept", label: "الأقسام" }, { k: "office", label: "المكاتب" }, { k: "exec", label: "الإدارة العليا" }, { k: "level", label: "المسؤولات في الهيكل (دخول خاص)" }];
+const TYPE_ROLE_KINDS = [{ k: "unit", label: "الوحدات" }, { k: "center", label: "المراكز" }, { k: "dept", label: "الأقسام" }, { k: "office", label: "المكاتب" }, { k: "exec", label: "إدارة التعليم النسائي" }, { k: "level", label: "المسؤولات في الهيكل (دخول خاص)" }];
 function typeRolesCfg() { const th = ((S.siteSettings || {}).theme) || {}; return th.typeRoles || {}; }
 function entityTypeKey(e) {
   if (!e) return "";
@@ -3122,7 +3124,16 @@ const DASH_KINDS = [
 ];
 // يُتعرَّف على هذين الحسابين من اسم الدور (يحتوي «سكرتار» / «مساعد» مع «مدير»)
 function dashRoleKind() {
-  const n = String(S.currentEntryRoleName || "") + " " + String((S.currentUser && (S.currentUser.roleName || S.currentUser.name)) || "");
+  // الربط الصريح من إعدادات اللوحة (بمعرّف الدور) يغلب على التعرّف من الاسم
+  const map = (dashConfig()._roles) || {};
+  const ids = [];
+  try { const p = S.currentPersonId ? personsList().find((x) => x.id === S.currentPersonId) : null; if (p && p.roleId) ids.push(p.roleId); } catch (e) { /* تجاهل */ }
+  try { if (S.currentEntryRoleName) rolesList().filter((r) => r.name === S.currentEntryRoleName).forEach((r) => ids.push(r.id)); } catch (e) { /* تجاهل */ }
+  if (ids.some((id) => map.role_sec && map.role_sec === id)) return "role_sec";
+  if (ids.some((id) => map.role_asst && map.role_asst === id)) return "role_asst";
+  let pr = "";
+  try { const p = S.currentPersonId ? personsList().find((x) => x.id === S.currentPersonId) : null; const r = p ? rolesList().find((x) => x.id === p.roleId) : null; pr = (r && r.name) || ""; } catch (e) { /* تجاهل */ }
+  const n = String(S.currentEntryRoleName || "") + " " + pr + " " + String((S.currentUser && (S.currentUser.roleName || S.currentUser.name)) || "");
   if (/سكرتار/.test(n)) return "role_sec";
   if (/مساعد/.test(n) && /(مدير|إدارة)/.test(n)) return "role_asst";
   return null;
@@ -3170,7 +3181,8 @@ const DASH_ADMIN_BLOCKS = [
 const DASH_EX_BLOCKS = [
   { key: "periodFilter", label: "فلتر نوع الفترة والسنة" },
   { key: "exKpis", label: "بطاقات الأرقام مع خط التطور" },
-  { key: "exHeat", label: "خريطة الأداء" },
+  { key: "exHeat", label: "خريطة الأداء (المؤشرات)" },
+  { key: "exHeatGoal", label: "خريطة تحقق الأهداف" },
   { key: "exCompare", label: "مقارنة المكاتب/الأقسام/الوحدات" },
   { key: "trend", label: "رسم تطور التحقق فترة بعد فترة" },
   { key: "exStrategic", label: "أهداف الخطة الاستراتيجية" },
@@ -3196,7 +3208,41 @@ function dashConfig() { return S.dashboardConfig || (S.dashboardConfig = dataSto
 function dashHidden(kind, key) { const c = dashConfig()[kind]; return !!(c && Array.isArray(c.hidden) && c.hidden.indexOf(key) !== -1); }
 function dashMarkWrap(kind, html) { return String(html).replace(/\u0001(\w+)\u0002([\s\S]*?)\u0003/g, (m, k, h) => dashB(kind, k, h)); }
 function dashShow(kind, key, html) { return dashHidden(kind, key) ? "" : html; }
-function dashCatalog(kind) { return kind === "admin" ? DASH_ADMIN_BLOCKS : (kind === "executive" || kind === "role_asst") ? DASH_EX_BLOCKS : DASH_STD_BLOCKS; }
+// ===== حقول أقسام التقرير في لوحة المعلومات: بطاقة لكل قسم له حقول، كلها ظاهرة والمخفي يُحدَّد من إعدادات اللوحة =====
+const DASH_FLD_OWNER = { analysisComparisons: "analysis", kpiDeviation: "kpi" };
+const DASH_FLD_LABEL = { analysisComparisons: "تحليل النتائج — المقارنات", kpiDeviation: "مؤشرات الأداء — الانحرافات" };
+function dashFieldSecIds() { return Object.keys(SECTION_FIELD_SCHEMAS).filter((id) => { const sc = SECTION_FIELD_SCHEMAS[id]; return sc && sc.arrayKey && Array.isArray(sc.fields) && sc.fields.length; }); }
+function dashFieldSecLabel(id) { return DASH_FLD_LABEL[id] || ((SECTIONS.find((x) => x.id === id) || DEFAULT_SECTIONS.find((x) => x.id === id) || {}).label) || id; }
+function dashFieldCatalog() { return dashFieldSecIds().map((id) => ({ key: "fld_" + id, label: "حقول: " + dashFieldSecLabel(id) })); }
+function dashCatalog(kind) { const base = kind === "admin" ? DASH_ADMIN_BLOCKS : (kind === "executive" || kind === "role_asst") ? DASH_EX_BLOCKS : DASH_STD_BLOCKS; return base.concat(dashFieldCatalog()); }
+function dashFieldBlockHtml(kind, sid, units) {
+  const sc = SECTION_FIELD_SCHEMAS[sid]; if (!sc) return "";
+  const owner = DASH_FLD_OWNER[sid] || sid;
+  const rows = []; let reports = 0;
+  units.forEach((u) => dashRepsOf(u.id).forEach((r) => { const d = r && r.sections && r.sections[owner] && r.sections[owner].data; const arr = d && d[sc.arrayKey]; if (Array.isArray(arr)) { const ok = arr.filter((x) => x && typeof x === "object" && rptHasValue(x)); if (ok.length) { reports++; ok.forEach((x) => rows.push(x)); } } }));
+  if (!rows.length) return "";
+  const cards = sc.fields.map((f) => {
+    const vals = rows.map((x) => x[f.id]).filter((v) => v != null && String(v).trim() !== "" && !(Array.isArray(v) && !v.length));
+    if (!vals.length) return "";
+    const t = f.type;
+    if (t === "number") {
+      const nums = vals.map((v) => Number(String(v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)))).filter((n) => isFinite(n));
+      if (!nums.length) return "";
+      const sum = nums.reduce((a, b) => a + b, 0);
+      if (/نسبة|٪|%/.test(f.label)) { const av = Math.round((sum / nums.length) * 10) / 10; return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${esc(f.label)} (المتوسط)</div><div style="font-size:24px;font-weight:800;color:${ROSE};">${fmtNum(av)}٪</div><div style="font-size:11px;color:${SUBTLE};">${nums.length} إدخال</div></div>`; }
+      return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${esc(f.label)}</div><div style="font-size:24px;font-weight:800;color:${ROSE};">${fmtNum(Math.round(sum * 100) / 100)}</div><div style="font-size:11px;color:${SUBTLE};">المتوسط ${fmtNum(Math.round((sum / nums.length) * 10) / 10)} · ${nums.length} إدخال</div></div>`;
+    }
+    if (["select", "radio", "expandableSelect", "checkbox", "checkboxes", "multiselect"].includes(t)) {
+      const cnt = {}; vals.forEach((v) => (Array.isArray(v) ? v : [v]).forEach((x) => { const k = String(x); cnt[k] = (cnt[k] || 0) + 1; }));
+      const ent = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 6); const mx = ent[0][1];
+      return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;font-weight:700;margin-bottom:8px;">${esc(f.label)}</div>${ent.map(([k, n]) => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:5px;"><span style="flex:0 0 38%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(k)}</span><span style="flex:1;height:8px;border-radius:6px;background:${GRAY_BG};"><i style="display:block;height:100%;width:${Math.round((n / mx) * 100)}%;background:${ROSE};border-radius:6px;"></i></span><b style="min-width:22px;text-align:left;">${n}</b></div>`).join("")}</div>`;
+    }
+    return `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${esc(f.label)}</div><div style="font-size:22px;font-weight:800;color:${INK};">${vals.length}</div><div style="font-size:11px;color:${SUBTLE};">إدخال مكتوب</div></div>`;
+  }).filter(Boolean).join("");
+  if (!cards) return "";
+  return dashCard(dashFieldSecLabel(sid), `${rows.length} ${esc(sc.itemLabel || "إدخال")} من ${reports} تقرير — الفترة المختارة`, `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:10px;">${cards}</div>`);
+}
+function dashFieldBlocksHtml(kind, units) { return dashFieldSecIds().map((id) => dashHidden(kind, "fld_" + id) ? "" : dashB(kind, "fld_" + id, dashFieldBlockHtml(kind, id, units))).join(""); }
 function dashOrderList(kind) {
   const keys = dashCatalog(kind).map((b) => b.key);
   const saved = ((dashConfig()[kind] || {}).order) || [];
@@ -3505,10 +3551,10 @@ function exBlocksInner(kind, units) {
     html += "\u0003";
   }
   // خريطة الأداء: أبناء المستوى الحالي، وتحت كل واحد أبناؤه ومربعات وحداته
-  if (!dashHidden(kind, "exHeat")) { html += "\u0001exHeat\u0002";
+  for (const [hk, hTitle, hSub, hFn] of [["exHeat", "خريطة الأداء", "كل مربع وحدة ملوّنة بنسبة تحقق مؤشراتها في آخر تقرير · اضغطي على أي اسم للتفصيل", dashReportIndAvg], ["exHeatGoal", "خريطة تحقق الأهداف", "كل مربع وحدة ملوّنة بمتوسط تحقق أهدافها التشغيلية في آخر تقرير · اضغطي على أي اسم للتفصيل", dashReportGoalAvg]]) { if (dashHidden(kind, hk)) continue; html += "\u0001" + hk + "\u0002";
     const tileBg = (p) => (p == null ? "#cfc6ca" : pctColor(p));
-    const tiles = (list) => `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(74px,100%),1fr));gap:6px;margin-top:6px;">${list.map((u) => { const p = latestPct(u, dashReportIndAvg); return `<div title="${esc(u.name)}" style="border-radius:8px;padding:6px;color:#fff;text-align:center;min-height:50px;display:flex;flex-direction:column;justify-content:center;background:${tileBg(p)};"><div style="font-size:10.5px;line-height:1.4;">${esc(u.name)}</div><div style="font-size:14px;font-weight:800;">${p == null ? "—" : p + "٪"}</div></div>`; }).join("")}</div>`;
-    const pctOf = (list) => { const p = dashAvg(list.map((u) => latestPct(u, dashReportIndAvg))); return p == null ? "—" : p + "٪"; };
+    const tiles = (list) => `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(74px,100%),1fr));gap:6px;margin-top:6px;">${list.map((u) => { const p = latestPct(u, hFn); return `<div title="${esc(u.name)}" style="border-radius:8px;padding:6px;color:#fff;text-align:center;min-height:50px;display:flex;flex-direction:column;justify-content:center;background:${tileBg(p)};"><div style="font-size:10.5px;line-height:1.4;">${esc(u.name)}</div><div style="font-size:14px;font-weight:800;">${p == null ? "—" : p + "٪"}</div></div>`; }).join("")}</div>`;
+    const pctOf = (list) => { const p = dashAvg(list.map((u) => latestPct(u, hFn))); return p == null ? "—" : p + "٪"; };
     const box = sc.children.map((c) => {
       const head = c.leaf || !c.levelId ? `<div style="padding:4px 2px;font-size:13.5px;font-weight:800;color:${INK};">${esc(c.name)} · ${pctOf(c.list)}</div>` : exDrillBtn(sc.path.concat(c.levelId), `${esc(c.name)} · ${pctOf(c.list)}`, `padding:4px 2px;font-size:13.5px;font-weight:800;color:${ROSE};text-align:right;`);
       const subs = c.levelId && !c.leaf ? olChildren(c.levelId).map((l) => ({ l, list: c.list.filter((u) => olScopeUnitIds(l.id).has(u.id)) })).filter((x) => x.list.length) : [];
@@ -3520,7 +3566,7 @@ function exBlocksInner(kind, units) {
       return `<div style="flex:1 1 360px;min-width:0;border:1px solid ${BORDER};border-radius:14px;padding:10px;">${head}${inner ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">${inner}</div>` : ""}${direct.length ? tiles(direct) : ""}</div>`;
     }).join("");
     const legend = [[GREEN, "100٪+"], [GOLD, "90–99"], ["#c9863a", "70–89"], [DANGER, "أقل من 70"], ["#cfc6ca", "بلا بيانات"]].map(([c, l]) => `<span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:${c}"></span>${l}</span>`).join("");
-    html += dashCard("خريطة الأداء", "كل مربع وحدة ملوّنة بنسبة تحقق مؤشراتها في آخر تقرير · اضغطي على أي اسم للتفصيل",
+    html += dashCard(hTitle, hSub,
       `<div style="display:flex;gap:10px;font-size:11.5px;flex-wrap:wrap;margin-bottom:10px;">${legend}</div><div style="display:flex;gap:12px;flex-wrap:wrap;">${box || emptyHint("لا توجد وحدات.")}</div>`);
     html += "\u0003";
   }
@@ -3728,7 +3774,11 @@ function renderDashboard() {
   // — مستقل تمامًا عن اسم الصفحة. هذا فقط لحساب نطاق "لوحة المعلومات"
   // الموحّدة؛ الصفحات المخصّصة الأصلية (قسمي/مكتب الإشراف/لوحة معلومات
   // الوحدة) تبقى موجودة تمامًا بدون أي حذف أو تغيير.
-  if (S.isExecutive) return renderExecutiveDashboard(undefined, undefined, dashRoleKind() === "role_asst" ? { kind: "role_asst" } : undefined);
+  if (S.isExecutive) {
+    const rk0 = dashRoleKind();
+    if (rk0 === "role_sec") return renderDashboardBody(S.units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive"), { kind: "role_sec" });
+    return renderExecutiveDashboard(undefined, undefined, rk0 === "role_asst" ? { kind: "role_asst" } : undefined);
+  }
   const adminDeptPreview = S.isAdmin && S.ui.previewDeptId && (S.departments || []).some((d) => d.id === S.ui.previewDeptId);
   if ((S.isDepartmentUser && S.currentDepartmentId) || adminDeptPreview) {
     const dept = S.departments.find((d) => d.id === (adminDeptPreview ? S.ui.previewDeptId : S.currentDepartmentId));
@@ -3954,6 +4004,7 @@ function renderDashboardBody(activeUnits, opts) {
     </div>`)}
     ${dashPeriodBlocksHtml(dkind, series)}
     ${dashB(dkind, "programs", `<div style="margin-top:18px;">${programsCardHtml(activeUnits)}</div>`)}
+    ${dashFieldBlocksHtml(dkind, activeUnits)}
     `}
     ${opts.extraBottom ? `<div style="order:9999;">${opts.extraBottom}</div>` : ""}
   </div></div>`;
@@ -4091,6 +4142,7 @@ function renderUnitDashboard() {
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
     ${unit ? dashPeriodBlocksHtml("unit", series) : ""}
+    ${unit ? dashFieldBlocksHtml("unit", [unit]) : ""}
     ${unit ? dashB("unit", "achieve", achievementCardHtml([unit])) + dashB("unit", "yearCompare", yearCompareCardHtml([unit])) + dashB("unit", "programs", programsCardHtml([unit])) : ""}
   </div></div>`;
 }
@@ -5723,6 +5775,10 @@ function dashSettingsCardHtml() {
     ${group("لوحة مديرة النظام (متابعة التشغيل)", DASH_ADMIN_BLOCKS, ["admin"])}
     ${group("لوحة الوحدة والقسم والمكتب", DASH_STD_BLOCKS, DASH_STD_KINDS)}
     ${group("لوحة إدارة التعليم النسائي", DASH_EX_BLOCKS, DASH_EX_KINDS)}
+    <div style="margin-bottom:18px;"><div style="font-size:13px;font-weight:800;margin-bottom:8px;">ربط لوحتي السكرتارية والمساعدة بدورهما</div>
+      <div class="hint" style="margin-bottom:8px;">اختاري الدور الذي تنطبق عليه كل لوحة (بدل الاعتماد على كلمة في اسم الدور). «تلقائي» = من الاسم.</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">${[["role_sec", "دور السكرتارية"], ["role_asst", "دور مساعدة مديرة إدارة التعليم النسائي"]].map(([k, l]) => `<div style="flex:1 1 260px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${l}</div><select class="input" id="dash-rolemap-${k}" style="width:100%;"><option value="">تلقائي (من الاسم)</option>${rolesList().filter((r) => r.status !== "disabled").map((r) => `<option value="${esc(r.id)}" ${((dashConfig()._roles || {})[k]) === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>`).join("")}</div></div>
+    ${group("حقول أقسام التقرير (كل قسم له بطاقة — أخفي ما لا تحتاجينه)", dashFieldCatalog(), DASH_KINDS.map((k) => k.id))}
     ${group("لوحة السكرتارية", DASH_STD_BLOCKS, ["role_sec"])}
     ${group("لوحة مساعدة مديرة إدارة التعليم النسائي", DASH_EX_BLOCKS, ["role_asst"])}
     </div>
@@ -7326,7 +7382,7 @@ function renderOfficeSummary() {
 // الفترة بقسم "البيانات الأساسية") — بدون أي مجلدات تُنشأ أو تُحذف يدويًا، حسب
 // طلب نجود صراحة. البنية: سنة هجرية ← نوع الفترة ← قائمة التقارير.
 function officeArchiveTree(units) {
-  const flat = collectReportsFlatForUnits(units);
+  const flat = collectReportsFlatForUnits(units).filter((x) => isReportArchived(x.report)); // الأرشيف الكامل: المعتمد فقط
   const tree = {};
   flat.forEach((x) => {
     const basic = x.report.sections?.basic?.data || {};
@@ -7384,7 +7440,7 @@ function renderOfficeArchive() {
     </button>`).join("")}</div>` : "";
 
   const filesHtml = items.length === 0
-    ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير مؤرشفة بعد.</div>`
+    ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد تقارير معتمدة بعد.</div>`
     : `<div class="arc-files" id="archive-grid">${items.map(({ unit, report }) => {
         const meta = reportStatusMeta(report.status);
         const dateStr = new Date(report.createdAt).toLocaleDateString("ar-SA-u-ca-islamic", { year: "numeric", month: "short", day: "numeric" });
@@ -7418,7 +7474,7 @@ function renderOfficeArchive() {
 
   return `
   <div class="page-wrap"><div class="page-inner">
-    ${topBarHtml({ title: "أرشيف التقارير", subtitle: `منظَّم تلقائيًا حسب السنة الهجرية ونوع الفترة — ${office.name}`,
+    ${topBarHtml({ title: "الأرشيف الكامل", subtitle: `المعتمدة فقط — منظَّمة حسب السنة الهجرية ثم الفترة — ${office.name}`,
       right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
     ${usesOfficeScope() ? adminScopeSwitcherHtml("office") : ""}
     <div class="arc-search"><input id="archive-search" class="input" placeholder="ابحثي باسم التقرير أو الوحدة أو الحالة..." /></div>
@@ -7964,6 +8020,7 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
       ${progressBarHtml(completionPct, ROSE)}
     </div>`)}
     ${dashB(xk, "programs", programsCardHtml(units))}
+    ${dashFieldBlocksHtml(xk, units)}
     ${dashB(xk, "achieve", achievementCardHtml(units))}
     ${dashB(xk, "yearCompare", yearCompareCardHtml(units))}
     ${dashExGrid(xk, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
@@ -8266,7 +8323,7 @@ function reportCardHtml(unit, entry) {
   } else if (entry.status === "draft") {
     actionsHtml = `<div style="display:flex;gap:6px;">
       ${actionAllowed("delete-report") ? `<button class="icon-btn" style="border:1px solid ${BORDER}" data-action="confirm-delete-report" data-id="${entry.id}" title="حذف التقرير">${iconTrash(14, DANGER)}</button>` : ""}
-      ${pillBtn("معاينة", { variant: "ghost", icon: iconEye(14, INK), action: "open-report", data: { unitId: unit.id, reportId: entry.id, btn: "card-preview" } })}
+      ${pillBtn("متابعة الكتابة", { variant: "ghost", icon: iconEye(14, INK), action: "open-report", data: { unitId: unit.id, reportId: entry.id, btn: "card-preview" } })}
       ${pillBtn("تعديل", { icon: iconPencil(14, "#fff"), action: "open-report", data: { unitId: unit.id, reportId: entry.id } })}
     </div>`;
   } else if (entry.status === "returned" || entry.status === "needs_completion") {
@@ -9880,7 +9937,7 @@ function reportPreviewOnlyHtml(reason) {
     <div style="font-size:12px;color:${SUBTLE};max-width:380px;margin:0 auto 16px;">أُرسل هذا التقرير، ولا يمكن تعديله الآن — المعاينة فقط.</div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       ${pillBtn("عرض كامل", { variant: "ghost", icon: iconLayers(15, INK), action: "nav-to", data: { view: "full-report" } })}
-      ${pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } })}
+      ${RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : ""}
     </div>
   </div>`;
 }
@@ -10004,7 +10061,7 @@ function renderUnitReport() {
         right: badgeHtml(meta.label, meta.color, meta.bg) +
                pillBtn("مسار الاعتماد", { variant: "ghost", icon: iconTarget(15, INK), action: "nav-to", data: { view: "approval-path-tracking" } }) +
                pillBtn("عرض كامل", { variant: "ghost", icon: iconLayers(15, INK), action: "nav-to", data: { view: "full-report" } }) +
-               pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) +
+               (RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : "") +
                `<button class="mobile-menu-toggle no-print" data-action="open-mobile-phase-sidebar" title="مراحل التقرير" style="display:none">${iconLayers(17, INK)}</button>` })}
       ${mainContent}
     </div>
@@ -11229,6 +11286,8 @@ function fullReportOrPreviewBody(unit, report, afterPage, opts) {
   });
 }
 // هل في القسم بيانات مُدخلة فعلًا؟ (المعرّفات والتواريخ التقنية لا تُحسب)
+// «معاينة الطباعة» مخفية من الواجهة (العرض الكامل A4 يغني عنها) — غيّريها true للإظهار؛ الكود محفوظ
+const RPT_SHOW_PRINT_PREVIEW = false;
 const RPT_IGNORE_KEYS = ["id", "_id", "uid", "createdAt", "updatedAt", "status", "reviewNote"];
 function rptHasValue(v) {
   if (v == null) return false;
@@ -11282,7 +11341,7 @@ function renderFullReport() {
   <div class="page-wrap"><div class="page-inner report">
     ${topBarHtml({ title: "عرض التقرير كاملاً", subtitle: `${unit.name} — ${esc(report.label)} — ${progress.completed} من ${progress.total} أقسام مكتملة`,
       backAction: rvItem ? "nav-to" : (readOnlyVisit ? "nav-to" : "nav-to-unit-report"), backData: rvItem ? { view: "custom-path-inbox" } : (readOnlyVisit ? { view: "all-reports" } : undefined),
-      right: pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) })}
+      right: RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : "" })}
     ${rptWrap(rptUnitSettings(unit), fullReportOrPreviewBody(unit, report, rvItem ? apReviewAfterPageHtml(rvItem) : null))}
     ${rvItem ? apReviewPanelHtml(rvItem) : ""}
     ${readOnlyVisit ? "" : `<div class="hint" style="margin-top:12px;">للتعديل على أي قسم، ارجعي إلى "مسودة التقرير" واختاري القسم من قائمة المراحل.</div>`}
@@ -11714,6 +11773,14 @@ function attachFormListeners() {
       return;
     }
     if (el.id === "dash-order-kind") { S.ui.dashOrderKind = el.value; render(); return; }
+    if (el.id === "dash-rolemap-role_sec" || el.id === "dash-rolemap-role_asst") {
+      if (!S.isAdmin) return;
+      const k = el.id.slice("dash-rolemap-".length);
+      const cfg = JSON.parse(JSON.stringify(dashConfig()));
+      cfg._roles = { ...(cfg._roles || {}), [k]: el.value };
+      S.dashboardConfig = cfg; dataStore.saveDashboardConfig(cfg);
+      return;
+    }
     if (el.id === "site-heading-font") {
       S.siteSettings = S.siteSettings || dataStore.getSiteSettings();
       S.siteSettings = { ...S.siteSettings, theme: { ...(S.siteSettings.theme || {}), headingFont: el.value } };
@@ -13307,8 +13374,39 @@ function applySiteColors(settings) {
   root.style.setProperty("--font-main", `'${font}'`);
   root.style.setProperty("--font-heading", `'${hfont}'`);
 }
+/* ===== الروابط: في التقرير تُضغط وتفتح بنافذة جديدة، وفي خانات الإدخال تحقق + https:// تلقائي + زر «تجربة الرابط» ===== */
+const RPT_URL_RE = /((?:https?:\/\/|www\.)[^\s<>"'،؛)\]]+)/g;
+function linkifyReportView() {
+  document.querySelectorAll(".rpt-chapter-body, .a4-page .doc-kv, .a4-page td").forEach((root) => {
+    if (root.dataset.lk) return; root.dataset.lk = "1";
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const nodes = []; let n; while ((n = w.nextNode())) { if (RPT_URL_RE.test(n.nodeValue) && !(n.parentElement && n.parentElement.closest("a, script, style"))) nodes.push(n); RPT_URL_RE.lastIndex = 0; }
+    nodes.forEach((t) => {
+      const frag = document.createDocumentFragment(); let last = 0; const txt = t.nodeValue; RPT_URL_RE.lastIndex = 0; let m;
+      while ((m = RPT_URL_RE.exec(txt))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+        const a = document.createElement("a"); a.href = /^www\./i.test(m[1]) ? "https://" + m[1] : m[1]; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = m[1]; a.dir = "ltr"; a.style.cssText = "color:#2f6fb0;text-decoration:underline;word-break:break-all;"; frag.appendChild(a); last = m.index + m[1].length;
+      }
+      if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      t.parentNode.replaceChild(frag, t);
+    });
+  });
+}
+function rptNormUrl(v) { v = String(v || "").trim(); if (!v) return ""; if (/^(https?:)?\/\//i.test(v)) return v.replace(/^\/\//, "https://"); if (/^[\w-]+(\.[\w-]+)+(\/|$|\?|#)/.test(v) || /^www\./i.test(v)) return "https://" + v; return v; }
+function decorateLinkInputs() {
+  document.querySelectorAll('input[type="text"][placeholder="https://..."], input[data-linkfield]').forEach((el) => {
+    if (el.dataset.lkd) return; el.dataset.lkd = "1";
+    const a = document.createElement("a"); a.className = "lk-try"; a.textContent = "تجربة الرابط"; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.style.cssText = "display:inline-block;margin-top:4px;font-size:11.5px;font-weight:700;color:#2f6fb0;";
+    const upd = () => { const u = rptNormUrl(el.value); if (/^https?:\/\/\S+\.\S+/.test(u)) { a.href = u; a.style.display = "inline-block"; } else { a.removeAttribute("href"); a.style.display = "none"; } };
+    el.addEventListener("input", upd);
+    el.addEventListener("change", () => { const u = rptNormUrl(el.value); if (u && u !== el.value) { el.value = u; el.dispatchEvent(new Event("input", { bubbles: true })); } upd(); });
+    el.insertAdjacentElement("afterend", a); upd();
+  });
+}
 function afterRender() {
   applyButtonPermissions();
+  try { if (S.view === "full-report" || S.view === "report-preview" || S.view === "executive-final-report") linkifyReportView(); decorateLinkInputs(); } catch (e) { /* تجاهل */ }
   const loginUserEl = document.getElementById("login-username");
   if (loginUserEl) loginUserEl.focus();
 }
