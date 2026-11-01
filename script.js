@@ -5852,6 +5852,24 @@ function dashOrderCardHtml() {
     <div style="margin-top:12px;">${pillBtn("رجوع للترتيب الأصلي", { variant: "ghost", icon: iconX(14, INK), action: "dash-order-reset", data: { kind }, disabled: !customized })}</div>
   </div>`;
 }
+
+function dashPreviewHtml(kind) {
+  if (!DASH_KINDS.some((k) => k.id === kind)) return "";
+  const act = (S.units || []).filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive");
+  const keep = { cu: S.currentUnitId, ui: S.ui.dashPeriod, a: S.isAdmin, e: S.isExecutive };
+  let h = "";
+  try {
+    if (kind === "unit") { if (!S.currentUnitId && act[0]) S.currentUnitId = act[0].id; h = renderUnitDashboard(); }
+    else if (kind === "dept") { const d = (S.departments || []).find((x) => x.status === "active" && act.some((u) => u.departmentId === x.id)) || (S.departments || [])[0]; const us = d ? act.filter((u) => u.departmentId === d.id) : act; h = renderDashboardBody(us, { kind: "dept", title: d ? d.name : "القسم" }); }
+    else if (kind === "office") h = renderDashboardBody(act, { kind: "office", title: "المكتب" });
+    else if (kind === "executive") h = renderExecutiveDashboard();
+    else if (kind === "role_asst") h = renderExecutiveDashboard(undefined, undefined, { kind: "role_asst" });
+    else if (kind === "role_sec") h = renderDashboardBody(act, { kind: "role_sec" });
+    else h = renderDashboardBody(act, {});
+  } catch (e) { h = `<div class="hint">تعذّرت المعاينة: ${esc(String(e && e.message || e))}</div>`; }
+  S.currentUnitId = keep.cu;
+  return h;
+}
 function dashSettingsCardHtml() {
   const group = (title, blocks, kindIds) => {
     const kinds = DASH_KINDS.filter((k) => kindIds.indexOf(k.id) !== -1);
@@ -5882,6 +5900,12 @@ function dashSettingsCardHtml() {
     ${group("لوحة مساعدة مدير إدارة التعليم النسائي", DASH_EX_BLOCKS, ["role_asst"])}
     </div>
     <div>${pillBtn("إظهار كل العناصر للجميع", { variant: "ghost", icon: iconX(14, INK), action: "dash-reset", disabled: !anyHidden })}</div>
+    <div style="border-top:1px solid ${BORDER};margin-top:18px;padding-top:16px;">
+      <div style="font-size:13px;font-weight:800;margin-bottom:6px;">معاينة مباشرة للوحة</div>
+      <div class="hint" style="margin-bottom:10px;">اختاري الجهة لترين اللوحة كما تظهر لها (ببيانات التقارير الحالية)، ثم اضغطي ✓/✗ فوق وستتغير المعاينة فورًا.</div>
+      <select class="input" id="dash-prev-kind" style="max-width:300px;margin-bottom:12px;"><option value="">بدون معاينة</option>${DASH_KINDS.map((k) => `<option value="${esc(k.id)}" ${S.ui.dashPrevKind === k.id ? "selected" : ""}>${esc(k.label)}</option>`).join("")}</select>
+      ${S.ui.dashPrevKind ? `<div style="border:2px dashed ${BORDER};border-radius:18px;padding:6px;background:#faf6f6;pointer-events:none;overflow:hidden;">${dashPreviewHtml(S.ui.dashPrevKind)}</div>` : ""}
+    </div>
     ${dashOrderCardHtml()}
   </div>`;
 }
@@ -12065,6 +12089,7 @@ function attachFormListeners() {
       return;
     }
     if (el.id === "dash-order-kind") { S.ui.dashOrderKind = el.value; render(); return; }
+    if (el.id === "dash-prev-kind") { S.ui.dashPrevKind = el.value; render(); return; }
     if (el.id === "dash-rolemap-role_sec" || el.id === "dash-rolemap-role_asst") {
       if (!S.isAdmin) return;
       const k = el.id.slice("dash-rolemap-".length);
