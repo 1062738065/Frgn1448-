@@ -3923,6 +3923,12 @@ function renderDashboard() {
       topBarRight: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }),
     });
   }
+  if (S.levelScope && !S.isAdmin && !S.isDepartmentUser && !S.isOfficeUser) {
+    // حساب مستوى باسم دور «مساعدة مدير…» أو «سكرتارية»: لوحة ذلك الدور (بإعداداتها) لا لوحة وحدة
+    const rkl = dashRoleKind();
+    if (rkl === "role_asst") return renderExecutiveDashboard(undefined, undefined, { kind: "role_asst" });
+    if (rkl === "role_sec") return renderDashboardBody(S.units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive" && (!S.levelScope.unitIds || !S.levelScope.unitIds.has || S.levelScope.unitIds.has(u.id))), { kind: "role_sec" });
+  }
   if (!S.isAdmin && !S.isExecutive && !S.isDepartmentUser && !S.isOfficeUser && !S.currentUnitId) ensureUnitContextForNav("unit-dashboard");
   if (!S.isAdmin && !S.isExecutive && !S.isDepartmentUser && !S.isOfficeUser && S.currentUnitId) {
     // حساب بنطاق وحدة: نفس بالضبط "لوحة معلومات الوحدة" الحقيقية (renderUnitDashboard)
@@ -8106,7 +8112,10 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
   // حساب مستوى من الهيكل المرن: لوحة بنفس شكل لوحة القسم، مقتصرة على ما تحته
   if (S.levelScope && !scopeUnits) {
     const lv = olFind(S.levelScope.levelId);
-    return renderDashboardBody(units, { kind: "dept", title: lv ? lv.name : "لوحة المعلومات", subtitle: `نظرة على ${units.length} وحدة تحت هذا المستوى` });
+    // حساب مستوى باسم دور «مساعدة مدير…» أو «سكرتارية»: يأخذ إعدادات لوحة ذلك الدور لا لوحة القسم
+    const rk = dashRoleKind();
+    if (rk === "role_asst") return renderExecutiveDashboard(units, S.departments.filter((d) => d.status === "active" && units.some((u) => u.departmentId === d.id)), { kind: "role_asst", subtitle: `نظرة على ${units.length} وحدة تحت هذا المستوى` });
+    return renderDashboardBody(units, { kind: rk === "role_sec" ? "role_sec" : "dept", title: lv ? lv.name : "لوحة المعلومات", subtitle: `نظرة على ${units.length} وحدة تحت هذا المستوى` });
   }
   const activeDepartments = scopeDepartments || scopeDeptsFilter(S.departments.filter((d) => d.status === "active"));
   const flat = scopeUnits ? collectReportsFlatForUnits(units) : collectAllReportsFlat();
