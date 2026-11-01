@@ -2829,7 +2829,7 @@ async function refreshSiteSettingsFromDb() {
 }
 
 async function refreshDashboardConfigFromDb() {
-  if (!dbConnected()) return;
+  if (!dbConnected() || Date.now() - lastDbWriteAt < 5000) return;
   const res = await supabaseRequest("dashboard_config?id=eq.main&select=*");
   if (res.ok && Array.isArray(res.data) && res.data.length) {
     S.dashboardConfig = rowToDashboardConfig(res.data[0]);
@@ -3127,7 +3127,7 @@ function statIconCardHtml(label, value, iconHtml, iconBg) {
 const DASH_KINDS = [
   { id: "admin", label: "مديرة النظام" }, { id: "executive", label: "إدارة التعليم النسائي" },
   { id: "office", label: "المكتب" }, { id: "dept", label: "القسم" }, { id: "unit", label: "الوحدة" },
-  { id: "role_sec", label: "السكرتارية" }, { id: "role_asst", label: "مساعدة مديرة إدارة التعليم النسائي" },
+  { id: "role_sec", label: "السكرتارية" }, { id: "role_asst", label: "مساعدة مدير إدارة التعليم النسائي" },
 ];
 // يُتعرَّف على هذين الحسابين من اسم الدور (يحتوي «سكرتار» / «مساعد» مع «مدير»)
 function dashRoleKind() {
@@ -3226,6 +3226,7 @@ function dashFieldSecIds() { return Object.keys(SECTION_FIELD_SCHEMAS).filter((i
 function dashFieldSecLabel(id) { return DASH_FLD_LABEL[id] || ((SECTIONS.find((x) => x.id === id) || DEFAULT_SECTIONS.find((x) => x.id === id) || {}).label) || id; }
 function dashFieldCatalog() { return dashFieldSecIds().map((id) => ({ key: "fld_" + id, label: "حقول: " + dashFieldSecLabel(id) })); }
 function dashCatalog(kind) {
+  if (kind === "admin") return DASH_ADMIN_BLOCKS.slice();
   const base = (kind === "admin" ? DASH_ADMIN_BLOCKS : (kind === "executive" || kind === "role_asst") ? DASH_EX_BLOCKS : DASH_STD_BLOCKS).slice();
   const all = dashFieldCatalog(), tools = all.filter((b) => b.key === "fld_tools"), rest = all.filter((b) => b.key !== "fld_tools");
   // «أدوات القياس» مهمة لإدارة التعليم النسائي: تُوضع بعد البرامج (أو بعد خرائط الأداء) لا في آخر اللوحة
@@ -3248,12 +3249,36 @@ const DASH_SEC_VIEW = {
   nextplan: { title: "name", meta: ["responsiblePerson", "expectedDate"], badges: [], dist: [], stats: [{ k: "count", l: "عمل مخطط" }] },
 };
 const DASH_SEV_COL = [[/عاجل|حرج/, "#b03a3a"], [/عالي|مرتفع|متعثر/, "#c9863a"], [/متوسط|مؤجل/, "#b89a5a"], [/منخفض|سهل|مكتمل/, "#5f8a6a"]];
+const DASH_ITEMS = {};
 const DASH_PAL = ["#6b2337", "#c9863a", "#5f8a6a", "#a05a72", "#7d8fa8", "#b89a5a"];
+
+function dashItemModalHtml(sid) {
+  const k = S.ui.dashItem; if (!k) return "";
+  const rec = DASH_ITEMS[k]; if (!rec || rec.sid !== sid) return "";
+  const sc = SECTION_FIELD_SCHEMAS[sid];
+  const rowsH = sc.fields.map((f) => {
+    const v = schemaFieldText(rec.item[f.id]).trim(); if (!v) return "";
+    const isUrl = /^(https?:\/\/|www\.)/i.test(v) || /link/i.test(f.id);
+    const val = isUrl ? `<a href="${esc(rptNormUrl(v))}" target="_blank" rel="noopener" style="color:${ROSE};word-break:break-all;">${esc(v)}</a>` : esc(v).replace(/\n/g, "<br>");
+    return `<div style="padding:9px 0;border-bottom:1px solid ${BORDER};"><div style="font-size:11.5px;color:${SUBTLE};margin-bottom:2px;">${esc(f.label || f.id)}</div><div style="font-size:13.5px;line-height:1.8;">${val}</div></div>`;
+  }).join("");
+  return `<div class="no-print" data-action="dashitem-close" style="position:fixed;inset:0;background:rgba(40,20,30,.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;">
+    <div data-stop="1" style="background:#fff;width:min(560px,100%);max-height:86vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 20px 26px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-size:16px;font-weight:800;">${esc(dashFieldSecLabel(sid))}</div><button type="button" data-action="dashitem-close" style="background:none;border:none;cursor:pointer;">${iconX(18, SUBTLE)}</button></div>
+      ${rec.unit ? `<div style="font-size:12px;color:${SUBTLE};margin-bottom:6px;">${esc(rec.unit)}</div>` : ""}
+      ${rowsH}
+    </div></div>`;
+}
 function dashFieldBlockHtml(kind, sid, units) {
   const sc = SECTION_FIELD_SCHEMAS[sid]; if (!sc) return "";
   const owner = DASH_FLD_OWNER[sid] || sid;
   const rows = [], unitOf = new Map(); let reports = 0;
   units.forEach((u) => dashRepsOf(u.id).forEach((r) => { const d = r && r.sections && r.sections[owner] && r.sections[owner].data; const arr = d && d[sc.arrayKey]; if (Array.isArray(arr)) { const ok = arr.filter((x) => x && typeof x === "object" && rptHasValue(x)); if (ok.length) { reports++; ok.forEach((x) => { rows.push(x); unitOf.set(x, u.name); }); } } }));
+  if (ROUTE_KIND_LEVEL[kind] && ROUTE_SECS.includes(sid)) {
+    // «يصلها بس اللي لها»: الصعوبات والتوصيات تُوجَّه حسب النطاق/المستوى؛ وغيرها حسب «يُرفع إلى» إن حُدِّد
+    const strict = sid === "challenges" || sid === "recommendations", lv = ROUTE_KIND_LEVEL[kind];
+    for (let i = rows.length - 1; i >= 0; i--) { const x = rows[i]; const set = strict || String(x.routeTo || "").trim() !== ""; if (set && routeLevelOf(sid, x) !== lv) rows.splice(i, 1); }
+  }
   if (!rows.length) return "";
   const fld = (id) => sc.fields.find((f) => f.id === id);
   const txt = (x, id) => { const v = x[id]; return v == null ? "" : schemaFieldText(v).trim(); };
@@ -3284,10 +3309,11 @@ function dashFieldBlockHtml(kind, sid, units) {
     const meta = [unitOf.get(x), ...(cfg.meta || []).map((id) => txt(x, id)).filter(Boolean)].filter(Boolean).map((m) => m.length > 60 ? m.slice(0, 60) + "…" : m).join(" · ");
     const bs = (cfg.badges || []).map((id) => { const v = txt(x, id); return v ? badge(id, v) : ""; }).join("");
     const t = txt(x, cfg.title);
-    return `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid ${BORDER};"><div style="min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.6;">${esc(t.length > 110 ? t.slice(0, 110) + "…" : t)}</div><div style="font-size:11.5px;color:${SUBTLE};">${esc(meta)}</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;flex:none;max-width:45%;">${bs}</div></div>`;
+    const key = kind + "|" + sid + "|" + rows.indexOf(x); DASH_ITEMS[key] = { sid, item: x, unit: unitOf.get(x) || "" };
+    return `<div data-action="dash-item" data-key="${esc(key)}" style="cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid ${BORDER};"><div style="min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.6;">${esc(t.length > 110 ? t.slice(0, 110) + "…" : t)}</div><div style="font-size:11.5px;color:${SUBTLE};">${esc(meta)}</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;flex:none;max-width:45%;">${bs}</div></div>`;
   }).join("")}${rows.length > items.length ? `<div style="font-size:11.5px;color:${SUBTLE};padding-top:8px;">و ${fmtNum(rows.length - items.length)} أخرى — تجدينها في التقارير</div>` : ""}</div>` : "";
   if (!tiles && !distH && !listH) return "";
-  return dashCard(dashFieldSecLabel(sid), `${rows.length} ${esc(sc.itemLabel || "إدخال")} من ${reports} تقرير — الفترة المختارة`, `<div style="display:flex;gap:8px;flex-wrap:wrap;">${tiles}</div>${distH}${listH}`);
+  return dashCard(dashFieldSecLabel(sid), `${rows.length} ${esc(sc.itemLabel || "إدخال")} من ${reports} تقرير — الفترة المختارة · اضغطي على أي بند لتفاصيله`, `<div style="display:flex;gap:8px;flex-wrap:wrap;">${tiles}</div>${distH}${listH}${dashItemModalHtml(sid)}`);
 }
 
 const ROUTE_SECS = ["challenges", "recommendations", "improvement", "initiatives", "impact", "strengths"];
@@ -5850,10 +5876,10 @@ function dashSettingsCardHtml() {
     ${group("لوحة إدارة التعليم النسائي", DASH_EX_BLOCKS, DASH_EX_KINDS)}
     <div style="margin-bottom:18px;"><div style="font-size:13px;font-weight:800;margin-bottom:8px;">ربط لوحتي السكرتارية والمساعدة بدورهما</div>
       <div class="hint" style="margin-bottom:8px;">اختاري الدور الذي تنطبق عليه كل لوحة (بدل الاعتماد على كلمة في اسم الدور). «تلقائي» = من الاسم.</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;">${[["role_sec", "دور السكرتارية"], ["role_asst", "دور مساعدة مديرة إدارة التعليم النسائي"]].map(([k, l]) => `<div style="flex:1 1 260px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${l}</div><select class="input" id="dash-rolemap-${k}" style="width:100%;"><option value="">تلقائي (من الاسم)</option>${rolesList().filter((r) => r.status !== "disabled").map((r) => `<option value="${esc(r.id)}" ${((dashConfig()._roles || {})[k]) === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>`).join("")}</div></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">${[["role_sec", "دور السكرتارية"], ["role_asst", "دور مساعدة مدير إدارة التعليم النسائي"]].map(([k, l]) => `<div style="flex:1 1 260px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${l}</div><select class="input" id="dash-rolemap-${k}" style="width:100%;"><option value="">تلقائي (من الاسم)</option>${rolesList().filter((r) => r.status !== "disabled").map((r) => `<option value="${esc(r.id)}" ${((dashConfig()._roles || {})[k]) === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>`).join("")}</div></div>
     ${group("حقول أقسام التقرير (كل قسم له بطاقة — أخفي ما لا تحتاجينه)", dashFieldCatalog(), DASH_KINDS.map((k) => k.id))}
     ${group("لوحة السكرتارية", DASH_STD_BLOCKS, ["role_sec"])}
-    ${group("لوحة مساعدة مديرة إدارة التعليم النسائي", DASH_EX_BLOCKS, ["role_asst"])}
+    ${group("لوحة مساعدة مدير إدارة التعليم النسائي", DASH_EX_BLOCKS, ["role_asst"])}
     </div>
     <div>${pillBtn("إظهار كل العناصر للجميع", { variant: "ghost", icon: iconX(14, INK), action: "dash-reset", disabled: !anyHidden })}</div>
     ${dashOrderCardHtml()}
@@ -8078,7 +8104,7 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
     ${topBarHtml({ title: "لوحة المعلومات", subtitle: opts.subtitle || (S.levelScope ? `نظرة على ${units.length} وحدة تحت هذا المستوى` : "نظرة إشرافية شاملة على كل الأقسام والوحدات"),
       right: pillBtn("خروج", { variant: "danger", icon: iconLogout(15, DANGER), action: "logout" }) })}
     ${opts.extraTop || ""}
-    ${xk === "executive" ? exBlocksHtml(xk, units) : ""}
+    ${(xk === "executive" || xk === "role_asst") ? exBlocksHtml(xk, units) : ""}
     ${dashBlock(xk, "exStats", `<div class="stat-grid" style="margin-bottom:18px;">
       ${statIconCardHtml("إجمالي التقارير", total, iconDocument(18, ROSE), DANGER_BG)}
       ${statIconCardHtml("تقارير مكتملة", completed, iconCheckCircle(18, GREEN), GREEN_BG)}
@@ -13107,6 +13133,8 @@ function attachClickListener() {
       case "shind-mode": S.ui.shInd.mode = ds.m; render(); break;
       case "shind-add": { const f = S.ui.shInd; const cur = (S.siteSettings.theme && S.siteSettings.theme.sharedInds) || []; saveSiteTheme({ sharedInds: [...cur, { id: uid("shind"), indName: f.indName, units: f.units.slice(), mode: f.mode, target: f.target }] }); S.ui.shInd = null; render(); break; }
       case "shind-del": { const cur = (S.siteSettings.theme && S.siteSettings.theme.sharedInds) || []; saveSiteTheme({ sharedInds: cur.filter((x) => x.id !== ds.id) }); render(); break; }
+      case "dash-item": S.ui.dashItem = ds.key; render(); break;
+      case "dashitem-close": if (e.target.closest("[data-stop]") && !e.target.closest("button[data-action=dashitem-close]")) break; S.ui.dashItem = null; render(); break;
       case "ind-tab": S.ui.indTab = ds.tab; render(); break;
       case "scope-toggle": { const k = ds.kind + ":" + ds.id; S.ui.scopeOpen = S.ui.scopeOpen === k ? null : k; render(); break; }
       case "ind-add-toggle": saveSiteTheme({ indAddFromReport: !indAddFromReportOn() }); render(); break;
@@ -13704,7 +13732,7 @@ const LIVE_SYNC_MS = 20000;
 let liveSyncBusy = false;
 function liveSig() {
   const reps = Object.keys(S.reports || {}).map((k) => (S.reports[k] || []).map((r) => r.id + r.status + (r.updatedAt || 0) + (r.customStageId || "")).join()).join("|");
-  return JSON.stringify([S.units, S.departments, S.offices, S.roles, S.persons, S.orgLevels, S.approvalPaths, (S.siteSettings || {}).theme, S.indicatorDefinitions, S.goalsDefinitions]) + reps;
+  return JSON.stringify([S.units, S.departments, S.offices, S.roles, S.persons, S.orgLevels, S.approvalPaths, (S.siteSettings || {}).theme, S.indicatorDefinitions, S.goalsDefinitions, S.dashboardConfig]) + reps;
 }
 async function liveSyncReports() {
   await pendingSupabaseWrite("reports");
@@ -13759,7 +13787,7 @@ async function liveSync() {
   try {
     const before = liveSig();
     await Promise.all([refreshUnitsAndDepartmentsFromDb(), refreshOrgLevelsFromDb(), refreshRolesPersonsFromDb(), refreshApprovalPathsFromDb(),
-      pendingSupabaseWrite("site_settings").then(refreshSiteSettingsFromDb), liveSyncReports()].map((x) => Promise.resolve(x).catch(() => {})));
+      pendingSupabaseWrite("site_settings").then(refreshSiteSettingsFromDb), refreshDashboardConfigFromDb(), liveSyncReports()].map((x) => Promise.resolve(x).catch(() => {})));
     if (lastDbWriteAt >= started) { setTimeout(liveSync, 5000); return; }
     if (liveSig() === before) return;
     applySessionPermsLive();
