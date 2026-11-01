@@ -1127,7 +1127,20 @@ const dataStore = {
   getDashboardConfig() { try { const v = lsGet(DASHBOARD_CONFIG_KEY); return v ? JSON.parse(v) : {}; } catch (e) { return {}; } },
   saveDashboardConfig(cfg) {
     lsSet(DASHBOARD_CONFIG_KEY, JSON.stringify(cfg));
-    if (dbConnected()) supabaseRequest("dashboard_config", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(dashboardConfigToRow(cfg)) }).then(dbWriteCheck("dashboard_config")).catch(() => {});
+    S.ui = S.ui || {};
+    if (!dbConnected()) { S.ui.dashSync = { s: "local" }; return; }
+    S.ui.dashSync = { s: "wait" };
+    const stable = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x));
+    supabaseRequest("dashboard_config", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify(dashboardConfigToRow(cfg)) }).then(async (res) => {
+      dbWriteCheck("dashboard_config")(res);
+      if (!res.ok) S.ui.dashSync = { s: "bad", m: res.error };
+      else {
+        const rb = await supabaseRequest("dashboard_config?id=eq.main&select=*");
+        const ok = rb.ok && rb.data && rb.data[0] && stable(rb.data[0].config) === stable(cfg);
+        S.ui.dashSync = ok ? { s: "ok" } : { s: "bad", m: rb.ok ? "أُرسل الإعداد لكن لم يُقرأ مطابقًا من القاعدة" : rb.error };
+      }
+      if (S.view === "site-settings") render();
+    }).catch(() => {});
   },
   cacheOfficesLocally(o) { lsSet(OFFICES_KEY, JSON.stringify(o)); },
   getUnits() { const v = lsGet(UNITS_KEY); return v ? JSON.parse(v) : []; },
@@ -5888,6 +5901,7 @@ function dashSettingsCardHtml() {
   return `<div class="card" style="margin-bottom:16px;">
     <div class="subhead" style="margin-top:0;">ما يظهر في لوحة المعلومات</div>
     <div class="hint" style="margin-bottom:14px;">✓ يظهر · ✗ مخفي. الاختيار لنوع الجهة كله (كل الأقسام ترى الشكل نفسه). يُحفظ فورًا. الأصل أن كل شيء ظاهر.</div>
+    ${(() => { const d = S.ui.dashSync; if (!d) return ""; const m = { ok: [GREEN, "✓ حُفظ في القاعدة وتأكدتُ بقراءته — ستظهر التغييرات في بقية الحسابات والأجهزة"], wait: [SUBTLE, "جارٍ الحفظ والتحقق…"], local: [GOLD, "⚠ حُفظ على هذا الجهاز فقط (الموقع غير مربوط بالقاعدة) — لن تظهر التغييرات في بقية الأجهزة"], bad: [DANGER, "✗ لم يُحفظ في القاعدة: " + (d.m || "") + " — لذلك لا تظهر التغييرات في الحسابات الأخرى"] }[d.s]; return `<div style="font-size:12.5px;font-weight:700;color:${m[0]};margin:-6px 0 12px;">${esc(m[1])}</div>`; })()}
     <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;">
     ${group("لوحة مديرة النظام (متابعة التشغيل)", DASH_ADMIN_BLOCKS, ["admin"])}
     ${group("لوحة الوحدة والقسم والمكتب", DASH_STD_BLOCKS, DASH_STD_KINDS)}
