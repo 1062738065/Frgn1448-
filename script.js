@@ -2295,7 +2295,7 @@ function renderMainSidebar(mobile) {
       <div class="sidebar-head-icons-row">
         <div class="icon-badge">${iconGauge(ROSE)}</div>
         <div style="display:flex;gap:6px;">
-          <button class="sidebar-bell" title="الإشعارات">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
+          <button class="sidebar-bell" title="الإشعارات" data-action="nav-to" data-view="unit-notifications">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
           <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
         </div>
       </div>
@@ -3672,10 +3672,14 @@ function opsBlocksInner(kind, units) {
   { const series2 = dashSeries(units); const lc = series2.cols[series2.cols.length - 1];
     const miss2 = lc ? units.filter((u) => !opsUnitSent(u, series2, lc)) : [];
     const pct = units.length && lc ? Math.round(((units.length - miss2.length) / units.length) * 100) : null;
+    const pc = series2.cols.length > 1 ? series2.cols[series2.cols.length - 2] : null;
+    const prevPct = pc && units.length ? Math.round((units.filter((u) => opsUnitSent(u, series2, pc)).length / units.length) * 100) : null;
+    const diff = pct != null && prevPct != null ? pct - prevPct : null;
+    const cmpTxt = prevPct == null ? "" : `الفترة السابقة (${pc.label}) ${prevPct}٪` + (diff ? ` · ${diff > 0 ? "▲ ارتفع" : "▼ انخفض"} ${Math.abs(diff)}٪` : " · بلا تغيّر");
     const stuckN = flat.filter((x) => x.report.status === "custom_pending").length;
     const retN = flat.filter((x) => x.report.status === "returned" || x.report.status === "needs_completion").length;
     const kc = (n, l, col, sub) => `<div class="card" style="padding:14px 16px;text-align:start;"><div style="font-size:28px;font-weight:800;color:${col};">${n}</div><div style="font-size:12.5px;color:${SUBTLE};">${esc(l)}</div>${sub ? `<div style="font-size:11px;color:${SUBTLE};margin-top:2px;">${esc(sub)}</div>` : ""}</div>`;
-    if (!dashHidden(kind, "opsKpis")) kpiH = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px;margin-bottom:18px;">${kc(lc ? miss2.length : "—", "تقارير متأخرة", DANGER, lc ? "ما رفعت تقرير " + lc.label : "")}${kc(stuckN, "تقارير عالقة بانتظار مراجعة", GOLD)}${kc(retN, "تقرير معاد للتعديل", ROSE)}${kc(pct == null ? "—" : pct + "٪", "نسبة الالتزام", GREEN, units.length ? `(${units.length - miss2.length} من ${units.length} وحدات)` : "")}</div>`;
+    if (!dashHidden(kind, "opsKpis")) kpiH = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px;margin-bottom:18px;">${kc(lc ? miss2.length : "—", "تقارير متأخرة", DANGER, lc ? "ما رفعت تقرير " + lc.label : "")}${kc(stuckN, "تقارير عالقة بانتظار مراجعة", GOLD)}${kc(retN, "تقرير معاد للتعديل", ROSE)}${kc(pct == null ? "—" : pct + "٪", "نسبة الالتزام", GREEN, units.length ? `(${units.length - miss2.length} من ${units.length} وحدات)` + (cmpTxt ? " — " + cmpTxt : "") : "")}</div>`;
     if (!dashHidden(kind, "opsDeptCompliance")) {
       const depts = (S.departments || []).filter((d) => d.status !== "inactive");
       const deptIds = new Set(depts.map((d) => d.id));
@@ -3855,15 +3859,15 @@ function renderDashboardBody(activeUnits, opts) {
   pie.goals.forEach((g) => { if (g.level) goalLevelCounts[g.level] = (goalLevelCounts[g.level] || 0) + 1; });
   const goalPieHtml = dashPieScopeHtml() + svgPieChart(GOAL_LEVELS.map((lvl) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: goalLevelMeta(lvl).color })));
 
-  const indicatorsRows = allIndicators.map((ind) => {
+  const indicatorsRows = dashDeptRows(allIndicators, (ind) => ind.unitName, (ind) => {
     const v = indicatorRowView(ind);
     return `<tr><td style="color:${SUBTLE}">${esc(ind.unitName)}</td><td style="font-weight:600">${esc(ind.name)}</td><td style="text-align:center">${esc(v.target)}</td><td style="text-align:center">${esc(v.actual)}</td><td style="text-align:center;font-weight:800;color:${v.color}">${v.pctText}</td></tr>`;
-  }).join("");
+  }, 9);
 
-  const goalsRows = allGoals.map((g) => {
+  const goalsRows = dashDeptRows(allGoals, (g) => g.unitName, (g) => {
     const meta = goalLevelMeta(g.level);
     return `<tr><td style="color:${SUBTLE}">${esc(g.unitName)}</td><td style="font-weight:600">${esc(g.name)}</td><td style="text-align:center">${g.level ? badgeHtml(g.level, meta.color, meta.bg) : "—"}</td><td style="text-align:center;font-weight:800;color:${meta.color}">${g.percentage !== "" ? g.percentage + "٪" : "—"}</td></tr>`;
-  }).join("");
+  }, 9);
 
   // "أحدث التقارير" — most recently created reports across every unit
   const recent = [...allReportsFlat].sort((a, b) => b.report.createdAt - a.report.createdAt).slice(0, 6);
@@ -4004,15 +4008,15 @@ function renderUnitDashboard() {
   pie.goals.forEach((g) => { if (g.level) goalLevelCounts[g.level] = (goalLevelCounts[g.level] || 0) + 1; });
   const goalPieHtml = dashPieScopeHtml() + svgPieChart(GOAL_LEVELS.map((lvl) => ({ label: lvl, value: goalLevelCounts[lvl] || 0, color: goalLevelMeta(lvl).color })));
 
-  const indicatorsRows = allIndicators.map((ind) => {
+  const indicatorsRows = dashDeptRows(allIndicators, (ind) => ind.unitName, (ind) => {
     const v = indicatorRowView(ind);
     return `<tr><td style="font-weight:600">${esc(ind.name)}</td><td style="text-align:center">${esc(v.target)}</td><td style="text-align:center">${esc(v.actual)}</td><td style="text-align:center;font-weight:800;color:${v.color}">${v.pctText}</td></tr>`;
-  }).join("");
+  }, 9);
 
-  const goalsRows = allGoals.map((g) => {
+  const goalsRows = dashDeptRows(allGoals, (g) => g.unitName, (g) => {
     const meta = goalLevelMeta(g.level);
     return `<tr><td style="font-weight:600">${esc(g.name)}</td><td style="text-align:center">${g.level ? badgeHtml(g.level, meta.color, meta.bg) : "—"}</td><td style="text-align:center;font-weight:800;color:${meta.color}">${g.percentage !== "" ? g.percentage + "٪" : "—"}</td></tr>`;
-  }).join("");
+  }, 9);
 
   const recent = [...reports].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   const recentRows = recent.map((r) => {
@@ -7827,11 +7831,20 @@ function achievementCardHtml(units) {
   </div>`;
 }
 
+// تجميع صفوف جدول حسب قسم الوحدة (القسم ثم وحداته) — يُفعَّل فقط إذا ظهر أكثر من قسم
+function dashDeptRows(items, unitNameOf, rowFn, colspan) {
+  const deptOfName = (n) => { const u = (S.units || []).find((x) => x.name === n); const d = u && (S.departments || []).find((x) => x.id === u.departmentId); return d ? d.name : "بدون قسم"; };
+  const keyed = items.map((it) => ({ it, d: deptOfName(unitNameOf(it)) }));
+  if (new Set(keyed.map((k) => k.d)).size < 2) return keyed.map((k) => rowFn(k.it)).join("");
+  keyed.sort((a, b) => (a.d === "بدون قسم") - (b.d === "بدون قسم") || (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  let last = null;
+  return keyed.map((k) => { const h = k.d !== last ? (last = k.d, `<tr><td colspan="${colspan}" style="background:${GRAY_BG};font-weight:800;color:${ROSE};padding:8px 10px;">${esc(k.d)}</td></tr>`) : ""; return h + rowFn(k.it); }).join("");
+}
 function programsCardHtml(units) {
   const year = dashProgramsYear(units);
   const progs = collectProgramsForUnits(units, year).sort((a, b) => (b.report.createdAt || 0) - (a.report.createdAt || 0));
   const statusColor = { "مكتمل": [GREEN, GREEN_BG], "مستمر": [BLUE, BLUE_BG], "متعثر": [DANGER, DANGER_BG], "مؤجل": [GOLD, GOLD_BG], "ملغى": [SUBTLE, GRAY_BG] };
-  const rows = progs.map(({ unit, report, p }) => {
+  const rows = dashDeptRows(progs, (x) => x.unit.name, ({ unit, report, p }) => {
     const sc = statusColor[p.executionStatus] || [SUBTLE, GRAY_BG];
     const a = programAchievedValue(p), t = numOrNull(p.targetCount);
     const cu = programCountUnit(p);
@@ -7846,7 +7859,7 @@ function programsCardHtml(units) {
       <td style="text-align:center">${p.completionPercent !== "" && p.completionPercent != null ? esc(p.completionPercent) + "٪" : "—"}</td>
       <td style="font-size:11.5px;line-height:1.7;min-width:180px">${esc(p.highlightResult || "—")}</td>
     </tr>`;
-  }).join("");
+  }, 8);
   return `<div class="card" style="margin-bottom:18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
       <div class="prs-title" style="font-size:14px;font-weight:800;">الأعمال والبرامج المنفذة <span style="font-size:12px;color:${SUBTLE};font-weight:700">(${progs.length})</span></div>
