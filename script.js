@@ -3181,6 +3181,16 @@ const DASH_STD_BLOCKS = [
   { key: "programs", label: "جدول الأعمال والبرامج" },
   { key: "routed", label: "المرفوع إليّ (صعوبات وتوصيات وغيرها)", not: ["unit"] },
   { key: "sharedInd", label: "المؤشرات المشتركة بين وحدات" },
+  { key: "exKpis", label: "بطاقات الأرقام مع خط التطور" },
+  { key: "exHeat", label: "خريطة الأداء (المؤشرات)" },
+  { key: "exHeatGoal", label: "خريطة تحقق الأهداف" },
+  { key: "exCompare", label: "مقارنة الوحدات (مؤشرات وأهداف)" },
+  { key: "exStrategic", label: "أهداف الخطة الاستراتيجية" },
+  { key: "exStacks", label: "حالات المؤشرات" },
+  { key: "exBenef", label: "المستفيدون حسب نوع العمل" },
+  { key: "exChal", label: "الصعوبات القائمة" },
+  { key: "exSubm", label: "رفع التقارير واعتمادها" },
+  { key: "exTopBottom", label: "أفضل 5 وأضعف 5 وحدات" },
 ];
 const DASH_STD_KINDS = ["office", "dept", "unit"];
 // لوحة مديرة النظام: متابعة تشغيل الموقع فقط
@@ -3612,7 +3622,8 @@ function dashPeriodBlocksHtml(kind, series) {
    S.ui.exDrill = { office, dept } — الجمعية ← مكتب ← قسم. */
 // التفصيل يمشي على «الهيكل المرن»: الجمعية ← مستوى ← مستوى… (مكتب، مساعدة، قسم…) ← الوحدات.
 // S.ui.exDrill.path = معرّفات المستويات من الأعلى. وحدة غير موجودة في الهيكل تظهر تحت «خارج الهيكل».
-function exScope(units) {
+function exScope(units, flat) {
+  if (flat) return { path: [], cur: null, scopeUnits: units, children: units.map((u) => ({ name: u.name, levelId: null, list: [u], leaf: true })), label: ["الوحدات", "وحدة"] };
   const path = ((S.ui.exDrill && S.ui.exDrill.path) || []).filter((id) => olFind(id));
   const cur = path.length ? olFind(path[path.length - 1]) : null;
   const under = (id) => { const ids = olScopeUnitIds(id); return units.filter((u) => ids.has(u.id)); };
@@ -3630,15 +3641,17 @@ function exScope(units) {
 function exDrillBtn(path, text, style) { return `<button type="button" data-action="ex-drill" data-path="${esc(path.join(","))}" style="background:none;border:none;cursor:pointer;font-family:inherit;${style}">${text}</button>`; }
 function exUnitParent(u) { const l = olActive().find((x) => x.linkKind === "unit" && x.linkId === u.id); const p = l && olFind(l.parentId); if (p) return p.name; const d = (S.departments || []).find((x) => x.id === u.departmentId); return d ? d.name : ""; }
 function exBlocksHtml(kind, units) { return dashMarkWrap(kind, exBlocksInner(kind, units)); }
-function exBlocksInner(kind, units) {
-  const sc = exScope(units);
+// نسخة للوحات الوحدة/القسم/المكتب/السكرتارية: نفس البلوكات بدون مسار التفصيل ولا الفلتر ولا المكرر (التطور/المتابعة/الأبرز)
+function exExtraHtml(kind, units) { return dashMarkWrap(kind, exBlocksInner(kind, units, true)); }
+function exBlocksInner(kind, units, extra) {
+  const sc = exScope(units, extra);
   const series = dashSeries(sc.scopeUnits);
   const latestPct = (u, f) => { const l = dashUnitLatest(series, u.id); return l ? f(l.report) : null; };
   const crumbs = [exDrillBtn([], "الجمعية", `padding:6px 2px;font-size:13px;color:${sc.path.length ? ROSE : INK};font-weight:${sc.path.length ? 600 : 800};`)]
     .concat(sc.path.map((id, k) => exDrillBtn(sc.path.slice(0, k + 1), esc(olFind(id).name), `padding:6px 2px;font-size:13px;color:${k < sc.path.length - 1 ? ROSE : INK};font-weight:${k < sc.path.length - 1 ? 600 : 800};`)));
   const childLabel = sc.label;
   let html = `<nav aria-label="مسار التفصيل" class="card" style="margin-bottom:18px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:10px 16px;"><span style="font-size:12px;color:${SUBTLE};">تعرضين:</span>${crumbs.join(`<span style="color:${SUBTLE}">←</span>`)}<span class="hint" style="margin:0 8px 0 0;">التفصيل حسب الهيكل المرن — اضغطي على أي اسم</span></nav>`;
-  html += dashFiltersHtml(kind, series);
+  if (extra) html = ""; else html += dashFiltersHtml(kind, series);
 
   // بطاقات بخط تطور
   if (!dashHidden(kind, "exKpis")) { html += "\u0001exKpis\u0002";
@@ -3692,7 +3705,7 @@ function exBlocksInner(kind, units) {
       const nameEl = c.leaf || !c.levelId ? `<span style="width:150px;flex-shrink:0;font-size:12.5px;font-weight:700;">${esc(c.name)}</span>` : exDrillBtn(sc.path.concat(c.levelId), esc(c.name), `width:150px;flex-shrink:0;text-align:right;padding:4px 0;min-height:36px;font-size:12.5px;font-weight:700;color:${ROSE};`);
       return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;">${nameEl}<div style="flex:1;display:flex;flex-direction:column;gap:4px;">${bar(c.ind, ROSE)}${bar(c.goal, "#D9A066")}</div></div>`;
     }).join(""));
-  html += dashB(kind, "exCompare", cmp) + dashB(kind, "trend", dashTrendHtml(kind, series, "التطور فترة بعد فترة — " + (sc.cur ? sc.cur.name : "الجمعية")));
+  html += dashB(kind, "exCompare", cmp) + (extra ? "" : dashB(kind, "trend", dashTrendHtml(kind, series, "التطور فترة بعد فترة — " + (sc.cur ? sc.cur.name : "الجمعية"))));
   // أهداف الخطة الاستراتيجية + حالات المؤشرات
   const latestReports = dashReports(series, true);
   let strat = "";
@@ -3754,7 +3767,7 @@ function exBlocksInner(kind, units) {
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;">${dashCard("أفضل 5 وحدات", "تحقق المؤشرات في آخر تقرير", list(ranked.slice(0, 5), GREEN))}${dashCard("أضعف 5 وحدات", "تحقق المؤشرات في آخر تقرير", list(ranked.slice().reverse().slice(0, 5), DANGER))}</div>`;
     html += "\u0003";
   }
-  html += dashB(kind, "followUp", dashFollowUpHtml(kind, series)) + dashB(kind, "highlights", dashHighlightsHtml(kind, series));
+  if (!extra) html += dashB(kind, "followUp", dashFollowUpHtml(kind, series)) + dashB(kind, "highlights", dashHighlightsHtml(kind, series));
   return html;
 }
 
@@ -4120,6 +4133,7 @@ function renderDashboardBody(activeUnits, opts) {
         <th style="color:${ROSE}">الوحدة</th><th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
+    ${dkind === "admin" ? "" : exExtraHtml(dkind, activeUnits)}
     ${dashPeriodBlocksHtml(dkind, series)}
     ${dashB(dkind, "programs", `<div style="margin-top:18px;">${programsCardHtml(activeUnits)}</div>`)}
     ${dashFieldBlocksHtml(dkind, activeUnits)}
@@ -4259,6 +4273,7 @@ function renderUnitDashboard() {
         <th style="color:${ROSE}">الهدف التشغيلي</th><th style="text-align:center;color:${ROSE}">المستوى</th><th style="text-align:center;color:${ROSE};width:70px">النسبة</th>
       </tr></thead><tbody>${goalsRows}</tbody></table></div>`}
     </div>`)}
+    ${unit ? exExtraHtml("unit", [unit]) : ""}
     ${unit ? dashPeriodBlocksHtml("unit", series) : ""}
     ${unit ? dashFieldBlocksHtml("unit", [unit]) : ""}
     ${unit ? dashB("unit", "achieve", achievementCardHtml([unit])) + dashB("unit", "yearCompare", yearCompareCardHtml([unit])) + dashB("unit", "programs", programsCardHtml([unit])) : ""}
