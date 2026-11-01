@@ -3451,6 +3451,7 @@ function dashTrendHtml(kind, series, title) {
 }
 
 /* ---- جدولا المؤشرات والأهداف عبر الفترات ---- */
+function dirTag(def) { const d = def && def.direction || ""; return d.startsWith("تنازلي") ? `<div style="font-size:10.5px;font-weight:600;color:${SUBTLE};">↓ كلما انخفض كان أفضل</div>` : d.startsWith("ضمن نطاق") ? `<div style="font-size:10.5px;font-weight:600;color:${SUBTLE};">◎ الأفضل ضمن نطاق</div>` : ""; }
 function dashIndMatrixHtml(kind, series) {
   if (dashHidden(kind, "indMatrix")) return "";
   const single = series.units.length === 1, rows = {};
@@ -3467,7 +3468,7 @@ function dashIndMatrixHtml(kind, series) {
   const body = list.map((row) => {
     const def = findIndicatorDef(row.name);
     const pcts = row.cells.map((c) => dashAvg(c.map((x) => (x.pct == null ? null : Math.min(100, x.pct)))));
-    return `<tr><td style="font-weight:700">${esc(row.name)}</td><td style="text-align:center">${def && def.target !== "" && def.target != null ? esc(def.target) : "—"}</td>${row.cells.map((c, i) => `<td style="text-align:center">${c.length ? (single ? `<div>${esc(c[0].actual !== "" && c[0].actual != null ? c[0].actual : "—")}</div>` : `<div style="font-size:10.5px;color:${SUBTLE}">${c.length} ${c.length === 1 ? "وحدة" : "وحدات"}</div>`) + dashPctCell(pcts[i]) : `<span style="color:${SUBTLE}">—</span>`}</td>`).join("")}<td style="text-align:center">${dashTrend(pcts)}</td></tr>`;
+    return `<tr><td style="font-weight:700">${esc(row.name)}${dirTag(def)}</td><td style="text-align:center">${def && def.target !== "" && def.target != null ? esc(def.target) : "—"}</td>${row.cells.map((c, i) => `<td style="text-align:center">${c.length ? (single ? `<div>${esc(c[0].actual !== "" && c[0].actual != null ? c[0].actual : "—")}</div>` : `<div style="font-size:10.5px;color:${SUBTLE}">${c.length} ${c.length === 1 ? "وحدة" : "وحدات"}</div>`) + dashPctCell(pcts[i]) : `<span style="color:${SUBTLE}">—</span>`}</td>`).join("")}<td style="text-align:center">${dashTrend(pcts)}</td></tr>`;
   }).join("");
   return dashCard("مؤشرات الأداء عبر الفترات", single ? "المتحقق ونسبة التحقق في كل فترة · الاتجاه بين آخر فترتين" : "متوسط نسبة تحقق الوحدات في كل فترة · الاتجاه بين آخر فترتين",
     `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:640px;"><thead><tr style="background:${GOLD_BG}"><th>المؤشر</th><th style="text-align:center">المستهدف</th>${series.cols.map((c) => `<th style="text-align:center;white-space:nowrap">${esc(c.label)}</th>`).join("")}<th style="text-align:center">الاتجاه</th></tr></thead><tbody>${body}</tbody></table></div>`);
@@ -9370,7 +9371,7 @@ function dashSharedIndHtml(kind, units) {
   if (!list.length) return "";
   const cards = list.map((c) => {
     const r = sharedIndCompute(c);
-    return `<div class="card" style="padding:14px 16px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><b style="font-size:13.5px;">${esc(c.indName)}</b><span style="font-size:11px;font-weight:800;color:${r.st.color};background:${r.st.bg};border-radius:999px;padding:2px 10px;">${esc(r.st.label)}</span></div>
+    return `<div class="card" style="padding:14px 16px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><b style="font-size:13.5px;">${esc(c.indName)}${dirTag(findIndicatorDef(c.indName))}</b><span style="font-size:11px;font-weight:800;color:${r.st.color};background:${r.st.bg};border-radius:999px;padding:2px 10px;">${esc(r.st.label)}</span></div>
       <div style="font-size:11.5px;color:${SUBTLE};margin-bottom:8px;">مؤشر مشترك — ${c.mode === "avg" ? "المتوسط" : "المجموع"} · المستهدف ${esc(String(r.target === "" || r.target == null ? "—" : r.target))}</div>
       <div style="font-size:26px;font-weight:800;color:${ROSE};">${r.actual == null ? "—" : fmtNum(r.actual)}</div>
       ${r.parts.map((p) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:1px solid ${BORDER};"><span>${esc(p.name)}</span><b>${p.actual == null ? "لم يُدخل" : fmtNum(p.actual)}</b></div>`).join("")}</div>`;
