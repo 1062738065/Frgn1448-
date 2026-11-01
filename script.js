@@ -1941,7 +1941,7 @@ function render() {
   } else if (S.view === "department-curation") {
     html = shellWrap(renderCurationUnified());
   } else if (S.view === "executive-dashboard") {
-    html = shellWrap(renderExecutiveDashboard());
+    html = shellWrap(S.isExecutive ? renderDashboard() : renderExecutiveDashboard());
   } else if (S.view === "executive-summary") {
     html = shellWrap(renderExecutiveSummary());
   } else if (S.view === "executive-final-report") {
