@@ -2026,11 +2026,58 @@ function shellWrap(innerHtml) {
     <div class="app-shell">
       ${sidebarOpen ? renderMainSidebar(mobile) : ""}
       <div class="app-main">
-        ${!sidebarOpen ? `<div class="open-sidebar-wrap"><button class="mobile-menu-toggle" data-action="open-sidebar" title="فتح القائمة">${iconMenu(INK)}</button></div>` : ""}
+        ${!sidebarOpen ? `<div class="open-sidebar-wrap"><button class="mobile-menu-toggle" data-action="open-sidebar" title="فتح القائمة">${iconMenu(INK)}</button>${S.currentUser ? `<button class="sidebar-bell" title="الإشعارات" data-action="notif-toggle" style="margin:0 8px 0 0;">${iconBell(15, INK)}${computeNotificationCount() > 0 ? `<span class="notif-badge">${computeNotificationCount() > 9 ? "9+" : computeNotificationCount()}</span>` : ""}</button>` : ""}</div>` : ""}
         ${innerHtml}
       </div>
+      ${notifDropHtml()}
     </div>
   `;
+}
+// ===== جرس التنبيهات: قائمة منسدلة بآخر التنبيهات (الجديد ملوّن) + «عرض كل التنبيهات» =====
+function notifRelAr(ts) {
+  if (!ts) return "";
+  const m = Math.max(0, Math.round((Date.now() - ts) / 60000)), n = (x) => Number(x).toLocaleString("ar-SA");
+  if (m < 1) return "الآن";
+  if (m < 60) return m === 1 ? "قبل دقيقة" : m === 2 ? "قبل دقيقتين" : m <= 10 ? "قبل " + n(m) + " دقائق" : "قبل " + n(m) + " دقيقة";
+  const h = Math.round(m / 60);
+  if (h < 24) return h === 1 ? "قبل ساعة" : h === 2 ? "قبل ساعتين" : h <= 10 ? "قبل " + n(h) + " ساعات" : "قبل " + n(h) + " ساعة";
+  const d = Math.round(h / 24);
+  return d === 1 ? "أمس" : d === 2 ? "قبل يومين" : d <= 10 ? "قبل " + n(d) + " أيام" : "قبل " + n(d) + " يومًا";
+}
+function notifSeenGet() { try { return Number(localStorage.getItem("prs:notif-seen")) || 0; } catch (e) { return 0; } }
+function notifSeenSet(v) { try { localStorage.setItem("prs:notif-seen", String(v)); } catch (e) {} }
+function notifFeed() {
+  const out = [];
+  const tm = (r) => r.internalReturnedAt || r.internalSentAt || r.updatedAt || r.createdAt || 0;
+  const lab = (r) => (r.label ? " «" + r.label + "»" : "");
+  const viaHub = inboxViaReportsHub();
+  try {
+    apPendingForMe().forEach((x) => out.push({ title: "وصل تقرير" + lab(x.report) + " إلى مرحلتك", sub: x.unit.name, at: tm(x.report), attrs: viaHub ? `data-action="goto-report-tab" data-filter="${MINE_TAB_ID}"` : `data-action="nav-to" data-view="custom-path-inbox"`, color: "#c9a14a" }));
+  } catch (e) {}
+  try {
+    if (S.currentUnitId && !S.isDepartmentUser && !S.isAdmin && !S.isExecutive) {
+      const unit = S.units.find((u) => u.id === S.currentUnitId);
+      const cfgC = effectiveReportTabsConfig();
+      const lst = ensureUnitReportsLoaded(S.currentUnitId);
+      const pick = cfgC && cfgC.notify.length ? lst.filter((r) => cfgC.notify.some((id) => reportMatchesCatalogTab(r, id))) : lst.filter((r) => r.status === "returned" || r.status === "needs_completion");
+      pick.forEach((r) => out.push({ title: (r.status === "needs_completion" ? "أُعيد للاستكمال تقرير" : r.status === "returned" ? "أُعيد للتعديل تقرير" : "تقرير") + lab(r), sub: unit ? unit.name : "", at: tm(r), attrs: `data-action="open-report" data-unit-id="${esc(S.currentUnitId)}" data-report-id="${esc(r.id)}"`, color: "#b04a63" }));
+    }
+  } catch (e) {}
+  return out.sort((a, b) => b.at - a.at);
+}
+function notifDropHtml() {
+  if (!S.currentUser || !S.ui || !S.ui.notifOpen || S.ui.notifOpenView !== S.view) return "";
+  const seen = S.ui.notifPrev || 0, all = notifFeed(), list = all.slice(0, 6);
+  const rows = list.length ? list.map((x) => { const fresh = x.at > seen; return `<button type="button" ${x.attrs} class="notif-row" style="display:flex;gap:10px;align-items:flex-start;width:100%;text-align:right;border:none;background:${fresh ? "#fbeff2" : "transparent"};border-radius:12px;padding:10px 12px;margin-bottom:4px;cursor:pointer;font-family:inherit;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${x.color};margin-top:7px;flex:none;"></span>
+      <span style="flex:1;min-width:0;"><span style="display:block;font-size:13px;font-weight:800;color:${INK};line-height:1.6;">${esc(x.title)}</span><span style="display:block;font-size:11.5px;color:${SUBTLE};margin-top:2px;">${esc([x.sub, notifRelAr(x.at)].filter(Boolean).join(" · "))}</span></span></button>`; }).join("") : `<div style="text-align:center;color:${SUBTLE};font-size:13px;padding:22px 8px;">لا توجد تنبيهات حاليًا.</div>`;
+  const fresh = all.filter((x) => x.at > seen).length;
+  return `<div data-action="notif-close" style="position:fixed;inset:0;z-index:90;background:transparent;"></div>
+  <div class="notif-drop" role="dialog" aria-label="التنبيهات" style="position:fixed;top:64px;right:max(12px,env(safe-area-inset-right));z-index:91;width:min(380px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:#fff;border:1px solid ${BORDER};border-radius:18px;box-shadow:0 12px 34px rgba(60,20,35,.22);padding:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px 10px;"><span style="font-size:14px;font-weight:800;color:${INK};">التنبيهات</span><span style="font-size:11.5px;color:${SUBTLE};">${fresh ? Number(fresh).toLocaleString("ar-SA") + " جديدة" : "لا جديد"}</span></div>
+    ${rows}
+    <div style="border-top:1px solid ${BORDER};margin-top:6px;padding-top:6px;"><button type="button" data-action="nav-to" data-view="unit-notifications" style="width:100%;border:none;background:transparent;color:${ROSE};font-weight:800;font-size:13px;padding:10px;cursor:pointer;font-family:inherit;">عرض كل التنبيهات</button></div>
+  </div>`;
 }
 
 const SIDEBAR_PAGES = [
@@ -2126,6 +2173,8 @@ function buttonAllowed(id) {
   if (!S.allowedButtons) return true;
   if (coreReportButtonOpen(id)) return true;
   if (id === "chip:" + MINE_TAB_ID && userInAnyApStage()) return true;
+  // صاحبة مرحلة في المسار: أزرار القرار (اعتماد/إرسال/إعادة) تظهر لها دائمًا — الرسم أصلًا لا يصلها إلا لو مرحلتها
+  if ((id === "ap-advance" || id === "ap-return") && userInAnyApStage()) return true;
   if (S.allowedButtons.includes(id)) return true;
   return (BUTTON_ALIASES[id] || []).some((a) => S.allowedButtons.includes(a));
 }
@@ -2317,7 +2366,7 @@ function renderMainSidebar(mobile) {
       <div class="sidebar-head-icons-row">
         <div class="icon-badge">${iconGauge(ROSE)}</div>
         <div style="display:flex;gap:6px;">
-          <button class="sidebar-bell" title="الإشعارات" data-action="nav-to" data-view="unit-notifications">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
+          <button class="sidebar-bell" title="الإشعارات" data-action="notif-toggle">${iconBell(15, INK)}${notifCount > 0 ? `<span class="notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}</button>
           <button class="icon-btn" data-action="${mobile ? "close-mobile-sidebar" : "close-sidebar"}" title="إغلاق القائمة">${iconX(14, INK)}</button>
         </div>
       </div>
@@ -8897,11 +8946,12 @@ function permDropdownTargetArray(key) {
 
 function permButtonsChecklistHtml(allSelected, action) {
   const selectedAll = allSelected || [];
-  const selected = selectedAll.filter((x) => String(x).indexOf("notify:") !== 0);
+  const AUTO_BTNS = ["ap-advance", "ap-return"]; // تظهر تلقائيًا لصاحبة المرحلة في المسار — لا تحتاج اختيارًا
+  const selected = selectedAll.filter((x) => String(x).indexOf("notify:") !== 0 && !AUTO_BTNS.includes(x));
   const groups = [];
-  const shownCatalog = BUTTON_CATALOG.filter((b) => !CORE_REPORT_BUTTONS.includes(b.id));
+  const shownCatalog = BUTTON_CATALOG.filter((b) => !CORE_REPORT_BUTTONS.includes(b.id) && !AUTO_BTNS.includes(b.id));
   shownCatalog.forEach((b) => { let g = groups.find((x) => x.name === b.g); if (!g) { g = { name: b.g, items: [] }; groups.push(g); } g.items.push(b); });
-  return permDropdownChecklistHtml({
+  return `<div class="hint" style="margin-bottom:6px;">أزرار «اعتماد/إرسال» و«إعادة للتعديل» تظهر تلقائيًا لمن عندها مرحلة في مسار الاعتماد، وأزرار بطاقة التقرير الأساسية تتبع صفحة التقرير — فلا تحتاج اختيارًا هنا.</div>` + permDropdownChecklistHtml({
     action, selected, total: shownCatalog.length, emptyLabel: "الأزرار",
     renderList: () => groups.map((g) => `<div style="margin-bottom:8px;"><div style="font-size:10.5px;font-weight:800;color:${ROSE};margin-bottom:4px;">${esc(g.name)}</div>${g.items.map((b) => permCheckboxRowHtml(action, b.id, b.label, selected.includes(b.id)) + (b.id.indexOf("chip:") === 0 ? `<div style="padding-inline-start:22px;">${permCheckboxRowHtml(action, "notify:" + b.id, "↳ ينبّه بعدد تقارير هذا الزر (في التنبيهات)", selectedAll.includes("notify:" + b.id))}</div>` : "")).join("")}</div>`).join(""),
   });
@@ -10022,6 +10072,7 @@ function bkPanelHtml(arr) {
     <div class="repeat-item-head"><span class="repeat-item-title">إدخال ${esc(schema.itemLabel)} من نص</span></div>
     <div class="hint" style="margin-bottom:8px;">اكتبي سطرًا لكل عنصر، وافصلي بين الحقول بـ «|» بهذا الترتيب. الحقل الفارغ اتركيه فاضي، والحقول الأخيرة تقدرين تحذفينها. (* = مطلوب)</div>
     <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;line-height:2;">${order}</div>
+    <div class="hint" style="margin-top:8px;line-height:1.9;">مثال لسطر واحد (بدون رقم في أوله):<div style="background:#fff;border:1px dashed ${BORDER};border-radius:10px;padding:8px 12px;margin-top:4px;color:${INK};direction:rtl;">${esc(fields.map((f) => { const o = (f.options || f.baseOptions || [])[0]; return o ? (typeof o === "string" ? o : (o.label || o.value)) : f.label; }).join(" | "))}</div></div>
     ${optsHtml}
     <textarea class="input" id="bk-text" rows="6" style="margin-top:12px;font-family:inherit;line-height:1.9;min-height:140px;">${esc(b.text || "")}</textarea>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">${pillBtn("معاينة", { variant: "ghost", action: "bk-preview", data: { arr } })}${ok ? pillBtn(`إضافة ${ok} عنصر`, { action: "bk-apply", data: { arr } }) : ""}${pillBtn("إغلاق", { variant: "ghost", action: "bk-close" })}</div>
@@ -12234,6 +12285,7 @@ function attachClickListener() {
     if (!btn) return;
     const action = btn.dataset.action;
     const ds = btn.dataset;
+    if (S.ui && S.ui.notifOpen && action !== "notif-toggle") { S.ui.notifOpen = false; if (action === "notif-close") { render(); return; } }
     if (buttonBlockedEl(btn)) return;
     if (adminReportsReadOnly() && ADMIN_READONLY_BLOCKED.includes(action)) { alert("حساب مديرة النظام للاطلاع فقط — لا يمكن تعديل التقارير أو اعتمادها من هنا."); return; }
     if (!S.currentUser && action.indexOf("portal-") === 0 && handlePortalAction(action, ds)) return;
@@ -12541,6 +12593,7 @@ function attachClickListener() {
       case "nav-back-from-report": S.view = "unit-reports"; S.activeSectionId = null; render(); break;
       case "nav-back-to-report": S.view = "unit-report"; render(); break;
       case "nav-to-unit-report": S.view = "unit-report"; render(); break;
+      case "notif-toggle": { if (S.ui.notifOpen && S.ui.notifOpenView === S.view) { S.ui.notifOpen = false; render(); break; } S.ui.notifOpen = true; S.ui.notifOpenView = S.view; S.ui.notifPrev = notifSeenGet(); notifSeenSet(Date.now()); render(); break; }
       case "open-sidebar": if (isMobileViewport()) S.mobileSidebarOpen = true; else S.sidebarOpen = true; render(); break;
       case "close-sidebar": S.sidebarOpen = false; render(); break;
       case "close-mobile-sidebar": S.mobileSidebarOpen = false; render(); break;
