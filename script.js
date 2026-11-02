@@ -3207,6 +3207,12 @@ function dashRoleKind() {
   if (/مساعد/.test(n) && /(مدير|إدارة)/.test(n)) return "role_asst";
   return null;
 }
+// حساب مستوى هو «إدارة التعليم النسائي» نفسها (قمة الهيكل أو بالاسم): يأخذ إعدادات «لوحة إدارة التعليم النسائي»
+function dashLevelIsExec(lv) {
+  if (!lv) return false;
+  if (/^\s*إدارة\s+التعليم\s+النسائي\s*$/.test(String(lv.name || ""))) return true;
+  return !lv.parentId && /التعليم\s+النسائي/.test(String(lv.name || "")) && !/(مساعد|سكرتار)/.test(String(lv.name || ""));
+}
 // اللوحة العامة (مديرة النظام / المكتب / القسم / الوحدة)
 const DASH_STD_BLOCKS = [
   { key: "banner", label: "البانر والبحث" },
@@ -3988,6 +3994,7 @@ function renderDashboard() {
   if (S.levelScope && !S.isAdmin && !S.isDepartmentUser && !S.isOfficeUser) {
     // حساب مستوى باسم دور «مساعدة مدير…» أو «سكرتارية»: لوحة ذلك الدور (بإعداداتها) لا لوحة وحدة
     const rkl = dashRoleKind();
+    if (!rkl && dashLevelIsExec(olFind(S.levelScope.levelId))) return renderExecutiveDashboard(undefined, undefined, { kind: "executive" });
     if (rkl === "role_asst") return renderExecutiveDashboard(undefined, undefined, { kind: "role_asst" });
     if (rkl === "role_sec") return renderDashboardBody(S.units.filter((u) => u.status === "active" && u.role !== "self_report" && u.role !== "admin" && u.role !== "executive" && (!S.levelScope.unitIds || !S.levelScope.unitIds.has || S.levelScope.unitIds.has(u.id))), { kind: "role_sec" });
   }
@@ -8207,6 +8214,7 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
     const lv = olFind(S.levelScope.levelId);
     // حساب مستوى باسم دور «مساعدة مدير…» أو «سكرتارية»: يأخذ إعدادات لوحة ذلك الدور لا لوحة القسم
     const rk = dashRoleKind();
+    if (!rk && dashLevelIsExec(lv)) return renderExecutiveDashboard(units, S.departments.filter((d) => d.status === "active" && units.some((u) => u.departmentId === d.id)), { kind: "executive", subtitle: `نظرة على ${units.length} وحدة تحت هذا المستوى` });
     if (rk === "role_asst") return renderExecutiveDashboard(units, S.departments.filter((d) => d.status === "active" && units.some((u) => u.departmentId === d.id)), { kind: "role_asst", subtitle: `نظرة على ${units.length} وحدة تحت هذا المستوى` });
     return renderDashboardBody(units, { kind: rk === "role_sec" ? "role_sec" : "dept", title: lv ? lv.name : "لوحة المعلومات", subtitle: `نظرة على ${units.length} وحدة تحت هذا المستوى` });
   }
