@@ -1664,6 +1664,7 @@ function apAdvanceOrReturn(unitId, reportId, isReturn, notes, opts) {
   if (!next) {
     log.push(apLogEntry("final", cur.key, "final", (cur.canApprove ? "اعتُمد نهائيًا من " : "أنهته ") + cur.name + (notes ? " — " + notes : "")));
     saveReportEntry(unitId, { ...entry, status: cur.canApprove ? "approved" : "completed", customStageId: null, customLog: log, updatedAt: Date.now() });
+    try { const ac = archiveCfg(themeOf(S.siteSettings || {})); if (ac.enabled && cur.canApprove && (ac.drive || ac.sheet)) setTimeout(() => { archiveRun(unitId, entry.id).catch(() => {}); }, 600); } catch (e) { /* فشل الأرشفة لا يمنع الاعتماد */ }
   } else {
     log.push(apLogEntry("send", cur.key, next.key, (cur.canApprove ? "اعتمدته " : "أرسلته ") + cur.name + " إلى " + next.name + (notes ? " — " + notes : "")));
     saveReportEntry(unitId, { ...entry, status: "custom_pending", customStageId: next.key, customLog: log, updatedAt: Date.now() });
@@ -3971,7 +3972,7 @@ function opsBlocksInner(kind, units) {
   }
   if (!dashHidden(kind, "opsRoles")) {
     const cat = BUTTON_CATALOG.filter((b) => !CORE_REPORT_BUTTONS.includes(b.id) && !["ap-advance", "ap-return"].includes(b.id) && b.id.indexOf("chip:") !== 0);
-    const sw = (on, role, kd, id) => `<button type="button" class="sw-tg ${on ? "on" : ""}" data-action="ops-perm-toggle" data-role-id="${esc(role.id)}" data-kind="${kd}" data-id="${esc(id)}" aria-pressed="${on}" style="flex:none;"></button>`;
+    const sw = (on, role, kd, id) => `<button type="button" class="sw-tg ${on ? "on" : ""}" data-action="ops-perm-toggle" data-role-id="${esc(role.id)}" data-kind="${kd}" data-id="${esc(id)}" aria-pressed="${on}" style="flex:none;"><i></i></button>`;
     rolesH = dashCard("الأزرار والصفحات", "اضغطي المفتاح لتشغيل أو إطفاء الصفحة أو الزر للدور · الإطفاء يطلب تأكيدًا",
       rolesList().map((r) => { const p = rolePermsOf(r); const pgs = SIDEBAR_PAGES.filter((pg) => pg && pg.id);
         return `<details style="border-top:1px solid ${BORDER};padding:8px 0;"><summary style="cursor:pointer;font-size:13px;font-weight:800;min-height:36px;display:flex;align-items:center;gap:8px;">${esc(r.name)} <span style="font-size:11.5px;color:${SUBTLE};font-weight:600;">${p.pages.length} صفحة · ${p.buttons.filter((b) => b.indexOf("notify:") !== 0).length} زر</span></summary>
@@ -5989,7 +5990,7 @@ function archiveCardHtml(theme) {
   const bad = (v) => v && !/^https:\/\/[^\s]+$/.test(v);
   return `<div class="card" style="margin-bottom:16px;max-width:760px;">
     <div class="subhead" style="margin-top:0;">الأرشفة وDrive</div>
-    <div class="hint" style="margin-bottom:14px;">هنا تُضبط الروابط ومفاتيح التشغيل. القاعدة تحفظ دائمًا؛ وDrive والشيت اختياريان، وفشلهما لا يمنع الاعتماد. يبدأ التنفيذ الفعلي للحفظ في Drive بعد ما نكمل دفعة Drive.</div>
+    <div class="hint" style="margin-bottom:14px;">هنا تُضبط الروابط ومفاتيح التشغيل. القاعدة تحفظ دائمًا؛ وDrive والشيت اختياريان، وفشلهما لا يمنع الاعتماد. تعمل مع زر «حفظ وإرسال» داخل «عرض التقرير»، وتلقائيًا عند الاعتماد النهائي إذا فعّلتِ الأرشفة التلقائية.</div>
     ${fld("الأرشفة التلقائية عند الاعتماد النهائي", `<div style="display:flex;gap:8px;flex-wrap:wrap;">${tog("enabled", a.enabled ? "مفعّلة" : "متوقفة")}</div>`)}
     ${fld("أماكن الحفظ", `<div style="display:flex;gap:8px;flex-wrap:wrap;"><span style="min-height:40px;display:inline-flex;align-items:center;padding:0 16px;border-radius:999px;border:1px solid ${GREEN};background:${GREEN_BG};color:${GREEN};font-size:13px;font-weight:700;">✓ القاعدة (دائمًا)</span>${tog("drive", "Google Drive")}${tog("sheet", "Google Sheet")}</div>`)}
     ${a.drive ? `${fld("رابط سكربت Drive الوسيط (Apps Script)", inp("scriptUrl", "https://script.google.com/macros/s/…/exec", "ltr"), bad(a.scriptUrl) ? `<span style="color:${DANGER};">الرابط لازم يبدأ بـ https://</span>` : "الموقع الحقيقي والتجريبي يحتاجان سكربتًا وسيطًا يُنشر مرة واحدة.")}
@@ -6031,6 +6032,37 @@ function dashPreviewHtml(kind) {
   S.currentUnitId = keep.cu;
   return h;
 }
+const DASH_GROUPS = [
+  ["البانر والفلاتر", ["banner", "periodFilter"]],
+  ["الأرقام والبطاقات", ["stats", "exKpis", "opsCounts", "opsKpis", "achieve", "yearCompare", "recent"]],
+  ["الرسوم والخرائط", ["totalPie", "bars", "indPie", "goalPie", "trend", "exHeat", "exHeatGoal", "exCompare", "unitsCmp", "exStacks", "exTopBottom", "opsDeptCompliance"]],
+  ["الجداول والإدارة", ["indicators", "goals", "indMatrix", "goalMatrix", "programs", "sharedInd", "opsSections", "opsAggReports", "opsRecent", "opsRoles"]],
+  ["حقول أقسام التقرير", ["fld_*"]],
+  ["التحليل والمتابعة", ["*"]],
+];
+function dashGroupOf(key) {
+  for (const [name, keys] of DASH_GROUPS) { if (keys.indexOf(key) !== -1 || (keys[0] === "fld_*" && key.indexOf("fld_") === 0)) return name; }
+  return "التحليل والمتابعة";
+}
+function dashKindPanelHtml() {
+  const kid = (DASH_KINDS.some((k) => k.id === S.ui.dashKindTab) ? S.ui.dashKindTab : "unit");
+  const tabs = DASH_KINDS.map((k) => `<button type="button" data-action="dash-kind-tab" data-kind="${esc(k.id)}" style="font-family:inherit;min-height:40px;padding:0 14px;border-radius:12px;border:1px solid ${k.id === kid ? ROSE : BORDER};background:${k.id === kid ? ROSE : "#fff"};color:${k.id === kid ? "#fff" : INK};font-size:13px;font-weight:800;cursor:pointer;">${esc(k.label)}</button>`).join("");
+  const items = dashCatalog(kid).filter((b) => !(b.not && b.not.indexOf(kid) !== -1));
+  const groups = DASH_GROUPS.map(([name]) => [name, items.filter((b) => dashGroupOf(b.key) === name)]).filter(([, l]) => l.length);
+  const sw = (on, key) => `<button type="button" class="sw-tg ${on ? "on" : ""}" data-action="dash-toggle" data-kind="${esc(kid)}" data-key="${esc(key)}" aria-pressed="${on}" title="${on ? "ظاهر — اضغطي للإخفاء" : "مخفي — اضغطي للإظهار"}" style="flex:none;"><i></i></button>`;
+  const body = groups.map(([name, list]) => {
+    const shown = list.filter((b) => !dashHidden(kid, b.key)).length;
+    const keys = list.map((b) => b.key).join(",");
+    return `<details open style="border:1px solid ${BORDER};border-radius:14px;overflow:hidden;background:#fff;margin-bottom:12px;">
+      <summary style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;background:#faf4f6;font-weight:800;color:${ROSE};font-size:14px;list-style:none;"><span style="flex:1;">${esc(name)}</span><span class="badge" style="background:${GRAY_BG};color:${ROSE};">${shown} من ${list.length} ظاهرة</span>
+        <button type="button" class="pill-btn pill-ghost" style="padding:4px 10px;" data-action="dash-group" data-kind="${esc(kid)}" data-keys="${esc(keys)}" data-show="1">إظهار الكل</button>
+        <button type="button" class="pill-btn pill-ghost" style="padding:4px 10px;" data-action="dash-group" data-kind="${esc(kid)}" data-keys="${esc(keys)}" data-show="0">إخفاء الكل</button></summary>
+      ${list.map((b) => `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid ${BORDER};font-size:13.5px;"><span style="flex:1;">${esc(b.label)}</span>${sw(!dashHidden(kid, b.key), b.key)}</div>`).join("")}
+    </details>`;
+  }).join("");
+  return `<div style="width:100%;margin-bottom:10px;"><div style="font-size:13px;font-weight:800;margin-bottom:8px;">اختاري نوع الحساب</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${tabs}</div>${body}</div>`;
+}
 function dashSettingsCardHtml() {
   const group = (title, blocks, kindIds) => {
     const kinds = DASH_KINDS.filter((k) => kindIds.indexOf(k.id) !== -1);
@@ -6048,18 +6080,13 @@ function dashSettingsCardHtml() {
   const anyHidden = DASH_KINDS.some((k) => (dashConfig()[k.id] && (dashConfig()[k.id].hidden || []).length));
   return `<div class="card" style="margin-bottom:16px;">
     <div class="subhead" style="margin-top:0;">ما يظهر في لوحة المعلومات</div>
-    <div class="hint" style="margin-bottom:14px;">✓ يظهر · ✗ مخفي. الاختيار لنوع الجهة كله (كل الأقسام ترى الشكل نفسه). يُحفظ فورًا. الأصل أن كل شيء ظاهر.</div>
+    <div class="hint" style="margin-bottom:14px;">اختاري نوع الحساب ثم شغّلي أو أطفئي ما يظهر له. الاختيار لنوع الجهة كله (كل الأقسام ترى الشكل نفسه). يُحفظ فورًا. الأصل أن كل شيء ظاهر.</div>
     ${(() => { const d = S.ui.dashSync; if (!d) return ""; const m = { ok: [GREEN, "✓ حُفظ في القاعدة وتأكدتُ بقراءته — ستظهر التغييرات في بقية الحسابات والأجهزة"], wait: [SUBTLE, "جارٍ الحفظ والتحقق…"], local: [GOLD, "⚠ حُفظ على هذا الجهاز فقط (الموقع غير مربوط بالقاعدة) — لن تظهر التغييرات في بقية الأجهزة"], bad: [DANGER, "✗ لم يُحفظ في القاعدة: " + (d.m || "") + " — لذلك لا تظهر التغييرات في الحسابات الأخرى"] }[d.s]; return `<div style="font-size:12.5px;font-weight:700;color:${m[0]};margin:-6px 0 12px;">${esc(m[1])}</div>`; })()}
     <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;">
-    ${group("لوحة مديرة النظام (متابعة التشغيل)", DASH_ADMIN_BLOCKS, ["admin"])}
-    ${group("لوحة الوحدة والقسم والمكتب", DASH_STD_BLOCKS, DASH_STD_KINDS)}
-    ${group("لوحة إدارة التعليم النسائي", DASH_EX_BLOCKS, DASH_EX_KINDS)}
     <div style="margin-bottom:18px;"><div style="font-size:13px;font-weight:800;margin-bottom:8px;">ربط لوحتي السكرتارية والمساعدة بدورهما</div>
       <div class="hint" style="margin-bottom:8px;">اختاري الدور الذي تنطبق عليه كل لوحة (بدل الاعتماد على كلمة في اسم الدور). «تلقائي» = من الاسم.</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">${[["role_sec", "دور السكرتارية"], ["role_asst", "دور مساعدة مدير إدارة التعليم النسائي"]].map(([k, l]) => `<div style="flex:1 1 260px;"><div style="font-size:12px;color:${SUBTLE};margin-bottom:4px;">${l}</div><select class="input" id="dash-rolemap-${k}" style="width:100%;"><option value="">تلقائي (من الاسم)</option>${rolesList().filter((r) => r.status !== "disabled").map((r) => `<option value="${esc(r.id)}" ${((dashConfig()._roles || {})[k]) === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>`).join("")}</div></div>
-    ${group("حقول أقسام التقرير (كل قسم له بطاقة — أخفي ما لا تحتاجينه)", dashFieldCatalog(), DASH_KINDS.map((k) => k.id))}
-    ${group("لوحة السكرتارية", DASH_STD_BLOCKS, ["role_sec"])}
-    ${group("لوحة مساعدة مدير إدارة التعليم النسائي", DASH_EX_BLOCKS, ["role_asst"])}
+    ${dashKindPanelHtml()}
     </div>
     <div>${pillBtn("إظهار كل العناصر للجميع", { variant: "ghost", icon: iconX(14, INK), action: "dash-reset", disabled: !anyHidden })}</div>
     <div style="border-top:1px solid ${BORDER};margin-top:18px;padding-top:16px;">
@@ -9181,8 +9208,8 @@ function apAutoPreview(unit, period) {
     if (st.disabled) { r.state = "all"; r.why = "متخطّاة لكل الوحدات"; }
     else if (!h.length) { r.state = "auto"; r.why = "تُتخطّى تلقائيًا — ما فيه أحد"; }
     else if (st.unitRank <= writerRank) { r.state = "auto"; r.why = st.unitRank === writerRank ? "تُتخطّى — هي اللي تكتب التقرير" : "تُتخطّى — أقل من اللي تكتب"; }
-    else if (wr.includes(st.unitRank)) { r.state = "on"; r.why = "لو هي اللي كتبت التقرير ما يمر عليها"; r.whyOk = true; }
     else if (uSkip.includes(AUTO_PATH_ID + ":" + st.id)) { r.state = "unit"; r.why = "متخطّاة لهذه الوحدة"; }
+    else if (wr.includes(st.unitRank)) { r.state = "on"; r.why = "لو هي اللي كتبت التقرير ما يمر عليها"; r.whyOk = true; }
     else if (!r.state) r.state = "on";
     rows.push(r);
   });
@@ -10002,11 +10029,11 @@ function fieldSchemaRowHtml(field, index, total, sectionId) {
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">
           <span style="font-size:10.5px;font-weight:700;color:${INK};background:${GRAY_BG};padding:2px 9px;border-radius:999px;">${esc(typeLabel)}</span>
           <span style="font-size:10.5px;font-weight:700;color:${isComputed ? BLUE : GREEN};background:${isComputed ? BLUE_BG : GREEN_BG};padding:2px 9px;border-radius:999px;">${isComputed ? "محسوبة تلقائيًا" : "إدخال يدوي"}</span>
-          ${field.required ? `<span style="font-size:10.5px;font-weight:700;color:${DANGER};background:${DANGER_BG};padding:2px 9px;border-radius:999px;">إلزامي</span>` : ""}
         </div>
       </div>
     </div>
-    <div style="display:flex;gap:5px;flex-shrink:0;align-items:center;">
+    <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+      ${isComputed ? "" : `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:${SUBTLE};">إلزامي <button type="button" class="sw-tg ${field.required ? "on" : ""}" data-action="toggle-schema-required" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" aria-pressed="${!!field.required}"><i></i></button></label>`}
       <span style="display:inline-flex;flex-direction:column;gap:2px;">
         <button class="icon-btn" style="width:22px;height:15px;border:1px solid ${BORDER}" data-action="move-schema-field" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" data-dir="up" ${index === 0 ? "disabled" : ""} title="نقل لأعلى">${iconChevronUp(10, INK)}</button>
         <button class="icon-btn" style="width:22px;height:15px;border:1px solid ${BORDER}" data-action="move-schema-field" data-section="${esc(sectionId)}" data-id="${esc(field.id)}" data-dir="down" ${index === total - 1 ? "disabled" : ""} title="نقل لأسفل">${iconChevronDown(10, INK)}</button>
@@ -10035,21 +10062,20 @@ function renderFieldSchemasManage() {
   <div class="page-wrap"><div class="page-inner">
     ${topBarHtml({ title: "إدارة حقول الأقسام", subtitle: "أضف أو عدّل أي من حقول الأقسام التالية، مع إمكانية تحديد الترتيب.", icon: iconPencil(18, ROSE), backAction: "nav-back-admin" })}
 
-    <div style="display:flex;gap:14px;overflow-x:auto;padding:16px 8px 22px;margin-bottom:6px;">
-      ${editingId === "__new__" ? "" : `<button type="button" data-action="start-add-field" data-section="${esc(activeSectionId)}" style="flex-shrink:0;width:110px;min-height:150px;border-radius:22px;border:2px dashed ${BORDER};background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:${SUBTLE};font-size:11.5px;font-weight:700;">${iconPlus(22, SUBTLE)}إضافة حقل</button>`}
-      ${sections.map((sec, n) => { const PAL = bsPalette(); const c = PAL[n % PAL.length]; const on = sec.id === activeSectionId; return `<button type="button" data-action="select-field-schema-section" data-section="${esc(sec.id)}" style="flex-shrink:0;width:170px;min-height:150px;border-radius:22px;border:none;cursor:pointer;text-align:right;padding:16px;display:flex;flex-direction:column;justify-content:space-between;background:${c.bg};box-shadow:${on ? "0 14px 26px rgba(80,40,60,0.20)" : "0 6px 14px rgba(80,40,60,0.08)"};outline:${on ? "3px solid " + ROSE : "none"};outline-offset:2px;transform:${on ? "translateY(-4px)" : "none"};transition:transform .15s ease, box-shadow .15s ease;font-family:inherit;">
-        ${fieldIconTileHtml(["text", "target", "chart", "users", "bulb", "trophy"][n % 6], 32, n)}
-        <span style="font-size:14.5px;font-weight:800;color:${INK};line-height:1.4;">${esc(sec.label)}</span></button>`; }).join("")}
+    <div class="hint" style="margin:0 0 12px;">اختاري القسم ثم عدّلي حقوله. «إلزامي» = لا يُرسل التقرير إلا بتعبئته. للترتيب استخدمي أسهم ▲▼ بجانب كل حقل.</div>
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div class="card" style="flex:1 1 240px;max-width:320px;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:12px;font-weight:800;color:${ROSE};margin-bottom:4px;">أقسام التقرير</div>
+        ${sections.map((sec) => { const on = sec.id === activeSectionId; const cnt = ((SECTION_FIELD_SCHEMAS[sec.id] || {}).fields || []).length; return `<button type="button" data-action="select-field-schema-section" data-section="${esc(sec.id)}" style="font-family:inherit;display:flex;align-items:center;gap:8px;padding:11px 12px;min-height:44px;border-radius:12px;cursor:pointer;text-align:right;border:1px solid ${on ? "#d9b8c2" : "transparent"};background:${on ? "#f6edf0" : "transparent"};"><span style="flex:1;font-weight:${on ? 800 : 600};font-size:13.5px;color:${INK};">${esc(sec.label)}</span><span class="badge" style="background:${GRAY_BG};color:${ROSE};">${cnt} حقل</span></button>`; }).join("")}
+      </div>
+      <div style="flex:3 1 460px;min-width:0;">
+        ${editingId === "__new__" ? fieldEditFormHtml(draft, true) : ""}
+        <div style="font-size:15px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${iconLayers(18, ROSE)} <span style="flex:1;">حقول «${esc((sections.find((s) => s.id === activeSectionId) || {}).label || activeSectionId)}»</span><span class="badge" style="background:${GRAY_BG};color:${ROSE};">${fields.length} حقل</span><span class="badge" style="background:${DANGER_BG};color:${DANGER};">${fields.filter((f) => f.required).length} إلزامي</span>${editingId === "__new__" ? "" : pillBtn("إضافة حقل", { icon: iconPlus(14, "#fff"), action: "start-add-field", data: { section: activeSectionId } })}</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+          ${fields.map((f, i) => editingId === f.id ? fieldEditFormHtml(draft, false) : fieldSchemaRowHtml(f, i, fields.length, activeSectionId)).join("") || `<div class="card" style="color:${SUBTLE};font-size:12.5px;">لا توجد حقول بعد.</div>`}
+        </div>
+      </div>
     </div>
-
-    ${editingId === "__new__" ? fieldEditFormHtml(draft, true) : ""}
-
-    <div style="font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;">${iconLayers(18, ROSE)} حقول (${esc((sections.find((s) => s.id === activeSectionId) || {}).label || activeSectionId)})</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:16px;">
-      ${fields.map((f, i) => editingId === f.id ? fieldEditFormHtml(draft, false) : fieldSchemaRowHtml(f, i, fields.length, activeSectionId)).join("") || `<div class="card" style="color:${SUBTLE};font-size:12.5px;">لا توجد حقول بعد.</div>`}
-    </div>
-
-    ${editingId === "__new__" ? "" : pillBtn("إضافة حقل جديد", { variant: "ghost", icon: iconPlus(15, ROSE), action: "start-add-field", data: { section: activeSectionId } })}
   </div></div>`;
 }
 
@@ -10200,7 +10226,28 @@ function setFieldFromEl(el) {
   } else {
     S.sectionDraft[ds.field] = value;
   }
+  autoSaveSchedule();
 }
+// حفظ المسودة تلقائيًا بعد توقف الكتابة ثوانٍ قليلة (لا يغيّر حالة «مكتمل»، ولا يعيد رسم الصفحة)
+let __autoSaveTimer = null;
+function autoSaveSetInd(txt, color) { const el = document.getElementById("autosave-ind"); if (el) { el.textContent = txt; el.style.color = color || SUBTLE; } }
+function autoSaveSchedule() {
+  if (S.view !== "unit-report" || !S.activeSectionId || adminReportsReadOnly()) return;
+  S.__autoSaveSec = S.activeSectionId; S.__autoSaveRep = S.currentReportId;
+  autoSaveSetInd("جارٍ الحفظ…", SUBTLE);
+  clearTimeout(__autoSaveTimer);
+  __autoSaveTimer = setTimeout(autoSaveRun, 2500);
+}
+function autoSaveRun() {
+  __autoSaveTimer = null;
+  if (S.view !== "unit-report" || S.activeSectionId !== S.__autoSaveSec || S.currentReportId !== S.__autoSaveRep || !S.sectionDraft) return;
+  try {
+    if (navigator.onLine === false) { autoSaveSetInd("لم يُحفظ، سيُعاد تلقائيًا", DANGER); __autoSaveTimer = setTimeout(autoSaveRun, 5000); return; }
+    const ok = trySaveSectionWithStatus(S.sectionCompleted ? "completed" : "draft");
+    if (ok) autoSaveSetInd("تم الحفظ ✓", GREEN); else { S.sectionSaveError = ""; autoSaveSetInd("لم يُحفظ — أكملي الحقول المطلوبة", DANGER); }
+  } catch (e) { autoSaveSetInd("لم يُحفظ، سيُعاد تلقائيًا", DANGER); }
+}
+function autoSaveFlush() { if (__autoSaveTimer) { clearTimeout(__autoSaveTimer); autoSaveRun(); } }
 function expandableSelectHtml(name, value, baseOptions, customOptions, placeholder, otherLabel, arr, id, subarr, subid) {
   otherLabel = otherLabel || "أخرى";
   const options = [...baseOptions, ...customOptions, otherLabel];
@@ -10522,6 +10569,7 @@ function sectionEditorHtml(unit, report) {
   <div class="card card-lg">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <button data-action="close-section" style="display:flex;align-items:center;gap:5px;background:none;border:none;color:${ROSE};font-size:12px;font-weight:700;cursor:pointer;padding:0;">${iconArrowRight(14, ROSE)} رجوع إلى تقاريري</button>
+      <span id="autosave-ind" style="font-size:11.5px;font-weight:700;color:${SUBTLE}">${S.sectionDraft ? "المسودة تُحفظ تلقائيًا" : ""}</span>
       <span style="font-size:11px;color:${SUBTLE}">القسم ${sectionIndex + 1} من ${secList.length}</span>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 18px;">
@@ -10542,7 +10590,7 @@ function sectionEditorHtml(unit, report) {
     ${S.ui.showApSendPicker ? apSendPickerHtml(unit, report) : ""}
     <div class="section-editor-nav">
       ${pillBtn("السابق", { variant: "ghost", action: "section-prev", disabled: sectionIndex <= 0 })}
-      <div style="flex:1;">${actionAllowed("section-save-draft") ? pillBtn(S.sectionSaveStatus || "حفظ كمسودة", { variant: "soft", icon: iconSave(15, GREEN), action: "section-save-draft" }) : ""}</div>
+      <div style="flex:1;"></div>
       ${sectionIndex >= secList.length - 1
         ? (report.status === "draft" || report.status === "returned" || report.status === "needs_completion"
             ? (matchApprovalPath(unit, report)
@@ -10553,7 +10601,7 @@ function sectionEditorHtml(unit, report) {
             : report.status === "completed"
             ? pillBtn("مكتمل — بانتظار الاعتماد", { variant: "soft", icon: iconCheckCircle(15, GREEN), disabled: true })
             : pillBtn("معتمد ✓", { variant: "soft", icon: iconCheckCircle(15, "#6b3fa0"), disabled: true }))
-        : `<button class="next-btn" data-action="section-next">التالي ${iconChevronLeft(15, "#fff")}</button>`}
+        : `<button class="next-btn" data-action="section-next">حفظ والتالي ${iconChevronLeft(15, "#fff")}</button>`}
     </div>
   </div>`;
 }
@@ -11818,6 +11866,114 @@ function shareReportModalHtml(unit, report) {
       <div class="hint" style="margin-top:10px;line-height:1.8;">ملاحظة: الرابط العام للمشاهدة بدون دخول، مع «إيقاف الرابط»، يحتاج ربطًا بالقاعدة وأضيفه مع بند «الحفظ والأرشيف وDrive».</div>
     </div></div>`;
 }
+
+/* =============================== PDF والأرشفة (Drive / الشيت) =============================== */
+const HTML2PDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+function loadHtml2Pdf() {
+  if (window.html2pdf) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const sc = document.createElement("script"); sc.src = HTML2PDF_URL; sc.onload = () => res(); sc.onerror = () => rej(new Error("تعذّر تحميل مكتبة PDF — تأكدي من الإنترنت"));
+    document.head.appendChild(sc);
+  });
+}
+function reportFileBase(unit, report) {
+  const clean = (x) => String(x || "").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+  const yr = (report.shared && report.shared.hijriYear) || (report.sections && report.sections.basic && report.sections.basic.hijriYear) || "";
+  return clean(unit.name + " - " + (report.label || "تقرير") + (yr ? " " + yr : ""));
+}
+// PDF بدقة عالية من نفس صفحات A4 المعروضة (يُبنى خارج الشاشة فلا يتأثر بالعرض الحالي)
+async function reportPdfBlob(unit, report) {
+  await loadHtml2Pdf();
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;direction:rtl;";
+  host.className = "rpt-pdf";
+  host.innerHTML = rptWrap(rptUnitSettings(unit), fullReportOrPreviewBody(unit, report, null));
+  document.body.appendChild(host);
+  try { linkifyReportView(); } catch (e) { /* تجاهل */ }
+  try {
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { /* تجاهل */ }
+    await new Promise((r) => setTimeout(r, 400));
+    const blob = await window.html2pdf().from(host).set({
+      margin: 0, filename: reportFileBase(unit, report) + ".pdf", image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 794 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"], before: ".a4-page + .a4-page" },
+    }).outputPdf("blob");
+    return blob;
+  } finally { host.remove(); }
+}
+function blobToBase64(blob) {
+  return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = () => rej(new Error("تعذّر قراءة الملف")); fr.readAsDataURL(blob); });
+}
+function downloadBlob(blob, name) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+function archiveFolderId(url) { const m = /\/folders\/([A-Za-z0-9_-]+)/.exec(String(url || "")); return m ? m[1] : ""; }
+async function archivePost(a, payload) {
+  const res = await fetch(a.scriptUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), redirect: "follow" });
+  let out = null; try { out = await res.json(); } catch (e) { throw new Error("ردّ السكربت غير مفهوم — تأكدي أن نشره «أي شخص» وأن الرابط ينتهي بـ /exec"); }
+  if (!out || !out.ok) throw new Error((out && out.error) || "فشل غير معروف");
+  return out;
+}
+function archiveMeta(unit, report) {
+  const dept = (S.departments || []).find((d) => d.id === unit.departmentId);
+  const yr = (report.shared && report.shared.hijriYear) || "";
+  return { dept: (dept && dept.name) || "بدون قسم", unit: unit.name, period: (report.label || "تقرير"), year: yr, fileName: reportFileBase(unit, report) + ".pdf", status: report.status, reportId: report.id };
+}
+// ينفّذ جهة واحدة (drive | sheet) ويعيد { ok, url?, error? } — الفشل لا يمنع غيره
+async function archiveRunTarget(target, unit, report, pdfBlob) {
+  const a = archiveCfg(themeOf(S.siteSettings || {}));
+  if (!a.scriptUrl || !/^https:\/\//.test(a.scriptUrl)) return { ok: false, error: "رابط السكربت غير مضبوط في «الأرشفة وDrive»" };
+  const meta = archiveMeta(unit, report);
+  try {
+    if (target === "drive") {
+      if (!archiveFolderId(a.rootFolder)) return { ok: false, error: "رابط المجلد المركزي غير مضبوط" };
+      const pdf = await blobToBase64(pdfBlob || await reportPdfBlob(unit, report));
+      const out = await archivePost(a, { action: "saveReport", pdf, rootFolderId: archiveFolderId(a.rootFolder), unitFolders: !!a.unitFolders, shareEmail: a.senderEmail || "", ...meta });
+      return { ok: true, url: out.url || "" };
+    }
+    const out = await archivePost(a, { action: "logReport", by: (S.currentUser && S.currentUser.name) || "", at: new Date().toISOString(), ...meta });
+    return { ok: true, url: out.url || "" };
+  } catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
+}
+// تشغيل الأرشفة (من نافذة «حفظ وإرسال»، أو تلقائيًا عند الاعتماد النهائي). only = جهات محددة لإعادة المحاولة
+async function archiveRun(unitId, reportId, only) {
+  const unit = (S.units || []).find((u) => u.id === unitId); const report = ((S.reports || {})[unitId] || []).find((r) => r.id === reportId);
+  if (!unit || !report) return;
+  const a = archiveCfg(themeOf(S.siteSettings || {}));
+  const targets = (only || ["drive", "sheet"]).filter((t) => (t === "drive" ? a.drive : a.sheet));
+  const st = S.ui.arRun && S.ui.arRun.reportId === reportId ? S.ui.arRun : { unitId, reportId, res: {} };
+  S.ui.arRun = st; targets.forEach((t) => { st.res[t] = { wait: true }; }); st.busy = true; if (S.ui.arOpen) render();
+  let blob = null;
+  if (targets.includes("drive")) { try { blob = await reportPdfBlob(unit, report); } catch (e) { st.res.drive = { ok: false, error: e.message }; targets.splice(targets.indexOf("drive"), 1); } }
+  for (const t of targets) { st.res[t] = await archiveRunTarget(t, unit, report, blob); if (S.ui.arOpen) render(); }
+  st.busy = false;
+  try { const cur = ((S.reports || {})[unitId] || []).find((r) => r.id === reportId); if (cur) saveReportEntry(unitId, { ...cur, archive: { at: Date.now(), drive: st.res.drive ? { ok: !!st.res.drive.ok, url: st.res.drive.url || "" } : (cur.archive || {}).drive, sheet: st.res.sheet ? { ok: !!st.res.sheet.ok } : (cur.archive || {}).sheet } }); } catch (e) { /* تجاهل */ }
+  if (S.ui.arOpen) render();
+}
+function archiveModalHtml(unit, report) {
+  const a = archiveCfg(themeOf(S.siteSettings || {}));
+  const st = S.ui.arRun && S.ui.arRun.reportId === report.id ? S.ui.arRun : null;
+  const line = (key, label, on) => {
+    const r = st && st.res[key];
+    const state = !on ? `<span style="color:${SUBTLE};font-size:12px;">غير مفعّلة من الإعدادات</span>` : !r ? `<span style="color:${SUBTLE};font-size:12px;">لم تُنفَّذ بعد</span>` : r.wait ? `<span style="color:${GOLD};font-size:12px;font-weight:700;">جارٍ…</span>` : r.ok ? `<span style="color:${GREEN};font-size:12px;font-weight:800;">✓ تم${r.url ? ` — <a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:${GREEN};">فتح</a>` : ""}</span>` : `<span style="color:${DANGER};font-size:12px;font-weight:700;">✗ فشل: ${esc(r.error || "")}</span>`;
+    const retry = on && r && r.ok === false ? `<button type="button" class="pill-btn pill-ghost" style="padding:4px 10px;" data-action="ar-retry" data-t="${key}">إعادة المحاولة</button>` : "";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid ${BORDER};"><div style="flex:1;"><div style="font-size:13.5px;font-weight:800;">${label}</div><div style="margin-top:3px;">${state}</div></div>${retry}</div>`;
+  };
+  return `<div class="no-print" data-action="ar-close" style="position:fixed;inset:0;background:rgba(40,20,30,.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;">
+    <div data-stop="1" style="background:#faf6f6;width:min(480px,100%);max-height:88vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 18px 24px;">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px;">حفظ وإرسال</div>
+      <div class="hint" style="margin-bottom:8px;">${esc(unit.name)} — ${esc(report.label || "")}. القاعدة تحفظ دائمًا؛ وDrive والشيت حسب الإعدادات، وفشل أحدهما لا يمنع غيره.</div>
+      ${line("db", "القاعدة (حفظ دائم)", false).replace(/غير مفعّلة من الإعدادات/, "✓ محفوظ دائمًا").replace(`color:${SUBTLE}`, `color:${GREEN}`)}
+      ${line("drive", "Google Drive (نسخة PDF)", !!a.drive)}
+      ${line("sheet", "سجل Google Sheet", !!a.sheet)}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        ${pillBtn(S.ui.arRun && S.ui.arRun.busy ? "جارٍ التنفيذ…" : "تنفيذ الآن", { icon: iconCheckCircle(15, "#fff"), action: "ar-run", disabled: !!(S.ui.arRun && S.ui.arRun.busy) || (!a.drive && !a.sheet) })}
+        ${pillBtn("إغلاق", { variant: "ghost", action: "ar-close" })}
+      </div>
+      ${!a.drive && !a.sheet ? `<div class="hint" style="margin-top:10px;">فعّلي Drive أو الشيت من «إعدادات الموقع ← الأرشفة وDrive».</div>` : ""}
+    </div></div>`;
+}
 function renderFullReport() {
   const unit = S.units.find((u) => u.id === S.currentUnitId);
   const report = getCurrentReportEntry();
@@ -11829,8 +11985,9 @@ function renderFullReport() {
   <div class="page-wrap"><div class="page-inner report">
     ${topBarHtml({ title: "عرض التقرير كاملاً", subtitle: `${unit.name} — ${esc(report.label)} — ${progress.completed} من ${progress.total} أقسام مكتملة`,
       backAction: rvItem ? "nav-to" : (readOnlyVisit ? "nav-to" : "nav-to-unit-report"), backData: rvItem ? { view: "custom-path-inbox" } : (readOnlyVisit ? { view: "all-reports" } : undefined),
-      right: `<div style="display:flex;gap:8px;flex-wrap:wrap;">${pillBtn("تنزيل PDF", { icon: iconDownload(15, "#fff"), action: "print-page" })}${pillBtn("مشاركة", { variant: "ghost", icon: iconArrowRight(15, INK), action: "share-report-open", data: { btn: "share-report" } })}${RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : ""}</div>` })}
+      right: `<div style="display:flex;gap:8px;flex-wrap:wrap;">${pillBtn(S.ui.pdfBusy ? "جارٍ إنشاء PDF…" : "تنزيل PDF", { icon: iconDownload(15, "#fff"), action: "pdf-download" })}${(S.isAdmin || actionAllowed("ar-save-send") || canManageUsers()) ? pillBtn("حفظ وإرسال", { variant: "ghost", icon: iconSave(15, INK), action: "ar-open" }) : ""}${pillBtn("طباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "print-page" })}${pillBtn("مشاركة", { variant: "ghost", icon: iconArrowRight(15, INK), action: "share-report-open", data: { btn: "share-report" } })}${RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : ""}</div>` })}
     ${S.ui.shareOpen ? shareReportModalHtml(unit, report) : ""}
+    ${S.ui.arOpen ? archiveModalHtml(unit, report) : ""}
     ${rptWrap(rptUnitSettings(unit), fullReportOrPreviewBody(unit, report, rvItem ? apReviewAfterPageHtml(rvItem) : null))}
     ${rvItem ? apReviewPanelHtml(rvItem) : ""}
     ${readOnlyVisit ? "" : `<div class="hint" style="margin-top:12px;">للتعديل على أي قسم، ارجعي إلى "مسودة التقرير" واختاري القسم من قائمة المراحل.</div>`}
@@ -12443,6 +12600,20 @@ function attachClickListener() {
         break;
       }
       case "nav-back-admin": S.view = "browse-structure"; render(); break;
+      case "dash-kind-tab": { S.ui.dashKindTab = ds.kind; render(); break; }
+      case "dash-group": {
+        if (!S.isAdmin) break;
+        const kind = ds.kind; if (!DASH_KINDS.some((k) => k.id === kind)) break;
+        const keys = String(ds.keys || "").split(",").filter(Boolean);
+        const cfg = JSON.parse(JSON.stringify(dashConfig()));
+        let cur = (cfg[kind] && Array.isArray(cfg[kind].hidden)) ? cfg[kind].hidden.slice() : [];
+        cur = cur.filter((k) => keys.indexOf(k) === -1);
+        if (ds.show !== "1") cur = cur.concat(keys);
+        cfg[kind] = { ...(cfg[kind] || {}), hidden: cur };
+        S.dashboardConfig = cfg; dataStore.saveDashboardConfig(cfg);
+        addPermLog("dashboard", kind, (DASH_KINDS.find((k) => k.id === kind) || {}).label || kind, (ds.show === "1" ? "إظهار" : "إخفاء") + " مجموعة (" + keys.length + " عنصر) من لوحة المعلومات");
+        render(); break;
+      }
       case "dash-toggle": {
         if (!S.isAdmin) break;
         const kind = ds.kind, key = ds.key;
@@ -12987,6 +13158,18 @@ function attachClickListener() {
         render();
         break;
       }
+      case "pdf-download": {
+        const unit = (S.units || []).find((u) => u.id === S.currentUnitId), report = getCurrentReportEntry(); if (!unit || !report || S.ui.pdfBusy) break;
+        S.ui.pdfBusy = true; render();
+        reportPdfBlob(unit, report).then((b) => downloadBlob(b, reportFileBase(unit, report) + ".pdf"))
+          .catch((e) => { alert("تعذّر إنشاء PDF: " + ((e && e.message) || e) + "\nسأفتح الطباعة بدلًا منه."); window.print(); })
+          .finally(() => { S.ui.pdfBusy = false; render(); });
+        break;
+      }
+      case "ar-open": S.ui.arOpen = true; render(); break;
+      case "ar-close": S.ui.arOpen = false; render(); break;
+      case "ar-run": archiveRun(S.currentUnitId, S.currentReportId); break;
+      case "ar-retry": archiveRun(S.currentUnitId, S.currentReportId, [ds.t]); break;
       case "print-page": window.print(); break;
       case "imp-open": S.ui.imp = { open: true, step: 1, type: "", sel: {}, keys: {}, cols: {}, mode: "append" }; render(); break;
       case "imp-close": if (e.target.closest("[data-stop]") && !e.target.closest("button[data-action=imp-close]")) break; S.ui.imp = null; render(); break;
@@ -13615,6 +13798,13 @@ function attachClickListener() {
         S.ui.editingFieldId = null; S.ui.fieldEditDraft = null;
         render(); break;
       }
+      case "toggle-schema-required": {
+        const schema = SECTION_FIELD_SCHEMAS[ds.section]; if (!schema) break;
+        const fields = schema.fields.map((f) => f.id === ds.id ? { ...f, required: !f.required } : f);
+        setSectionFieldsLive(ds.section, fields);
+        dataStore.saveSectionFieldSchemas({ ...dataStore.getSectionFieldSchemas(), [ds.section]: fields });
+        render(); break;
+      }
       case "remove-schema-field": {
         const sectionId = ds.section;
         const schema = SECTION_FIELD_SCHEMAS[sectionId];
@@ -13682,8 +13872,9 @@ function handleReportEditorAction(action, ds) {
     case "toggle-phase-collapse": S.phaseCollapsed = !S.phaseCollapsed; render(); return true;
     case "open-mobile-phase-sidebar": S.mobilePhaseOpen = true; render(); return true;
     case "close-mobile-phase-sidebar": S.mobilePhaseOpen = false; render(); return true;
-    case "select-section": openSection(ds.section); return true;
+    case "select-section": autoSaveFlush(); openSection(ds.section); return true;
     case "close-section": {
+      clearTimeout(__autoSaveTimer); __autoSaveTimer = null;
       // Autosave current progress as a draft (without changing completed flag), then
       // go back to this unit's report list ("تقاريري") — there's no phase-overview
       // screen to return to anymore.
@@ -13710,12 +13901,14 @@ function handleReportEditorAction(action, ds) {
       return true;
     }
     case "section-prev": {
+      clearTimeout(__autoSaveTimer); __autoSaveTimer = null;
       if (!trySaveSectionWithStatus(S.sectionCompleted ? "completed" : "draft")) { render(); return true; }
       const list = activeReportSections(), idx = list.findIndex((s) => s.id === S.activeSectionId);
       if (idx > 0) openSection(list[idx - 1].id);
       return true;
     }
     case "section-next": {
+      clearTimeout(__autoSaveTimer); __autoSaveTimer = null;
       if (!trySaveSectionWithStatus(S.sectionCompleted ? "completed" : "draft")) { render(); return true; }
       const list = activeReportSections(), idx = list.findIndex((s) => s.id === S.activeSectionId);
       if (idx < list.length - 1) openSection(list[idx + 1].id);
@@ -13922,6 +14115,7 @@ function applySiteColors(settings) {
   root.style.setProperty("--font-heading", `'${hfont}'`);
 }
 /* ===== الروابط: في التقرير تُضغط وتفتح بنافذة جديدة، وفي خانات الإدخال تحقق + https:// تلقائي + زر «تجربة الرابط» ===== */
+function rptShortUrl(u) { try { const x = new URL(u); const p = (x.pathname + x.search).replace(/^\//, ""); return x.host + (p ? "/" + (p.length > 22 ? p.slice(0, 20) + "…" : p) : ""); } catch (e) { return String(u).slice(0, 34); } }
 const RPT_URL_RE = /((?:https?:\/\/|www\.)[^\s<>"'،؛)\]]+)/g;
 function linkifyReportView() {
   document.querySelectorAll(".rpt-chapter-body, .a4-page .doc-kv, .a4-page td").forEach((root) => {
@@ -13932,7 +14126,14 @@ function linkifyReportView() {
       const frag = document.createDocumentFragment(); let last = 0; const txt = t.nodeValue; RPT_URL_RE.lastIndex = 0; let m;
       while ((m = RPT_URL_RE.exec(txt))) {
         if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
-        const a = document.createElement("a"); a.href = /^www\./i.test(m[1]) ? "https://" + m[1] : m[1]; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = m[1]; a.dir = "ltr"; a.style.cssText = "color:#2f6fb0;text-decoration:underline;word-break:break-all;"; frag.appendChild(a); last = m.index + m[1].length;
+        const href = /^www\./i.test(m[1]) ? "https://" + m[1] : m[1];
+        const inTable = !!(t.parentElement && t.parentElement.closest("td"));
+        const wrap = document.createElement("span"); wrap.className = "lk-wrap";
+        const a = document.createElement("a"); a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer"; a.className = "lk-btn"; a.title = href;
+        a.innerHTML = (inTable ? "فتح" : "فتح الرابط") + " ↗"; wrap.appendChild(a);
+        const qr = document.createElement("span"); qr.className = "lk-qr"; qr.dir = "ltr";
+        try { const q = qrcode(0, "M"); q.addData(href); q.make(); qr.innerHTML = `<span class="lk-qr-img">${q.createSvgTag({ cellSize: 3, margin: 1, scalable: true })}</span><span class="lk-qr-tx">${esc(rptShortUrl(href))}</span>`; } catch (e) { qr.textContent = rptShortUrl(href); }
+        wrap.appendChild(qr); frag.appendChild(wrap); last = m.index + m[1].length;
       }
       if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
       t.parentNode.replaceChild(frag, t);
