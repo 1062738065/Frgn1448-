@@ -4340,7 +4340,7 @@ function usLevelUnitSwitcherHtml() {
 }
 function renderUnitSettings() {
   const unit = (S.units || []).find((u) => u.id === S.currentUnitId);
-  const body = !unit ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">اختاري الوحدة أولًا.</div>` : (() => { const t = S.ui.usTab || "sections"; return `<div class="st-tabs" style="margin-bottom:14px;">${[["sections", "الأقسام"], ["path", "المسار"], ["format", "التنسيق"]].map(([id, l]) => `<button type="button" class="st-tab${t === id ? " on" : ""}" data-action="us-tab" data-tab="${id}">${l}</button>`).join("")}</div>${t === "path" ? usSkipCardHtml(unit) : t === "format" ? usLetterheadCardHtml(unit) : usSectionsCardHtml(unit)}`; })();
+  const body = !unit ? `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">اختاري الوحدة أولًا.</div>` : (() => { const t = S.ui.usTab || "sections"; return `<div class="st-tabs" style="margin-bottom:14px;">${[["sections", "الأقسام"], ["path", "المسار"], ["format", "التنسيق"], ["archive", "الأرشفة"]].map(([id, l]) => `<button type="button" class="st-tab${t === id ? " on" : ""}" data-action="us-tab" data-tab="${id}">${l}</button>`).join("")}</div>${t === "path" ? usSkipCardHtml(unit) : t === "format" ? usLetterheadCardHtml(unit) : t === "archive" ? usArchiveCardHtml(unit) : usSectionsCardHtml(unit)}`; })();
   return `
   <div class="page-wrap"><div class="page-inner narrow">
     ${topBarHtml({ title: "الإعدادات", subtitle: unit ? unit.name : "" })}
@@ -4372,6 +4372,35 @@ function usLetterheadCardHtml(unit) {
       <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">صورة خلفية الصفحات</div>${pgImgRow("us-img-bg", cur.bg, "us-img-clear", "bg")}</div>
       <div><div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">خلفية الصفحة الأولى (الغلاف) — اختيارية</div>${pgImgRow("us-img-cover", cur.coverBg, "us-img-clear", "coverBg")}</div>
     </div>
+  </div>`;
+}
+// ===== تبويب «الأرشفة» في إعدادات الوحدة: مفتاح الإرسال إلى Drive + مجلد الوحدة (اختياري) =====
+function usArchiveGet(uid) { const all = ((((S.siteSettings || {}).theme || {}).unitArchive) || {}); return all[uid] || {}; }
+function usArchiveSet(uid, patch) {
+  saveSiteTheme((th) => { const all = { ...((th || {}).unitArchive || {}) }; all[uid] = { ...(all[uid] || {}), ...patch }; return { unitArchive: all }; });
+}
+function usArchiveCardHtml(unit) {
+  const cur = usArchiveGet(unit.id), central = archiveCfg((S.siteSettings || {}).theme);
+  const folder = S.ui.usArFolder != null ? S.ui.usArFolder : (cur.folder || "");
+  const bad = folder && !/^https:\/\/[^\s]+$/.test(folder);
+  const on = !!cur.on;
+  const stat = !central.enabled ? ["الأرشفة التلقائية متوقفة من إعدادات الموقع", SUBTLE, GRAY_BG] : on ? ["مفعّل لهذي الوحدة — يبدأ الإرسال مع الاعتماد النهائي", GREEN, GREEN_BG] : ["متوقف لهذي الوحدة", SUBTLE, GRAY_BG];
+  return `<div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div><div style="font-size:14px;font-weight:800;">إرسال التقارير المعتمدة إلى Drive</div><div class="hint" style="margin-top:2px;">عند الاعتماد النهائي</div></div>
+      <button type="button" data-action="us-ar-toggle" aria-pressed="${on ? "true" : "false"}" aria-label="تشغيل أو إيقاف الإرسال إلى Drive" style="border:none;background:none;cursor:pointer;padding:6px;"><span class="sw-tg${on ? " on" : ""}"><i></i></span></button>
+    </div>
+    <div style="border-top:1px solid ${BORDER};margin:14px 0;"></div>
+    <div style="font-size:13.5px;font-weight:800;">مجلد الوحدة في Drive (اختياري)</div>
+    <div class="hint" style="margin:2px 0 8px;">شاركيه كـ«محرر» مع حساب الإرسال${central.senderEmail ? ": " + esc(central.senderEmail) : ""}.</div>
+    <input type="text" class="input" id="us-ar-folder" dir="ltr" value="${esc(folder)}" placeholder="https://drive.google.com/drive/folders/…" style="width:100%;" />
+    ${bad ? `<div class="hint" style="color:${DANGER};margin-top:4px;">الرابط لازم يبدأ بـ https://</div>` : ""}
+    <div style="border-top:1px solid ${BORDER};margin:14px 0;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:13.5px;font-weight:800;">حالة الإرسال</span>
+      <span style="padding:8px 16px;border-radius:999px;background:${stat[2]};color:${stat[1]};font-size:12.5px;font-weight:800;">${esc(stat[0])}</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:flex-end;">${pillBtn("تجربة الرابط", { variant: "ghost", action: "us-ar-test" })}${pillBtn("حفظ الرابط", { variant: "soft", action: "us-ar-save" })}</div>
   </div>`;
 }
 function ulSetImage(uid, key, url) {
@@ -8715,6 +8744,7 @@ function apAutoPathListHtml(unit, withSkip, period, unitCtl) {
     return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:12px;border:1px ${off ? "dashed #d9c9cf" : "solid " + BORDER};background:${off ? "#faf6f7" : "#fff"};">
       <span style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;background:${off ? "#f1ecee" : "#f3e6ea"};color:${off ? "#a99" : ROSE};">${off ? "–" : info ? "ⓘ" : n}</span>
       <div style="flex:1 1 180px;min-width:0;"><div style="font-size:12.5px;font-weight:800;${off ? "color:#a3949a;text-decoration:line-through;" : ""}">${esc(r.name)}</div>${r.why ? `<div style="font-size:11px;color:${SUBTLE};">${esc(r.why)}</div>` : ""}</div>
+      ${inBase && withSkip && unitCtl ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn("يمر عليها (كل الفترات)", { variant: "ghost", action: "us-skip-toggle", data: { key, on: "0" } })}</div>` : ""}
       ${mine ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn(r.state === "unit" ? (unitCtl ? "يمر عليها" : "إرجاع مرحلتي") : (unitCtl ? "ما يمر عليها" : period ? "تخطّي مرحلتي في «" + period + "»" : "تخطّي مرحلتي لهذه الوحدة"), { variant: r.state === "unit" ? "ghost" : "primary", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", ...pd } })}
         ${many > 1 ? pillBtn((r.state === "unit" ? "إرجاعها" : "تخطّيها") + " لكل وحداتي (" + many + ")", { variant: "soft", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", all: lvl.id, ...pd } }) : ""}</div>` : ""}
     </div>`;
@@ -12482,7 +12512,10 @@ function attachClickListener() {
         break;
       }
       case "font-pick": { const se = document.getElementById(ds.sel); if (se) { se.value = ds.v; se.dispatchEvent(new Event("change", { bubbles: true })); } break; }
-      case "us-tab": S.ui.usTab = ds.tab; render(); break;
+      case "us-tab": S.ui.usTab = ds.tab; S.ui.usArFolder = null; render(); break;
+      case "us-ar-toggle": { const u = S.currentUnitId; if (!u) break; { const el0 = document.getElementById("us-ar-folder"); if (el0) S.ui.usArFolder = el0.value; } usArchiveSet(u, { on: !usArchiveGet(u).on }); S.ui.usMsg = ""; render(); break; }
+      case "us-ar-save": { const u = S.currentUnitId, el = document.getElementById("us-ar-folder"); const v = el ? el.value.trim() : ""; if (!u) break; if (v && !/^https:\/\/[^\s]+$/.test(v)) { S.ui.usArFolder = v; S.ui.usMsg = ""; render(); break; } S.ui.usArFolder = null; usArchiveSet(u, { folder: v }); S.ui.usMsg = v ? "تم حفظ رابط المجلد." : "تم حذف رابط المجلد."; render(); break; }
+      case "us-ar-test": { const el = document.getElementById("us-ar-folder"); const v = el ? el.value.trim() : ""; if (!/^https:\/\/drive\.google\.com\/[^\s]+$/.test(v)) { alert("الرابط لازم يكون رابط مجلد من Drive ويبدأ بـ https://drive.google.com/"); break; } window.open(v, "_blank", "noopener"); break; }
       case "site-tab": {
         S.ui.siteTab = ds.tab;
         document.querySelectorAll("[data-st]").forEach((el) => { el.style.display = el.getAttribute("data-st") === ds.tab ? "" : "none"; });
