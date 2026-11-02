@@ -4445,7 +4445,7 @@ function usSkipCardHtml(unit) {
   })).join("");
   return `<div class="card" style="margin-bottom:14px;">
     <div style="font-size:14px;font-weight:800;margin-bottom:4px;">مسار تقارير الوحدة</div>
-    <div class="hint" style="margin-bottom:10px;">يطلع لحاله من الهيكل. اختاري الفترة، وعلى كل مرحلة اضغطي «ما يمر عليها» لو ما تبين التقرير يمر عليها في هذه الفترة (مثلًا «شهري» يروح مباشرة للإدارة العليا). «كل الفترات» يسري على كل التقارير. المراحل اللي ما تقبل التخطّي ما يطلع عليها زر.</div>
+    <div class="hint" style="margin-bottom:10px;">يطلع لحاله من الهيكل. اختاري الفترة، وعلى كل مرحلة شغّلي المفتاح (يمر عليها) أو أطفئيه (ما يمر عليها) لهذه الفترة (مثلًا «شهري» يروح مباشرة للإدارة العليا). «كل الفترات» يسري على كل التقارير. المراحل اللي ما تقبل التخطّي ما يطلع عليها زر.</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${pills}</div>
     ${cur ? `<div style="font-size:12px;color:${SUBTLE};margin-bottom:8px;">المسار لتقارير «${esc(cur)}»</div>` : ""}
     ${apAutoPathListHtml(unit, true, cur, true)}
@@ -8749,12 +8749,17 @@ function apAutoPathListHtml(unit, withSkip, period, unitCtl) {
     const mine = !inBase && withSkip && (unitCtl || (pm && pm.skip)) && r.state !== "all" && r.state !== "auto" && (unitCtl || holds);
     const pd = period ? { pt: period } : {};
     const many = mine && lvl && holds ? (S.units || []).filter((u) => u.status === "active" && olScopeUnitIds(lvl.id).has(u.id)).length : 0;
-    return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:12px;border:1px ${off ? "dashed #d9c9cf" : "solid " + BORDER};background:${off ? "#faf6f7" : "#fff"};">
-      <span style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;background:${off ? "#f1ecee" : "#f3e6ea"};color:${off ? "#a99" : ROSE};">${off ? "–" : info ? "ⓘ" : n}</span>
-      <div style="flex:1 1 180px;min-width:0;"><div style="font-size:12.5px;font-weight:800;${off ? "color:#a3949a;text-decoration:line-through;" : ""}">${esc(r.name)}</div>${r.why ? `<div style="font-size:11px;color:${SUBTLE};">${esc(r.why)}</div>` : ""}</div>
-      ${inBase && withSkip && unitCtl ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn("يمر عليها (كل الفترات)", { variant: "ghost", action: "us-skip-toggle", data: { key, on: "0" } })}</div>` : ""}
-      ${mine ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${pillBtn(r.state === "unit" ? (unitCtl ? "يمر عليها" : "إرجاع مرحلتي") : (unitCtl ? "ما يمر عليها" : period ? "تخطّي مرحلتي في «" + period + "»" : "تخطّي مرحلتي لهذه الوحدة"), { variant: r.state === "unit" ? "ghost" : "primary", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", ...pd } })}
-        ${many > 1 ? pillBtn((r.state === "unit" ? "إرجاعها" : "تخطّيها") + " لكل وحداتي (" + many + ")", { variant: "soft", action: "us-skip-toggle", data: { key, on: r.state === "unit" ? "0" : "1", all: lvl.id, ...pd } }) : ""}</div>` : ""}
+    // مفتاح تشغيل لكل مرحلة (كالتصميم): مفتوح = يمر عليها التقرير في هذه الفترة، مطفأ = ما يمر عليها
+    const ctl = withSkip && r.state !== "all" && r.state !== "auto" && (unitCtl || (pm && pm.skip && holds));
+    const passes = r.state === "on" || info;
+    const subTxt = r.why || (pm && pm.final ? "تعتمد" : pm && pm.info ? "للعلم فقط" : "تراجع وتمرر");
+    const sw = ctl ? `<button type="button" data-action="us-skip-toggle" data-key="${esc(key)}" data-on="${passes ? "1" : "0"}" ${period ? `data-pt="${esc(period)}"` : ""} aria-pressed="${passes ? "true" : "false"}" aria-label="${passes ? "يمر عليها — اضغطي لإيقافه" : "ما يمر عليها — اضغطي لتشغيله"}" style="border:none;background:none;cursor:pointer;padding:8px;min-width:48px;min-height:44px;"><span class="sw-tg${passes ? " on" : ""}"><i></i></span></button>` : `<span style="min-width:48px;"></span>`;
+    const numEl = `<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;background:${off && !inBase ? "#f1ecee" : "#f3e6ea"};color:${off && !inBase ? "#a99" : ROSE};">${r.state === "auto" || r.state === "all" ? "–" : info ? "ⓘ" : n}</span>`;
+    return `<div style="display:flex;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid ${BORDER};">
+      ${numEl}
+      <div style="flex:1 1 auto;min-width:0;"><div style="font-size:14px;font-weight:800;${(r.state === "auto" || r.state === "all") ? "color:#a3949a;text-decoration:line-through;" : ""}">${esc(r.name)}</div><div style="font-size:12px;color:${SUBTLE};margin-top:2px;">${esc(subTxt)}</div>
+        ${many > 1 ? `<div style="margin-top:6px;">${pillBtn((passes ? "تخطّيها" : "إرجاعها") + " لكل وحداتي (" + many + ")", { variant: "soft", action: "us-skip-toggle", data: { key, on: passes ? "1" : "0", all: lvl.id, ...pd } })}</div>` : ""}</div>
+      ${sw}
     </div>`;
   }).join("");
   return `<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:${ROSE};color:#fff;margin-bottom:6px;font-size:12.5px;"><span>✎</span><span>يكتب: <b>${esc(pv.writer)}</b></span></div>
@@ -12752,7 +12757,12 @@ function attachClickListener() {
               const by = { ...(entityPrefs("unit:" + u.id).skipBy || {}) };
               const curP = (by[per] || []).filter((x) => x !== ds.key);
               if (turnOn) by[per] = [...curP, ds.key]; else if (curP.length) by[per] = curP; else delete by[per];
-              saveEntityPrefs("unit:" + u.id, { skipBy: by });
+              const baseL = apUnitSkipList(u.id);
+              if (!turnOn && baseL.includes(ds.key)) {
+                // كانت متخطّاة في كل الفترات: نفتحها لهذه الفترة فقط ونبقيها متخطّاة في باقي الفترات
+                PERIOD_TYPES.filter((p) => p !== per).forEach((p) => { by[p] = [...(by[p] || []).filter((x) => x !== ds.key), ds.key]; });
+                saveEntityPrefs("unit:" + u.id, { skipBy: by, skip: baseL.filter((x) => x !== ds.key) });
+              } else saveEntityPrefs("unit:" + u.id, { skipBy: by });
             } else {
               const cur = apUnitSkipList(u.id).filter((x) => x !== ds.key);
               saveEntityPrefs("unit:" + u.id, { skip: turnOn ? [...cur, ds.key] : cur });
