@@ -650,3 +650,46 @@ table.prs-table td { padding: 8px 10px; border-top: 1px solid var(--border); }
 .rpt-an-bar{flex:1;height:7px;background:#e9dfd6;border-radius:4px;overflow:hidden}
 .rpt-an-bar i{display:block;height:100%;background:var(--rpt-burgundy);border-radius:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rpt-an-row b{flex:0 0 32px;text-align:left;color:var(--rpt-burgundy)}
+
+/* ===== التكيّف مع الأجهزة (s1) ===== */
+/* لمس (آيباد/جوال): أزرار وحقول بحجم مريح */
+@media (pointer: coarse) {
+  .input, select.input, textarea.input { min-height: 44px; font-size: 16px; }
+  .submit-btn, .logout-btn { min-height: 46px; }
+  .nav-item { min-height: 44px; }
+  .icon-btn { width: 36px; height: 36px; }
+  .sidebar-bell { width: 38px; height: 38px; }
+  button.btn, .btn { min-height: 42px; }
+}
+/* جوال: عمود واحد وأزرار أكبر */
+@media (max-width: 700px) {
+  .page-wrap { padding: 16px 12px; }
+  .row-flex { flex-direction: column; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .submit-btn { font-size: 15.5px; }
+  .table-wrap { overflow-x: auto; }
+}
+@media (max-width: 420px) { .stat-grid { grid-template-columns: 1fr; } }
+/* آيباد (٧٠١–١١٩٩): قائمة أضيق وبطاقتان جنب بعض */
+@media (min-width: 701px) and (max-width: 1199px) {
+  .sidebar { width: 220px; }
+  .page-wrap { padding: 22px 16px; }
+  .page-inner { max-width: 100%; }
+  .page-inner.narrow { max-width: 760px; }
+}
+/* حاسب (≥١٢٠٠): محتوى أعرض وحقول إنشاء التقرير القصيرة جنب بعض */
+@media (min-width: 1200px) {
+  .page-inner { max-width: 1320px; }
+  .page-inner.narrow { max-width: 920px; }
+  .row-flex { gap: 14px; }
+}
+
+/* شريط سفلي للجوال */
+.mtb { display: none; }
+@media (max-width: 700px) {
+  .mtb { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #fff; border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgba(107,35,55,.08); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .mtb-i { flex: 1; border: none; background: transparent; font: inherit; font-size: 11px; font-weight: 700; color: var(--subtle, #7b6f72); display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 52px; border-radius: 12px; cursor: pointer; }
+  .mtb-i.on { color: var(--rose); background: rgba(193,123,111,.12); }
+  .app-main { padding-bottom: 72px; }
+}
+@media print { .mtb { display: none !important; } }

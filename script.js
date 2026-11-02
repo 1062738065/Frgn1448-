@@ -2030,8 +2030,27 @@ function shellWrap(innerHtml) {
         ${innerHtml}
       </div>
       ${notifDropHtml()}
+      ${mobileTabBarHtml(mobile)}
     </div>
   `;
+}
+// ===== شريط سفلي للجوال: الرئيسية، تقارير، مسوداتي، إرسال، المزيد =====
+function mobileTabBarHtml(mobile) {
+  if (!mobile || !S.currentUser || window.innerWidth > 700) return "";
+  const ok = (v) => S.isAdmin || pageAllowedForView(v);
+  const home = ["unit-dashboard", "dashboard", "office-dashboard", "executive-dashboard"].find(ok);
+  const rep = ["unit-reports", "all-reports", "unit-all-reports"].find(ok);
+  const rf = ok("unit-all-reports") ? "unit-all-reports" : "";
+  const cur = S.view;
+  const it = (label, icon, attrs, on) => `<button type="button" class="mtb-i ${on ? "on" : ""}" ${attrs}>${icon}<span>${label}</span></button>`;
+  const ic = { home: iconHome ? iconHome(20, "currentColor") : "", doc: iconDocument(20, "currentColor"), menu: iconMenu("currentColor") };
+  const items = [];
+  if (home) items.push(it("الرئيسية", ic.home, `data-action="nav-to" data-view="${home}"`, cur === home));
+  if (rep) items.push(it("تقارير", ic.doc, `data-action="nav-to" data-view="${rep}"`, cur === rep));
+  if (rf) { items.push(it("مسوداتي", ic.doc, `data-action="mtb-filter" data-st="draft"`, cur === rf && S.ui.unitAllReportsStatusFilter === "draft"));
+    items.push(it("إرسال", ic.doc, `data-action="mtb-filter" data-st="custom_pending"`, cur === rf && S.ui.unitAllReportsStatusFilter === "custom_pending")); }
+  items.push(it("المزيد", ic.menu, `data-action="open-sidebar"`, false));
+  return `<nav class="mtb no-print" aria-label="التنقل">${items.join("")}</nav>`;
 }
 // ===== جرس التنبيهات: قائمة منسدلة بآخر التنبيهات (الجديد ملوّن) + «عرض كل التنبيهات» =====
 function notifRelAr(ts) {
@@ -3258,6 +3277,8 @@ const DASH_ADMIN_BLOCKS = [
   { key: "opsHealth", label: "سلامة النظام" },
   { key: "opsSections", label: "أقسام التقرير (تشغيل وإطفاء)" },
   { key: "opsAggReports", label: "إدارة التقارير المجمّعة" },
+  { key: "opsRecent", label: "آخر التقارير (بحث وعرض وPDF)" },
+  { key: "opsRoles", label: "الأزرار والصفحات لكل دور (تشغيل وإطفاء)" },
   { key: "opsStuck", label: "تقارير واقفة في المسار" },
   { key: "opsMissing", label: "ما رفعت تقرير الفترة الحالية" },
   { key: "opsReturned", label: "تقارير معادة ما انعدّلت" },
@@ -3939,7 +3960,28 @@ function opsBlocksInner(kind, units) {
       (list.length ? list.map((c) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${BORDER};"><div style="flex:1;font-size:13px;font-weight:700;">${esc(c.name || "تقرير مجمّع")}</div></div>`).join("") : `<div class="hint">لا توجد تقارير مجمّعة بعد.</div>`)
       + `<div style="margin-top:10px;"><button type="button" class="pill-btn pill-ghost" data-action="nav-to" data-view="reports-manage">فتح تصميم وتنسيق التقارير</button></div>`);
   }
-  html += dashB(kind, "opsHealth", healthH) + dashB(kind, "opsSections", secH) + dashB(kind, "opsAggReports", aggH) + dashB(kind, "opsKpis", kpiH) + dashB(kind, "opsDeptCompliance", deptH) + dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
+  let recH = "", rolesH = "";
+  if (!dashHidden(kind, "opsRecent")) {
+    const q = String((S.ui && S.ui.opsRecentQ) || "").trim().toLowerCase();
+    const all = flat.slice().sort((a, b) => (b.report.createdAt || b.report.updatedAt || 0) - (a.report.createdAt || a.report.updatedAt || 0));
+    const shown = all.filter((x) => !q || String(x.unit.name || "").toLowerCase().includes(q) || String(x.report.label || "").toLowerCase().includes(q)).slice(0, 10);
+    recH = dashCard("آخر التقارير", "ابحثي بالوحدة أو بعنوان التقرير", `<input type="text" id="ops-recent-q" class="input" placeholder="بحث بالوحدة…" value="${esc((S.ui && S.ui.opsRecentQ) || "")}" style="margin-bottom:8px;" />`
+      + (shown.length ? shown.map((x) => { const m = reportStatusMeta(x.report.status); return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 0;border-top:1px solid ${BORDER};"><div style="flex:1 1 160px;min-width:0;"><div style="font-size:13px;font-weight:800;">${esc(x.unit.name)}</div><div style="font-size:11.5px;color:${SUBTLE};">${esc(x.report.label || "تقرير")}</div></div>${badgeHtml(m.label, m.color, m.bg)}<button type="button" class="pill-btn pill-ghost" style="padding:5px 10px;" data-action="view-report-pdf" data-unit-id="${esc(x.unit.id)}" data-report-id="${esc(x.report.id)}">عرض</button></div>`; }).join("") : `<div class="hint">لا توجد نتائج.</div>`)
+      + `<div style="margin-top:10px;"><button type="button" class="pill-btn pill-ghost" data-action="nav-to" data-view="all-reports">فتح جميع التقارير</button></div>`);
+  }
+  if (!dashHidden(kind, "opsRoles")) {
+    const cat = BUTTON_CATALOG.filter((b) => !CORE_REPORT_BUTTONS.includes(b.id) && !["ap-advance", "ap-return"].includes(b.id) && b.id.indexOf("chip:") !== 0);
+    const sw = (on, role, kd, id) => `<button type="button" class="sw-tg ${on ? "on" : ""}" data-action="ops-perm-toggle" data-role-id="${esc(role.id)}" data-kind="${kd}" data-id="${esc(id)}" aria-pressed="${on}" style="flex:none;"></button>`;
+    rolesH = dashCard("الأزرار والصفحات", "اضغطي المفتاح لتشغيل أو إطفاء الصفحة أو الزر للدور · الإطفاء يطلب تأكيدًا",
+      rolesList().map((r) => { const p = rolePermsOf(r); const pgs = SIDEBAR_PAGES.filter((pg) => pg && pg.id);
+        return `<details style="border-top:1px solid ${BORDER};padding:8px 0;"><summary style="cursor:pointer;font-size:13px;font-weight:800;min-height:36px;display:flex;align-items:center;gap:8px;">${esc(r.name)} <span style="font-size:11.5px;color:${SUBTLE};font-weight:600;">${p.pages.length} صفحة · ${p.buttons.filter((b) => b.indexOf("notify:") !== 0).length} زر</span></summary>
+          <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin:8px 0 4px;">الصفحات</div>
+          ${pgs.map((pg) => `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;"><span style="flex:1;font-size:12.5px;">${esc(pg.label || pg.id)}</span>${sw(p.pages.includes(pg.id), r, "page", pg.id)}</div>`).join("")}
+          <div style="font-size:11.5px;font-weight:800;color:${ROSE};margin:8px 0 4px;">الأزرار</div>
+          ${cat.map((b) => `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;"><span style="flex:1;font-size:12.5px;">${esc(b.label)}</span>${sw(p.buttons.includes(b.id), r, "button", b.id)}</div>`).join("")}
+        </details>`; }).join("") || `<div class="hint">لا توجد أدوار.</div>`);
+  }
+  html += dashB(kind, "opsHealth", healthH) + dashB(kind, "opsSections", secH) + dashB(kind, "opsAggReports", aggH) + dashB(kind, "opsRecent", recH) + dashB(kind, "opsRoles", rolesH) + dashB(kind, "opsKpis", kpiH) + dashB(kind, "opsDeptCompliance", deptH) + dashB(kind, "opsStuck", stuckH) + dashB(kind, "opsMissing", missingH) + dashB(kind, "opsReturned", returnedH) + dashB(kind, "opsSetup", setupH) + dashB(kind, "opsActivity", actH);
   return html;
 }
 
@@ -8658,7 +8700,7 @@ function renderUnitReportsHub() {
       // تُمنح له ضمن قائمة الصفحات — فتظل الصفحة تَعِد بالزر "من الشريط
       // الجانبي" بينما هو غير موجود أصلًا.
       right: (actionAllowed("open-or-create-report") && !adminReportsReadOnly() && !computeVisibleSidebarPages().some((p) => p.id === "unit-report") ? pillBtn("إنشاء تقرير", { icon: iconPencil(14, "#fff"), action: "open-or-create-report" }) : "")
-        + (actionAllowed("create-new-report") && !adminReportsReadOnly() ? pillBtn("تقرير جديد", { variant: "ghost", icon: iconPlus(14, INK), action: "create-new-report" }) : "") })}
+})}
     ${scopedUnitSwitcherHtml()}
 
     <div class="hero-banner">
@@ -10367,6 +10409,7 @@ function renderUnitReport() {
     <div class="report-main">
       ${topBarHtml({ title: `${unit.name} — ${esc(entry.label)}`, subtitle: `${progress.completed} من ${progress.total} أقسام مكتملة`, backAction: "nav-back-from-report",
         right: badgeHtml(meta.label, meta.color, meta.bg) +
+               (actionAllowed("create-new-report") && !adminReportsReadOnly() ? pillBtn("تقرير جديد", { variant: "ghost", icon: iconPlus(14, INK), action: "create-new-report" }) : "") +
                pillBtn("مسار الاعتماد", { variant: "ghost", icon: iconTarget(15, INK), action: "nav-to", data: { view: "approval-path-tracking" } }) +
                pillBtn("عرض كامل", { variant: "ghost", icon: iconLayers(15, INK), action: "nav-to", data: { view: "full-report" } }) +
                (RPT_SHOW_PRINT_PREVIEW ? pillBtn("معاينة الطباعة", { variant: "ghost", icon: iconPrinter(15, INK), action: "nav-to", data: { view: "report-preview" } }) : "") +
@@ -11831,6 +11874,11 @@ function liveUpdateComputed(el) {
 function attachFormListeners() {
   appEl.addEventListener("input", (e) => {
     const el = e.target;
+    if (el.id === "ops-recent-q") {
+      S.ui.opsRecentQ = el.value; const pos = el.selectionStart; render();
+      const n = document.getElementById("ops-recent-q"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} }
+      return;
+    }
     if (el.dataset && el.dataset.usM) {
       const uid = S.currentUnitId; if (!uid || !(S.isAdmin || isUnitInUserScope(uid))) return;
       ulSetImage(uid, el.dataset.usM, Math.max(0, Math.min(50, Number(el.value) || 0)));
@@ -13022,6 +13070,23 @@ function attachClickListener() {
         const entry = inProgress || createNewReportEntry(S.currentUnitId);
         S.currentReportId = entry.id; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null;
         jumpToFirstNotedSection(entry);
+        render();
+        break;
+      }
+      case "mtb-filter": {
+        S.ui.unitAllReportsStatusFilter = ds.st; S.view = "unit-all-reports"; S.activeSectionId = null; S.mobileSidebarOpen = false;
+        render(); window.scrollTo(0, 0);
+        break;
+      }
+      case "ops-perm-toggle": {
+        const role = rolesList().find((x) => x.id === ds.roleId); if (!role) break;
+        const p = rolePermsOf(role); const key = ds.kind === "page" ? "pages" : "buttons";
+        const has = p[key].includes(ds.id);
+        if (has && !confirm("إطفاء هذا لدور «" + role.name + "» يخفيه عن كل من لها هذا الدور. تأكيد؟")) break;
+        const next = { pages: [...p.pages], actions: [...p.actions], buttons: [...p.buttons] };
+        next[key] = has ? next[key].filter((x) => x !== ds.id) : [...next[key], ds.id];
+        S.roles = rolesList().map((x) => x.id === role.id ? { ...x, permissions: next } : x); dataStore.saveRoles(S.roles);
+        addPermLog("role", role.id, role.name, (has ? "إطفاء " : "تشغيل ") + (ds.kind === "page" ? "صفحة " : "زر ") + ds.id);
         render();
         break;
       }
