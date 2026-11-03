@@ -1865,7 +1865,7 @@ function computeProgress(report, unitId) {
 }
 function statusMeta(status) {
   if (status === "completed") return { label: "مكتمل", color: GREEN, bg: GREEN_BG };
-  if (status === "draft") return { label: "مسودة", color: GOLD, bg: GOLD_BG };
+  if (status === "draft") return { label: "ناقص", color: GOLD, bg: GOLD_BG };
   return { label: "لم يبدأ", color: SUBTLE, bg: GRAY_BG };
 }
 function sectionStatus(report, sectionId) { return report?.sections?.[sectionId]?.status || "not_started"; }
@@ -4642,7 +4642,7 @@ function renderBrowseStructure() {
   let folders = [];
   if (!node) {
     const rootOffices = D.offices.filter((o) => !o.parentOfficeId || (!officeIds.has(o.parentOfficeId) && !execIds.has(o.parentOfficeId)));
-    D.execs.forEach((e) => { const s2 = bsNodeScope(D, { k: "exec", id: e.id }); const c2 = bsCounts(s2); folders.push((i) => bsFolderHtml({ i, title: e.name, sub: "إدارة عليا", chips: [c2.units + " وحدة", c2.reports + " تقرير"], action: "bs-open", data: { kind: "exec", id: e.id } })); });
+    D.execs.forEach((e) => { const s2 = bsNodeScope(D, { k: "exec", id: e.id }); const c2 = bsCounts(s2); folders.push((i) => bsFolderHtml({ i, title: e.name, sub: "إدارة التعليم النسائي", chips: [c2.units + " وحدة", c2.reports + " تقرير"], action: "bs-open", data: { kind: "exec", id: e.id } })); });
     rootOffices.forEach((o) => folders.push((i) => officeFolder(o, i)));
     if (!D.offices.length) D.depts.forEach((d) => folders.push((i) => deptFolder(d, i)));
     else if (D.depts.length) folders.push(() => allDeptsCard("", D.depts.length));
@@ -4712,7 +4712,7 @@ function renderBrowseStructure() {
 const ORG_LEVELS_KEY = "prs:org-levels";
 const DEFAULT_LEVEL_TYPES = ["مساعدة", "قسم", "مكتب", "مديرة", "مجلس", "وحدة", "مركز"];
 const LEVEL_TYPE_PALETTE = [["#6b2337", "#f6e6eb"], ["#7a4d16", "#fbf0e1"], ["#24527a", "#e6eff7"], ["#5b3a73", "#efe7f5"], ["#2E6B52", "#e7f5ee"], ["#4d5a66", "#eaeef2"], ["#8a3350", "#fbeaf0"], ["#6b5a12", "#f7f1d9"]];
-const OL_NEW_KINDS = [{ id: "unit", label: "وحدة" }, { id: "center", label: "مركز" }, { id: "dept", label: "قسم" }, { id: "office", label: "مكتب" }, { id: "exec", label: "إدارة عليا" }];
+const OL_NEW_KINDS = [{ id: "unit", label: "وحدة" }, { id: "center", label: "مركز" }, { id: "dept", label: "قسم" }, { id: "office", label: "مكتب" }, { id: "exec", label: "إدارة التعليم النسائي" }];
 
 function orgLevelToRow(l) {
   return { id: l.id, name: l.name || "", level_type: l.type || "", parent_id: l.parentId || "", link_kind: l.linkKind || "", link_id: l.linkId || "",
@@ -4808,7 +4808,7 @@ function olLinkedEntity(l) {
   if (!l || !l.linkKind || !l.linkId) return null;
   if (l.linkKind === "office") { const o = (S.offices || []).find((x) => x.id === l.linkId); return o ? { name: o.name, kind: "مكتب" } : { name: "(جهة محذوفة)", kind: "مكتب" }; }
   if (l.linkKind === "dept") { const d = (S.departments || []).find((x) => x.id === l.linkId); return d ? { name: d.name, kind: "قسم" } : { name: "(جهة محذوفة)", kind: "قسم" }; }
-  const u = (S.units || []).find((x) => x.id === l.linkId); return u ? { name: u.name, kind: u.role === "center" ? "مركز" : u.role === "executive" ? "إدارة عليا" : "وحدة" } : { name: "(جهة محذوفة)", kind: "وحدة" };
+  const u = (S.units || []).find((x) => x.id === l.linkId); return u ? { name: u.name, kind: u.role === "center" ? "مركز" : u.role === "executive" ? "إدارة التعليم النسائي" : "وحدة" } : { name: "(جهة محذوفة)", kind: "وحدة" };
 }
 // نوع الجهة المربوطة بلغة صفحات الحسابات (unit / dept / office / exec) + الجهة نفسها
 function olEntityRef(l) {
@@ -4829,7 +4829,7 @@ function olSyncEntityParent(levelId) {
 }
 function olSyncSubtree(levelId) { [levelId, ...olDescendantIds(levelId)].forEach(olSyncEntityParent); }
 // الصفحات اللي تشتغل لحساب مستوى (يرى عدة وحدات) — أي صفحة أخرى بالدور تُتجاهل له.
-const LEVEL_COMPATIBLE_PAGES = ["dashboard", "executive-dashboard", "custom-path-inbox", "all-reports", "executive-summary", "executive-final-report"];
+const LEVEL_COMPATIBLE_PAGES = ["dashboard", "executive-dashboard", "custom-path-inbox", "all-reports", "executive-summary", "executive-final-report", "office-summary", "office-archive", "unit-notifications", "department-curation"];
 function levelRoleSummary(roleId) {
   if (!roleId) return null;
   const role = rolesList().find((r) => r.id === roleId);
@@ -4913,14 +4913,14 @@ function olEntityTypeLabel(kind, id) {
   if (kind === "office") return "مكتب";
   if (kind === "dept") return "قسم";
   const u = (S.units || []).find((x) => x.id === id);
-  return u && u.role === "center" ? "مركز" : u && u.role === "executive" ? "إدارة عليا" : "وحدة";
+  return u && u.role === "center" ? "مركز" : u && u.role === "executive" ? "إدارة التعليم النسائي" : "وحدة";
 }
 // النوع يتعبّى لحاله حسب البطاقة/الحساب — إلا لو المستخدمة اختارته بنفسها
 function olAutoType(f) {
   if (f.typeNewMode || (f.type && !f.typeAuto)) return;
   const card = olFormCard(f);
   const t = card === "acc" && f.linkKind && f.linkKind !== "new" && f.linkId ? olEntityTypeLabel(f.linkKind, f.linkId)
-    : card === "acc" && f.linkKind === "new" ? ({ unit: "وحدة", center: "مركز", dept: "قسم", office: "مكتب", exec: "إدارة عليا" }[f.newKind || "unit"])
+    : card === "acc" && f.linkKind === "new" ? ({ unit: "وحدة", center: "مركز", dept: "قسم", office: "مكتب", exec: "إدارة التعليم النسائي" }[f.newKind || "unit"])
     : card === "mgr" ? "مديرة" : "";
   if (t) { f.type = t; f.typeAuto = true; }
 }
@@ -5127,7 +5127,7 @@ function olEntityByName(name) {
   const o = (S.offices || []).find((x) => olNorm(x.name) === n); if (o) return { linkKind: "office", id: o.id, name: o.name, kind: "مكتب" };
   const d = (S.departments || []).find((x) => olNorm(x.name) === n); if (d) return { linkKind: "dept", id: d.id, name: d.name, kind: "قسم" };
   const u = (S.units || []).find((x) => x.role !== "admin" && x.role !== "self_report" && olNorm(x.name) === n);
-  if (u) return { linkKind: "unit", id: u.id, name: u.name, kind: u.role === "center" ? "مركز" : u.role === "executive" ? "إدارة عليا" : "وحدة" };
+  if (u) return { linkKind: "unit", id: u.id, name: u.name, kind: u.role === "center" ? "مركز" : u.role === "executive" ? "إدارة التعليم النسائي" : "وحدة" };
   return null;
 }
 function olParsePasteTree(text) {
@@ -5669,7 +5669,7 @@ function entryIconHtml(key, size) {
 // اسم الجهة واسم المستخدم المناسب لها — null لو الرابط لا يطابق شيئًا
 function entryInfo(kind, id) {
   if (kind === "level") { const l = olFind(id); return l && l.loginId ? { name: l.name, username: l.loginId, sub: l.type || "" } : null; }
-  if (kind === "unit") { const u = (S.units || []).find((x) => x.id === id); return u ? { name: u.name, username: u.name, sub: u.role === "center" ? "مركز" : u.role === "executive" ? "إدارة عليا" : "وحدة" } : null; }
+  if (kind === "unit") { const u = (S.units || []).find((x) => x.id === id); return u ? { name: u.name, username: u.name, sub: u.role === "center" ? "مركز" : u.role === "executive" ? "إدارة التعليم النسائي" : "وحدة" } : null; }
   if (kind === "dept") { const d = (S.departments || []).find((x) => x.id === id); return d ? { name: d.name, username: d.name, sub: "قسم" } : null; }
   if (kind === "office") { const o = (S.offices || []).find((x) => x.id === id); return o ? { name: o.name, username: o.name, sub: "مكتب إشراف" } : null; }
   return null;
@@ -8790,7 +8790,7 @@ const STRUCT_OWNER_KIND = { unit: "unit", dept: "department", office: "office" }
 // لا بيانات جديدة ولا أعمدة: تستخدم نفس الأشخاص والأدوار والمسارات ونفس الإجراءات الموجودة.
 const STRUCT_PANEL_TAGS = {
   admin: { label: "مديرة نظام", bg: "#f3e9ef", fg: "#6b2337" },
-  exec: { label: "إدارة عليا", bg: "#f3e9ef", fg: "#6b2337" },
+  exec: { label: "إدارة التعليم النسائي", bg: "#f3e9ef", fg: "#6b2337" },
   office: { label: "مكتب", bg: "#f3e9ef", fg: "#6b2337" },
   dept: { label: "قسم", bg: "#fbf0e1", fg: "#9a6420" },
   unit: { label: "وحدة", bg: "#e8f0ea", fg: "#2f6b45" },
@@ -10578,7 +10578,7 @@ function sectionEditorHtml(unit, report) {
         <div class="prs-title" style="font-size:17px;font-weight:800;">${esc(section.label)}</div>
       </div>
       ${(section.id !== "basic" && section.id !== "review" && /ربع|سنوي|نصف|فصلي/.test(reportPeriodType(report) || "")) ? `<button data-action="imp-open" style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid ${BORDER};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;color:${ROSE};cursor:pointer;margin-inline-end:8px;">${iconDownload(14, ROSE)} استيراد من تقارير سابقة</button>` : ""}
-      ${actionAllowed("toggle-section-completed") ? `<button data-action="toggle-section-completed" style="display:flex;align-items:center;gap:6px;background:${S.sectionCompleted ? GREEN_BG : "#fff"};border:1px solid ${S.sectionCompleted ? GREEN : BORDER};border-radius:999px;padding:6px 12px;cursor:pointer;font-size:11.5px;font-weight:700;color:${S.sectionCompleted ? GREEN : SUBTLE}">
+      ${actionAllowed("toggle-section-completed") && autoSectionComplete(section.id, S.sectionDraft) === null ? `<button data-action="toggle-section-completed" style="display:flex;align-items:center;gap:6px;background:${S.sectionCompleted ? GREEN_BG : "#fff"};border:1px solid ${S.sectionCompleted ? GREEN : BORDER};border-radius:999px;padding:6px 12px;cursor:pointer;font-size:11.5px;font-weight:700;color:${S.sectionCompleted ? GREEN : SUBTLE}">
         ${S.sectionCompleted ? iconCheckCircle(14, GREEN) : iconCircle(14, SUBTLE)} ${S.sectionCompleted ? "مكتمل" : "تحديد كمكتمل"}
       </button>` : ""}
     </div>
@@ -14068,9 +14068,28 @@ function trySaveSectionWithStatus(status) {
     if (!result.valid) { S.sectionSaveError = result.message; return false; }
   }
   S.sectionSaveError = "";
+  const auto = autoSectionComplete(S.activeSectionId, S.sectionDraft);
+  if (auto !== null) { status = auto ? "completed" : "draft"; S.sectionCompleted = auto; }
   persistSection(S.activeSectionId, S.sectionDraft, status);
   if (S.sectionSaveError) return false;
   return true;
+}
+// حالة القسم تلقائية: مكتمل = كل الحقول الإلزامية معبأة في كل عنصر (وفيه عنصر واحد على الأقل). null = قسم بلا حقول مولَّدة (تبقى يدوية)
+function autoSectionComplete(sectionId, draft) {
+  const sc = SECTION_FIELD_SCHEMAS[sectionId];
+  if (!sc || !sc.arrayKey || !Array.isArray(sc.fields) || !draft) return null;
+  const items = Array.isArray(draft[sc.arrayKey]) ? draft[sc.arrayKey] : [];
+  if (!items.length) return false;
+  const req = sc.fields.filter((f) => f.required && f.type !== "computed");
+  const filled = (v) => v !== undefined && v !== null && !(typeof v === "string" && !v.trim()) && !(Array.isArray(v) && !v.length);
+  return items.every((it) => req.every((f) => filled(it && it[f.id])));
+}
+function autoSectionMissing(sectionId, draft) {
+  const sc = SECTION_FIELD_SCHEMAS[sectionId]; if (!sc || !draft) return [];
+  const items = Array.isArray(draft[sc.arrayKey]) ? draft[sc.arrayKey] : [];
+  const out = new Set(); const filled = (v) => v !== undefined && v !== null && !(typeof v === "string" && !v.trim()) && !(Array.isArray(v) && !v.length);
+  items.forEach((it) => sc.fields.filter((f) => f.required && f.type !== "computed").forEach((f) => { if (!filled(it && it[f.id])) out.add(f.label); }));
+  return [...out];
 }
 
 /* =============================== After-render hook + bootstrap ================ */
