@@ -1704,3 +1704,10 @@ table.kpi-t th{font-size:calc(var(--rpt-table-fs,12px) - 1.5px)!important}
 .rpt-chapter-body table.prs-table.kpi-t tbody tr:nth-child(n) td,.rpt-v5 .rpt-chapter-body table.prs-table.kpi-t tbody tr:nth-child(n) td{background:var(--rpt-g-td,#f9f6f7)!important;background-image:none!important}
 html body table.prs-table.kpi-t:not(#z) th{background:var(--rpt-gl-bg,#d3bdc3)!important;background-image:none!important;color:var(--rpt-gl-color,#000)!important;text-shadow:none!important;text-align:center!important;border:1px solid #fff!important;font-size:calc(var(--rpt-table-fs,12px) - 1.5px)!important}
 html body table.prs-table.kpi-t:not(#z) tbody tr td{background:var(--rpt-g-td,#f9f6f7)!important;background-image:none!important;border:1px solid var(--rpt-line,#ecdfe3)!important}
+
+/* إعدادات الجداول العامة: تظهر فقط إذا غيّرتها مديرة النظام عن الافتراضي */
+html body .rpt-x-thbg table.prs-table:not(#z) th,html body .rpt-x-thbg table.rpt-gtable:not(#z) th,html body .rpt-x-thbg table.rpt-tbl:not(#z) th{background:var(--rpt-gh-bg)!important;background-image:none!important}
+html body .rpt-x-thcolor table.prs-table:not(#z) th,html body .rpt-x-thcolor table.rpt-gtable:not(#z) th,html body .rpt-x-thcolor table.rpt-tbl:not(#z) th{color:var(--rpt-gh-color)!important;text-shadow:none!important}
+html body .rpt-x-th table.prs-table:not(#z) th,html body .rpt-x-th table.rpt-tbl:not(#z) th{text-align:var(--rpt-th-align)!important}
+html body .rpt-x-td table.prs-table:not(#z) td,html body .rpt-x-td table.rpt-tbl:not(#z) td,html body .rpt-x-td table.prs-table:not(#z) td *{text-align:var(--rpt-td-align)!important}
+html body .rpt-x-fs table.prs-table:not(#z) th,html body .rpt-x-fs table.prs-table:not(#z) td,html body .rpt-x-fs table.rpt-tbl:not(#z) th,html body .rpt-x-fs table.rpt-tbl:not(#z) td{font-size:var(--rpt-table-fs)!important}

@@ -7741,7 +7741,8 @@ function rptWrap(s, inner, isPreview) {
   const cm = /^#[0-9a-fA-F]{6}$/.test(s.chartMain) ? s.chartMain : "";
   if (cm) { vars += `--chart-main:${cm};`; inner = String(inner).replace(/#9a3f4e/gi, cm).replace(/#b5606c/gi, mixHex(cm, "#ffffff", 0.3)).replace(/#7a2145/gi, cm); }
   if (s.kpiPal && /^[a-z]+$/.test(s.kpiPal)) inner = String(inner).replace(/prs-table kpi-t/g, "prs-table kpi-t kpi-pal-" + s.kpiPal); if (s.kpiPal && /^[a-z]+$/.test(s.kpiPal)) inner = String(inner).replace(/class="(prs-table|rpt-gtable)(?! kpi-t)/g, (m) => m + " kpi-pal-" + s.kpiPal);
-  return `${pageCss}<div class="${cls}${cm ? " has-chartmain" : ""}" style="${vars}">${inner}</div>`;
+  const xc = (s.thBg && s.thBg !== "#f4ece4" ? " rpt-x-thbg" : "") + (s.thColor ? " rpt-x-thcolor" : "") + (s.tdAlign && s.tdAlign !== "center" ? " rpt-x-td" : "") + (s.thAlign && s.thAlign !== "center" ? " rpt-x-th" : "") + (Number(s.tableFs) && Number(s.tableFs) !== 12 ? " rpt-x-fs" : "");
+  return `${pageCss}<div class="${cls}${cm ? " has-chartmain" : ""}${xc}" style="${vars}">${inner}</div>`;
 }
 function rptPageNumText(s, n, total) {
   if (s.pageNum === "paren") return `(${arabicDigits(n)})`;
