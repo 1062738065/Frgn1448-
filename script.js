@@ -8022,6 +8022,30 @@ function aggChapterBody(key, data, s) {
   return "";
 }
 // مستند التقرير المجمّع كاملًا (غلاف + فصول) حسب التنسيق
+/* ===== التقرير النهائي: الأهداف التشغيلية لكل الوحدات في تحليل واحد وجدول تفاصيل واحد ===== */
+function aggGoalsOnePageBody(ents) {
+  const rows = [];
+  ents.forEach(({ unit, report }) => dashOpGoals(report).forEach((og) => {
+    const nm = String(og.name).trim(); if (!nm) return;
+    const d = gbDefByName(nm), v = og.level && og.percentage !== "" ? numOrNull(og.percentage) : null, t = d ? numOrNull(ogTargetForReport(d.id, unit.id, report)) : null;
+    rows.push({ unit, name: nm, v, t, p: v != null && t ? Math.min(100, Math.round(v / t * 100)) : v });
+  }));
+  if (!rows.length) return "";
+  const L = (v) => (v == null ? "na" : v >= 75 ? "ok" : v >= 40 ? "wr" : "bad"), LT = { ok: "متحقق", wr: "متحقق جزئيًا", bad: "غير متحقق", na: "لم يُقيَّم" };
+  const cnt = { ok: 0, wr: 0, bad: 0, na: 0 }; rows.forEach((r) => { cnt[L(r.v)]++; });
+  const seen = rows.map((r) => r.v).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
+  const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
+  const bars = rows.map((r) => `<div class="rg-hb"><div class="rg-hb-l">${esc(r.unit.name)} — ${esc(r.name)}</div><div class="rg-hb-t"><i class="tg" style="width:${r.t != null ? Math.min(100, r.t) : 100}%"></i><i class="ac" style="width:${r.v != null ? Math.min(100, r.v) : 0}%"></i></div><b>${r.v != null ? r.v + "٪" : "—"}</b></div>`).join("");
+  let prev = null, i = 0, trs = "";
+  const span = {}; rows.forEach((r) => { span[r.unit.id] = (span[r.unit.id] || 0) + 1; });
+  rows.forEach((r, k) => {
+    const first = !prev || prev.unit.id !== r.unit.id; prev = r;
+    const pc = r.p == null ? "<td>—</td>" : `<td class="rg-p-${L(r.p)}">${r.p}٪</td>`;
+    trs += `<tr>${first ? `<td rowspan="${span[r.unit.id]}" class="rg-un">${esc(r.unit.name)}</td>` : ""}<td class="rg-n">${k + 1}</td><td class="rg-nm" style="font-weight:700">${esc(r.name)}</td><td>${r.t != null ? r.t + "٪" : "—"}</td><td>${r.v != null ? r.v + "٪" : "—"}</td>${pc}<td>${LT[L(r.p)]}</td></tr>`;
+  });
+  const tbl = `<div class="rg-tw"><table class="rg-rtb rg-ag"><tr><th class="rg-un">الوحدة</th><th class="rg-n">م</th><th class="rg-nm">الهدف التشغيلي</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th></tr>${trs}</table></div>`;
+  return `<div class="rg-scope"><div class="rg-rh">تحليل الأهداف التشغيلية — كل الوحدات</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div><div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#6b2337)"></s> المتحقق</span></div><div class="rg-hbs">${bars}</div><div class="rg-rh" style="margin-top:14px">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}</div>`;
+}
 /* التقرير النهائي بنفس تنسيق تقرير الوحدة: لكل فصل صفحة لكل وحدة (نفس البطاقات والخط والألوان والرسوم) */
 function aggUnitStylePages(data) {
   let ents = (data.flat || []).filter((e) => e && e.unit && e.report); if (!ents.length) return [];
@@ -8032,6 +8056,11 @@ function aggUnitStylePages(data) {
   const out = [];
   chs.forEach((c) => {
     const secs = c.sections || [c.key], parts = [];
+    if (c.key === "goals" && !c.group) {
+      const gb = aggGoalsOnePageBody(ents);
+      if (gb) { const h = rptWithCtx({ ...rptChartCtx(us), hiddenCols: rptHiddenColsForViewer(us), colsShow: us.colsShow, capture: null, unitId: ents[0].unit.id }, () => reportChapterHtml(rptIcon(c.icon), rptChapterTitle(c, us), secs, ents[0].report, "")); const root = document.createElement("div"); root.innerHTML = h; const b = root.querySelector(".rpt-chapter-body"); if (b) { b.innerHTML = gb; out.push(root.innerHTML); } }
+      return;
+    }
     ents.forEach(({ unit, report }) => {
       if (!secs.some((sid) => sectionHasData(report, sid))) return;
       const html = rptWithCtx({ ...rptChartCtx(us), hiddenCols: rptHiddenColsForViewer(us), colsShow: us.colsShow, capture: null, unitId: unit.id }, () => {
