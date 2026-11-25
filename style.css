@@ -1654,3 +1654,11 @@ body.sp-body{background:#f7f3f1}
 .rpt-pdf .rg-rtb th,.rpt-pdf .rg-rtb td{padding:6px 4px!important}
 .rpt-pdf .rg-rtb tr:nth-child(2) th,.rpt-pdf .rg-rtb th[colspan="1"]{min-width:44px}
 @media print{.rg-scope .rg-rtb{min-width:0!important}}
+
+/* ===== جداول الأهداف تطيع إعدادات «تصميم وإنشاء التقارير»: لون الرأس، المحاذاة، حجم الخط ===== */
+.rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th{background:var(--rpt-gl-bg,#e3b6c5)!important;color:var(--rpt-gl-color,#6b2337)!important;text-align:var(--rpt-th-align,center)!important}
+.rg-scope .rg-rtb td,.rg-flat table.prs-table td,.rpt-evx td{text-align:var(--rpt-td-align,center)!important}
+.rg-scope .rg-rtb td:nth-child(2),.rg-scope .rg-rtb th:nth-child(2){text-align:var(--rpt-td-align,center)!important}
+.rg-scope .rg-rtb th,.rg-scope .rg-rtb td,.rg-flat table.prs-table th,.rg-flat table.prs-table td,.rpt-evx th,.rpt-evx td{font-size:calc(var(--rpt-table-fs,12px) - 1.5px)!important}
+.rpt-pdf .rg-rtb th,.rpt-pdf .rg-rtb td{font-size:calc(var(--rpt-table-fs,12px) - 3px)!important}
+.rg-scope .rg-rtb,.rg-scope .rg-rtb th,.rg-scope .rg-rtb td,.rg-flat table.prs-table,.rg-flat table.prs-table th,.rg-flat table.prs-table td,.rpt-evx,.rpt-evx th,.rpt-evx td{font-family:var(--rpt-font-body,inherit)!important}
