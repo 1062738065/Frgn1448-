@@ -7481,7 +7481,7 @@ const RPT_COMMON_DEFAULTS = {
   showHead: false, headRight: "", headLogo: true, headCenter: "", headLeft: "", showFoot: false, footText: "", pageNum: "none",
   order: [], hidden: {}, titles: {}, hiddenCols: {}, limit: 10, perPage: 0, showEmpty: false,
   charts: {}, thAlign: "center", tdAlign: "center", numCenter: false,
-  thBg: "#f4ece4", thColor: "", tableBorders: "rows", zebra: false, tableFs: 12, fontScale: "1",
+  thBg: "#f4ece4", thColor: "", gThBg: "", gThColor: "#000000", gTdBg: "#f9f6f7", gTgColor: "", gAcColor: "", gOk: "#1f8a5b", gWr: "#c9831a", gBad: "#c0392b", tableBorders: "rows", zebra: false, tableFs: 12, fontScale: "1",
   fontBody: "Almarai", fontTitle: "Amiri", fontHeading: "Cairo", mainColor: "#6b2337", chapterBg: "#f3e8dd",
   showCover: true, showCoverMeta: true, assocName: "جمعية فرقان لتحفيظ القرآن الكريم بالطائف", coverTitle: "", coverSub: "", preparedBy: "",
 };
@@ -7489,7 +7489,7 @@ const RPT_FINAL_DEFAULTS = { ...RPT_COMMON_DEFAULTS, coverTitle: "التقرير
 const RPT_UNIT_DEFAULTS = { ...RPT_COMMON_DEFAULTS, fontTitle: "Cairo", pageNum: "paren", spine: true, perPage: 2 };
 const RPT_CUSTOM_DEFAULTS = { ...RPT_COMMON_DEFAULTS, name: "", scopeLevelId: "", periodKind: "all", year: "", coverSub: "", preparedBy: "" };
 // تنسيق مشترك بين كل التقارير (الباقي: الكليشة والخلفية والغلاف… لكل تقرير حسابه)
-const RPT_SHARED_KEYS = ["fontBody", "fontTitle", "fontHeading", "mainColor", "chapterBg", "thBg", "thColor", "thAlign", "tdAlign", "numCenter", "tableBorders", "zebra", "tableFs", "fontScale", "size", "margin", "mt", "mb", "mr", "ml"];
+const RPT_SHARED_KEYS = ["fontBody", "fontTitle", "fontHeading", "mainColor", "chapterBg", "thBg", "thColor", "gThBg", "gThColor", "gTdBg", "gTgColor", "gAcColor", "gOk", "gWr", "gBad", "thAlign", "tdAlign", "numCenter", "tableBorders", "zebra", "tableFs", "fontScale", "size", "margin", "mt", "mb", "mr", "ml"];
 const RPT_DESIGN_KEYS = ["chartMain", "kpiPal", "orient", "paper", "bgImage", "watermark", "frame", "spine", "showHead", "headRight", "headLogo", "headCenter", "headLeft", "showFoot", "footText", "pageNum"];
 const RPT_NUM_KEYS = ["mt", "mb", "mr", "ml", "limit", "tableFs", "year", "perPage"];
 // خانات الاعتماد (المسمى + الاسم). {المعدة} و{الرئيسة} تُستبدل من بيانات التقرير، و{الإعداد} من حقل «إعداد» بالغلاف
@@ -7729,7 +7729,7 @@ function rptWrap(s, inner, isPreview) {
   const [w, h] = rptPageDims(s);
   const [t, b, r, l] = rptMargins(s);
   const main = /^#[0-9a-fA-F]{6}$/.test(s.mainColor) ? s.mainColor : "#6b2337";
-  let vars = `--rpt-burgundy:${main};--rpt-t0:${mixHex(main, "#ffffff", 0.96)};--rpt-t1:${mixHex(main, "#ffffff", 0.9)};--rpt-line:${mixHex(main, "#ffffff", 0.82)};--rpt-c1:${mixHex(main, "#ffffff", 0.7)};--rpt-c2:${mixHex(main, "#ffffff", 0.45)};--rpt-c3:${mixHex(main, "#ffffff", 0.2)};--rpt-gl-bg:${s.thBg && s.thBg !== "#f4ece4" ? rptCssSafe(s.thBg) : mixHex(main, "#ffffff", 0.7)};--rpt-gl-color:${s.thColor ? rptCssSafe(s.thColor) : "#000000"};--rpt-gh-bg:${rptCssSafe(s.thBg)};--rpt-gh-color:${rptCssSafe(s.thColor || main)};--rpt-burgundy-dark:${mixHex(main, "#000000", 0.25)};--rpt-paper:${rptCssSafe(s.paper)};--rpt-chapter-bg:${rptCssSafe(s.chapterBg)};` +
+  let vars = `--rpt-burgundy:${main};--rpt-t0:${mixHex(main, "#ffffff", 0.96)};--rpt-t1:${mixHex(main, "#ffffff", 0.9)};--rpt-line:${mixHex(main, "#ffffff", 0.82)};--rpt-c1:${mixHex(main, "#ffffff", 0.7)};--rpt-c2:${mixHex(main, "#ffffff", 0.45)};--rpt-c3:${mixHex(main, "#ffffff", 0.2)};--rpt-gl-bg:${s.gThBg ? rptCssSafe(s.gThBg) : (s.thBg && s.thBg !== "#f4ece4" ? rptCssSafe(s.thBg) : mixHex(main, "#ffffff", 0.7))};--rpt-gl-color:${rptCssSafe(s.gThColor || s.thColor || "#000000")};--rpt-g-td:${rptCssSafe(s.gTdBg || "#f9f6f7")};--rpt-g-tg:${s.gTgColor ? rptCssSafe(s.gTgColor) : mixHex(main, "#ffffff", 0.7)};--rpt-g-ac:${s.gAcColor ? rptCssSafe(s.gAcColor) : main};--rpt-g-ok:${rptCssSafe(s.gOk || "#1f8a5b")};--rpt-g-wr:${rptCssSafe(s.gWr || "#c9831a")};--rpt-g-bad:${rptCssSafe(s.gBad || "#c0392b")};--rpt-gh-bg:${rptCssSafe(s.thBg)};--rpt-gh-color:${rptCssSafe(s.thColor || main)};--rpt-burgundy-dark:${mixHex(main, "#000000", 0.25)};--rpt-paper:${rptCssSafe(s.paper)};--rpt-chapter-bg:${rptCssSafe(s.chapterBg)};` +
     `--rpt-font-body:'${rptCssSafe(s.fontBody)}';--rpt-font-title:'${rptCssSafe(s.fontTitle)}';--rpt-font-heading:'${rptCssSafe(s.fontHeading)}';` +
     `--rpt-page-w:${w}mm;--rpt-page-h:${h}mm;--rpt-mt:${t}mm;--rpt-mb:${b}mm;--rpt-mr:${r}mm;--rpt-ml:${l}mm;` +
     `--rpt-th-align:${["right", "center", "left"].includes(s.thAlign) ? s.thAlign : "center"};--rpt-td-align:${["right", "center", "left"].includes(s.tdAlign) ? s.tdAlign : "center"};` +
@@ -8023,7 +8023,7 @@ function aggChapterBody(key, data, s) {
 }
 // مستند التقرير المجمّع كاملًا (غلاف + فصول) حسب التنسيق
 /* ===== التقرير النهائي: الأهداف التشغيلية لكل الوحدات في تحليل واحد وجدول تفاصيل واحد ===== */
-const RG_BC = { ok: "#1f8a5b", wr: "#c9831a", bad: "#c0392b", na: "#b7a9ae" };
+const RG_BC = { ok: "var(--rpt-g-ok,#1f8a5b)", wr: "var(--rpt-g-wr,#c9831a)", bad: "var(--rpt-g-bad,#c0392b)", na: "#b7a9ae" };
 function rgBar(v, k) { return v == null ? "<td>—</td>" : `<td class="rg-pb"><div class="rg-bar"><i style="width:${Math.max(0, Math.min(100, v))}%;background:${RG_BC[k] || RG_BC.na}"></i></div><b style="color:${RG_BC[k] || "inherit"}">${v}٪</b></td>`; }
 function aggGoalsOnePageBody(ents) {
   const rows = [];
@@ -8043,8 +8043,8 @@ function aggGoalsOnePageBody(ents) {
   for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
   rows.forEach((r, i) => {
     const bw = Math.min(28, gw / 3), t = r.t != null ? r.t : 100;
-    svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-c1,#e3b6c5)"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`;
-    if (r.v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.v)}" width="${bw}" height="${yy(0) - yy(r.v)}" rx="3" style="fill:var(--rpt-burgundy,#7a1f3d)"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.v}%</text>`;
+    svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`;
+    if (r.v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.v)}" width="${bw}" height="${yy(0) - yy(r.v)}" rx="3" style="fill:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.v}%</text>`;
     const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
     const ls = wrap(r.name, 22), ly = H - pb + 8, LH = 10.5, x0 = cx(i) + ((ls.length + 1) * LH) / 2 - 4;
     ls.forEach((ln, q) => { svg += `<text transform="translate(${x0 - q * LH},${ly}) rotate(90)" font-size="8.5" text-anchor="start" fill="#2b1a20" font-weight="700">${esc(ln)}</text>`; });
@@ -8053,7 +8053,7 @@ function aggGoalsOnePageBody(ents) {
   const pts = rows.map((r, i) => [cx(i), r.v]).filter((p) => p[1] != null);
   if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join("");
   svg += "</svg>";
-  const legend = `<div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#7a1f3d)"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
+  const legend = `<div class="rg-leg"><span><s style="background:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"></s> المستهدف</span><span><s style="background:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
   // الجدول: نفس أعمدة تقرير الوحدة
   const reg = rptEvRegCore(rows.map((r) => ({ report: r.report, og: r.og, unit: r.unit, gk: r.gk }))), gnum = {}; rows.forEach((r, i) => { gnum[r.gk] = { n: i + 1, anchor: "rpt-ogx-" + r.gk }; });
   const head = `<tr><th rowspan="2">م</th><th rowspan="2">الهدف التشغيلي</th><th colspan="3">النتيجة</th><th rowspan="2">الحالة</th><th rowspan="2">الشواهد</th></tr><tr><th>المستهدف</th><th>المتحقق</th><th>النسبة</th></tr>`;
@@ -8282,7 +8282,7 @@ function rmToggle(key, label, on) {
   return `<button type="button" class="rm-pill${on ? " on" : ""}" data-action="rm-toggle" data-key="${esc(key)}" aria-pressed="${!!on}">${on ? "✓ " : ""}${esc(label)}</button>`;
 }
 function rmText(key, val, ph) { return `<input type="text" class="input" data-rm="${esc(key)}" value="${esc(val || "")}" placeholder="${esc(ph || "")}" style="width:100%;" />`; }
-function rmColor(key, val) { return `<input type="color" data-rm="${esc(key)}" value="${esc(/^#[0-9a-fA-F]{6}$/.test(val) ? val : "#6b2337")}" class="rm-color" />`; }
+function rmColor(key, val) { const v = /^#[0-9a-fA-F]{6}$/.test(val) ? val : "#6b2337"; return `<span class="rm-colwrap"><input type="color" data-rm="${esc(key)}" value="${esc(v)}" class="rm-color" /><input type="text" class="input rm-hex" data-rmhex="${esc(key)}" value="${esc(v.toUpperCase())}" dir="ltr" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="#6B2337" /></span>`; }
 function rmFont(key, val) { return `<select class="input" data-rm="${esc(key)}" style="width:100%;">${reportFontsAll().map((f) => `<option value="${esc(f)}" ${val === f ? "selected" : ""} style="font-family:'${esc(f)}'">${esc(f)}</option>`).join("")}</select>`; }
 function rmNum(key, val, min, max) { return `<input type="number" class="input" data-rm="${esc(key)}" value="${esc(val)}" min="${min}" max="${max}" inputmode="numeric" style="width:84px;" />`; }
 function rmRolesHtml(pageId, label) {
@@ -8495,7 +8495,10 @@ function rmPanelHtml0(st) {
       rmFieldHtml("ألوان رأس الجدول", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("thBg", d.thBg)}</label><label class="rm-mini">النص${rmColor("thColor", d.thColor || d.mainColor)}</label></div>`) +
       rmFieldHtml("حدود الخلايا", rmPills("tableBorders", d.tableBorders, [["rows", "خطوط بين الصفوف"], ["grid", "شبكة كاملة"], ["none", "بدون"]])) +
       rmFieldHtml("", rmToggle("zebra", "تلوين الصفوف بالتناوب", d.zebra)) +
-      rmFieldHtml("حجم خط الجداول", rmPills("tableFs", d.tableFs, [["10", "10"], ["11", "11"], ["12", "12"], ["13", "13"], ["14", "14"]]));
+      rmFieldHtml("حجم خط الجداول", rmPills("tableFs", d.tableFs, [["10", "10"], ["11", "11"], ["12", "12"], ["13", "13"], ["14", "14"]]))
+    + `<div class="rm-sep"></div>` + rmFieldHtml("الأهداف التشغيلية — رأس الجدول", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("gThBg", d.gThBg || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">الخط${rmColor("gThColor", d.gThColor || "#000000")}</label><label class="rm-mini">خلفية الخلايا${rmColor("gTdBg", d.gTdBg || "#f9f6f7")}</label></div>`, "الافتراضي: وردي فاتح من لون التقرير وخط أسود وخلفية خلايا رمادية فاتحة.")
+    + rmFieldHtml("الأهداف التشغيلية — الرسم", `<div class="rm-row"><label class="rm-mini">المستهدف${rmColor("gTgColor", d.gTgColor || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">المتحقق${rmColor("gAcColor", d.gAcColor || d.mainColor || "#6b2337")}</label></div>`)
+    + rmFieldHtml("الأهداف التشغيلية — شريط النسبة", `<div class="rm-row"><label class="rm-mini">متحقق${rmColor("gOk", d.gOk || "#1f8a5b")}</label><label class="rm-mini">جزئي${rmColor("gWr", d.gWr || "#c9831a")}</label><label class="rm-mini">غير متحقق${rmColor("gBad", d.gBad || "#c0392b")}</label></div>`);
   }
   if (tab === "fonts") {
     const extra = rptStore().fonts;
@@ -13168,10 +13171,10 @@ function rptGoalsAnalysisHtml(report, flat) {
   for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
   const lab = (r, i) => { const w = String(r.og.name).split(" "), mid = Math.ceil(w.length / 2); [w.slice(0, mid).join(" "), w.slice(mid).join(" ")].forEach((ln, q) => { svg += `<text x="${cx(i)}" y="${H - pb + 16 + q * 13}" font-size="8" text-anchor="middle" fill="#2b1a20" font-weight="700">${esc(ln)}</text>`; }); };
   if (pu.length > 2) { const k = pu.length, bw = Math.min(22, (gw - 14) / k), CC = ["var(--rpt-c1,#e3b6c5)", "var(--rpt-c2,#c9708f)", "var(--rpt-c3,#a73a5c)", "var(--rpt-burgundy,#7a1f3d)"]; rows.forEach((r, i) => { pu.forEach((p, j) => { const v = r.vs[j]; if (v == null) return; const x = cx(i) - (k * bw) / 2 + j * bw; svg += `<rect x="${x + 1}" y="${yy(v)}" width="${bw - 2}" height="${yy(0) - yy(v)}" rx="3" style="fill:${CC[j + (4 - k)]}"/><text x="${x + bw / 2}" y="${yy(v) - 3}" font-size="7" text-anchor="middle" fill="#2b1a20">${v}%</text>`; }); lab(r, i); }); }
-  else { rows.forEach((r, i) => { const bw = Math.min(28, gw / 3), v = lastV(r), t = r.ts[r.ts.length - 1] != null ? r.ts[r.ts.length - 1] : 100; svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-c1,#e3b6c5)"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`; if (v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(v)}" width="${bw}" height="${yy(0) - yy(v)}" rx="3" style="fill:var(--rpt-burgundy,#7a1f3d)"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${v}%</text>`; lab(r, i); });
+  else { rows.forEach((r, i) => { const bw = Math.min(28, gw / 3), v = lastV(r), t = r.ts[r.ts.length - 1] != null ? r.ts[r.ts.length - 1] : 100; svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`; if (v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(v)}" width="${bw}" height="${yy(0) - yy(v)}" rx="3" style="fill:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${v}%</text>`; lab(r, i); });
     const pts = rows.map((r, i) => [cx(i), lastV(r)]).filter((p) => p[1] != null); if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join(""); }
   svg += "</svg>";
-  const legend = pu.length > 2 ? `<div class="rg-leg">${pu.map((p, j) => `<span><s style="background:${["var(--rpt-c1,#e3b6c5)", "var(--rpt-c2,#c9708f)", "var(--rpt-c3,#a73a5c)", "var(--rpt-burgundy,#7a1f3d)"][j + (4 - pu.length)]}"></s> ${esc(p.label)}</span>`).join("")}</div>` : `<div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#7a1f3d)"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
+  const legend = pu.length > 2 ? `<div class="rg-leg">${pu.map((p, j) => `<span><s style="background:${["var(--rpt-c1,#e3b6c5)", "var(--rpt-c2,#c9708f)", "var(--rpt-c3,#a73a5c)", "var(--rpt-burgundy,#7a1f3d)"][j + (4 - pu.length)]}"></s> ${esc(p.label)}</span>`).join("")}</div>` : `<div class="rg-leg"><span><s style="background:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"></s> المستهدف</span><span><s style="background:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
   // ---- الجدول ----
   const pc = (v) => rgBar(v, L(v)), sg = (d) => (d > 0 ? "+" : "") + d;
   const dirT = (d) => (d > 0 ? `<span class="rg-dtag up">تحسن ▲</span>` : d < 0 ? `<span class="rg-dtag dn">تراجع ▼</span>` : `<span class="rg-dtag eq">ثبات =</span>`);
@@ -16566,6 +16569,7 @@ function attachFormListeners() {
       scopeSet(k, id, [...cur]); render(); return;
     }
     // إدارة التقارير: حقول التنسيق (نص/لون/خط/رقم) + صورة الخلفية
+    if (el.dataset && el.dataset.rmhex && rmCanEdit()) { let h = String(el.value || "").trim(); if (h && h[0] !== "#") h = "#" + h; if (/^#[0-9a-fA-F]{3}$/.test(h)) h = "#" + h.slice(1).split("").map((x) => x + x).join(""); if (/^#[0-9a-fA-F]{6}$/.test(h)) { rmSetField(el.dataset.rmhex, h.toLowerCase()); S.ui.rm.saved = false; } render(); return; }
     if (el.dataset && el.dataset.rm && rmCanEdit()) { rmSetField(el.dataset.rm, el.value); S.ui.rm.saved = false; render(); return; }
     if (el.id === "rm-bg-file" && rmCanEdit()) {
       const file = el.files && el.files[0];

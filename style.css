@@ -1689,3 +1689,5 @@ body.sp-body{background:#f7f3f1}
 
 .rm-sec{background:#fff;border:1px solid var(--border,#eddde2);border-radius:14px;padding:12px 14px;margin-bottom:12px}
 .rm-sec-h{font-weight:800;color:var(--rose,#6b2337);font-size:14px;margin-bottom:10px}
+.rm-colwrap{display:inline-flex;align-items:center;gap:6px}.rm-hex{width:104px!important;min-width:0;padding:6px 8px;font-size:13px;font-family:monospace;text-align:center}
+.rg-scope .rg-rtb td:not(.rg-un),.rg-flat table.prs-table td,.rpt-evx td{background:var(--rpt-g-td,#f9f6f7)!important}
