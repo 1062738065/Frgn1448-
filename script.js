@@ -8023,6 +8023,8 @@ function aggChapterBody(key, data, s) {
 }
 // مستند التقرير المجمّع كاملًا (غلاف + فصول) حسب التنسيق
 /* ===== التقرير النهائي: الأهداف التشغيلية لكل الوحدات في تحليل واحد وجدول تفاصيل واحد ===== */
+const RG_BC = { ok: "#1f8a5b", wr: "#c9831a", bad: "#c0392b", na: "#b7a9ae" };
+function rgBar(v, k) { return v == null ? "<td>—</td>" : `<td class="rg-pb"><div class="rg-bar"><i style="width:${Math.max(0, Math.min(100, v))}%;background:${RG_BC[k] || RG_BC.na}"></i></div><b style="color:${RG_BC[k] || "inherit"}">${v}٪</b></td>`; }
 function aggGoalsOnePageBody(ents) {
   const rows = [];
   ents.forEach(({ unit, report }) => dashOpGoals(report).forEach((og) => {
@@ -8036,15 +8038,17 @@ function aggGoalsOnePageBody(ents) {
   const seen = rows.map((r) => r.v).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
   const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
   // الرسم: نفس رسم تقرير الوحدة (أعمدة المستهدف والمتحقق + خط النسبة)
-  const W = Math.max(700, rows.length * 70 + 50), H = 350, pl = 38, pr = 10, pt = 30, pb = 150, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
+  const W = Math.max(700, rows.length * 70 + 50), H = 360, pl = 38, pr = 10, pt = 30, pb = 160, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;max-width:${W > 760 ? "100%" : "760px"};display:block;margin:0 auto">`;
   for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
   rows.forEach((r, i) => {
     const bw = Math.min(28, gw / 3), t = r.t != null ? r.t : 100;
     svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-c1,#e3b6c5)"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`;
     if (r.v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.v)}" width="${bw}" height="${yy(0) - yy(r.v)}" rx="3" style="fill:var(--rpt-burgundy,#7a1f3d)"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.v}%</text>`;
-    const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t), ly = H - pb + 8;
-    svg += `<text transform="translate(${cx(i) + 3},${ly}) rotate(90)" font-size="8.5" text-anchor="start" fill="#2b1a20" font-weight="700">${esc(cut(r.name, 30))}</text><text transform="translate(${cx(i) + 14},${ly}) rotate(90)" font-size="7.5" text-anchor="start" fill="#8a7279">${esc(cut(r.unit.name, 26))}</text>`;
+    const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
+    const ls = wrap(r.name, 22), ly = H - pb + 8, LH = 10.5, x0 = cx(i) + ((ls.length + 1) * LH) / 2 - 4;
+    ls.forEach((ln, q) => { svg += `<text transform="translate(${x0 - q * LH},${ly}) rotate(90)" font-size="8.5" text-anchor="start" fill="#2b1a20" font-weight="700">${esc(ln)}</text>`; });
+    svg += `<text transform="translate(${x0 - ls.length * LH - 2},${ly}) rotate(90)" font-size="7.5" text-anchor="start" fill="#8a7279">${esc(r.unit.name)}</text>`;
   });
   const pts = rows.map((r, i) => [cx(i), r.v]).filter((p) => p[1] != null);
   if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join("");
@@ -8053,7 +8057,7 @@ function aggGoalsOnePageBody(ents) {
   // الجدول: نفس أعمدة تقرير الوحدة
   const reg = rptEvRegCore(rows.map((r) => ({ report: r.report, og: r.og, unit: r.unit, gk: r.gk }))), gnum = {}; rows.forEach((r, i) => { gnum[r.gk] = { n: i + 1, anchor: "rpt-ogx-" + r.gk }; });
   const head = `<tr><th rowspan="2">م</th><th rowspan="2">الهدف التشغيلي</th><th colspan="3">النتيجة</th><th rowspan="2">الحالة</th><th rowspan="2">الشواهد</th></tr><tr><th>المستهدف</th><th>المتحقق</th><th>النسبة</th></tr>`;
-  const trs = rows.map((r, i) => `<tr id="rpt-ogx-${esc(r.gk)}"><td>${i + 1}</td><td style="font-weight:700">${esc(r.name)}<div style="font-size:9px;font-weight:600;color:#8a7279">${esc(r.unit.name)}</div></td><td>${r.t != null ? r.t + "٪" : "—"}</td><td>${r.v != null ? r.v + "٪" : "—"}</td>${r.p == null ? "<td>—</td>" : `<td class="rg-p-${L(r.p)}">${r.p}٪</td>`}<td>${LT[L(r.p)]}</td><td>${rptEvChips(reg, { id: r.gk }, r.name)}</td></tr>`).join("");
+  const trs = rows.map((r, i) => `<tr id="rpt-ogx-${esc(r.gk)}"><td>${i + 1}</td><td style="font-weight:700">${esc(r.name)}<div style="font-size:9px;font-weight:600;color:#8a7279">${esc(r.unit.name)}</div></td><td>${r.t != null ? r.t + "٪" : "—"}</td><td>${r.v != null ? r.v + "٪" : "—"}</td>${rgBar(r.p, L(r.p))}<td>${LT[L(r.p)]}</td><td>${rptEvChips(reg, { id: r.gk }, r.name)}</td></tr>`).join("");
   const tbl = `<div class="rg-tw"><table class="rg-rtb">${head}${trs}</table></div>`;
   return `<div class="rg-scope"><div class="rg-rh">تحليل الأهداف التشغيلية — كل الوحدات</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div>${legend}${svg}<div class="rg-rh" style="margin-top:14px">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}</div>`;
 }
@@ -8213,7 +8217,7 @@ function rptUnitColumns() {
 /* ---- صفحة «تنسيق وإنشاء التقارير» ---- */
 function rmCanEdit() { return !!S.currentUser && (S.isAdmin || pageAllowedForView("reports-manage")); }
 function rmState() {
-  const st = S.ui.rm = S.ui.rm || { sel: "final", tab: "fonts" };
+  const st = S.ui.rm = S.ui.rm || { sel: "final", tab: "look" };
   if (st.sel !== "final" && st.sel !== "unit" && !rptStore().custom.some((c) => c.id === st.sel)) { st.sel = "final"; st.draft = null; }
   if (!st.draft || st.draftFor !== st.sel) { st.draft = rptSettings(st.sel); st.draftFor = st.sel; }
   return st;
@@ -8327,7 +8331,7 @@ function rmCustomChapterEditor(ch) {
   </div>`;
 }
 function rmTabsFor(sel) {
-  return [["fonts", "الخطوط والألوان"], ["head", "الكليشة"], ["cover", "الغلاف والاعتماد"], ["chapters", "الفصول"], ["visuals", "الرسوم والجداول"], ["page", "الصفحة"], ["access", sel === "final" || sel === "unit" ? "من يشوفه" : "النطاق ومن يشوفه"]];
+  return [["look", "الشكل"], ["page", "الصفحة والغلاف"], ["chapters", "الفصول"], ["access", sel === "final" || sel === "unit" ? "من يشوفه" : "النطاق ومن يشوفه"]];
 }
 
 /* ===== «ما يظهر لكل حساب» في التقرير الموحّد ===== */
@@ -8373,7 +8377,7 @@ function rptExclHtml(d) {
   const chip = (kind, id, name, off) => `<button type="button" class="rm-pill${off ? "" : " on"}" data-action="rm-excl" data-kind="${kind}" data-id="${esc(id)}" aria-pressed="${!off}" style="margin:2px;">${esc(name)}</button>`;
   return rmFieldHtml("الأقسام والوحدات داخل التقرير", `<div class="rm-hint" style="margin-bottom:6px;font-weight:800;">الأقسام</div><div class="rm-pills rm-soft">${depts.map((x) => chip("depts", x.id, x.name, ex.depts.includes(x.id))).join("") || "—"}</div><div class="rm-hint" style="margin:10px 0 6px;font-weight:800;">الوحدات</div><div class="rm-pills rm-soft">${units.map((u) => chip("units", u.id, u.name, ex.units.includes(u.id))).join("") || "—"}</div>`, "المستبعد لا يظهر في هذا التقرير الشامل، ويبقى تقريره عند صاحبه كما هو.");
 }
-function rmPanelHtml(st) {
+function rmPanelHtml0(st) {
   const d = st.draft, sel = st.sel, tab = st.tab;
   const isUnit = sel === "unit";
   if (tab === "page") {
@@ -8521,9 +8525,16 @@ function rmPanelHtml(st) {
   }
   return "";
 }
+function rmPanelHtml(st) {
+  const card = (t, h) => (h ? `<div class="rm-sec"><div class="rm-sec-h">${t}</div>${h}</div>` : "");
+  if (st.tab === "look") return card("١) الألوان والخطوط", rmPanelHtml0({ ...st, tab: "fonts" })) + (() => { const h = rmPanelHtml0({ ...st, tab: "visuals" }), i0 = h.indexOf("محاذاة رأس الجدول"), i = i0 < 0 ? -1 : h.lastIndexOf('<div class="rm-sep">', i0); if (i < 0) return card("٢) الجداول والرسوم", h); return card("٢) الجداول", h.slice(i)) + `<details class="rm-sec"><summary class="rm-sec-h" style="cursor:pointer;margin:0">٣) خيارات متقدمة: الرسوم البيانية</summary><div style="margin-top:10px">${h.slice(0, i)}</div></details>`; })();
+  if (st.tab === "page") return card("١) الصفحة", rmPanelHtml0({ ...st, tab: "page" })) + card("٢) الكليشة (رأس وتذييل الصفحة)", rmPanelHtml0({ ...st, tab: "head" })) + card("٣) الغلاف والاعتماد", rmPanelHtml0({ ...st, tab: "cover" }));
+  return rmPanelHtml0(st);
+}
 function renderReportsManage() {
   { const st0 = rmState(); if (st0.sel !== "unit") { st0.sel = "unit"; st0.draft = null; } }
   const st = rmState();
+  if (st.tab === "fonts" || st.tab === "visuals" || !st.tab) st.tab = "look"; else if (st.tab === "head" || st.tab === "cover") st.tab = "page";
   const d = st.draft;
   const custom = rptStore().custom;
   const items = [
@@ -8533,7 +8544,7 @@ function renderReportsManage() {
   ];
   const dirty = rmDirty(st);
   const tabs = rmTabsFor(st.sel);
-  if (!tabs.some((t) => t[0] === st.tab)) st.tab = "fonts";
+  if (!tabs.some((t) => t[0] === st.tab)) st.tab = "look";
   const [w] = rptPageDims(d);
   const wide = window.innerWidth >= 900;
   const dock = st.dock == null ? wide : !!st.dock;
@@ -13162,7 +13173,7 @@ function rptGoalsAnalysisHtml(report, flat) {
   svg += "</svg>";
   const legend = pu.length > 2 ? `<div class="rg-leg">${pu.map((p, j) => `<span><s style="background:${["var(--rpt-c1,#e3b6c5)", "var(--rpt-c2,#c9708f)", "var(--rpt-c3,#a73a5c)", "var(--rpt-burgundy,#7a1f3d)"][j + (4 - pu.length)]}"></s> ${esc(p.label)}</span>`).join("")}</div>` : `<div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#7a1f3d)"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
   // ---- الجدول ----
-  const pc = (v) => (v == null ? "<td>—</td>" : `<td class="rg-p-${L(v)}">${v}٪</td>`), sg = (d) => (d > 0 ? "+" : "") + d;
+  const pc = (v) => rgBar(v, L(v)), sg = (d) => (d > 0 ? "+" : "") + d;
   const dirT = (d) => (d > 0 ? `<span class="rg-dtag up">تحسن ▲</span>` : d < 0 ? `<span class="rg-dtag dn">تراجع ▼</span>` : `<span class="rg-dtag eq">ثبات =</span>`);
   const full = pu.length <= 2, rs = full ? 2 : 1;
   const head = `<tr><th rowspan="${rs}">م</th><th rowspan="${rs}">الهدف التشغيلي</th>${pu.map((p) => `<th colspan="${full ? 3 : 1}">${esc(p.label)}</th>`).join("")}${multi ? `<th rowspan="${rs}">الفرق</th><th rowspan="${rs}">الاتجاه</th>` : ""}<th rowspan="${rs}">الحالة</th><th rowspan="${rs}">الشواهد</th></tr>${full ? `<tr>${pu.map(() => "<th>المستهدف</th><th>المتحقق</th><th>النسبة</th>").join("")}</tr>` : ""}`;

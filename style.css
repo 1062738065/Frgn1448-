@@ -1678,3 +1678,14 @@ body.sp-body{background:#f7f3f1}
 /* رؤوس جداول الأهداف دائمًا في الوسط (المحاذاة المحفوظة القديمة «يمين» ما تأثر عليها) */
 .rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th{text-align:center!important}
 .rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th,.gb-board table.prs-table th{color:var(--rpt-gl-color,#000)!important}
+
+/* بلا تلوين لخلايا الجداول، والنسبة شريط ملوّن */
+.rg-rtb .rg-p-ok,.rg-rtb .rg-p-wr,.rg-rtb .rg-p-bad{background:transparent!important;color:inherit!important}
+.rg-rtb td.rg-pb{min-width:110px}
+.rg-bar{height:8px;border-radius:5px;background:#eadfe3;overflow:hidden;margin:0 auto 3px;max-width:100px;direction:rtl}
+.rg-bar i{display:block;height:100%;border-radius:5px}
+.rg-rtb td.rg-pb b{font-size:inherit}
+.rg-rtb td.rg-pb b{display:block;text-align:center}
+
+.rm-sec{background:#fff;border:1px solid var(--border,#eddde2);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.rm-sec-h{font-weight:800;color:var(--rose,#6b2337);font-size:14px;margin-bottom:10px}
