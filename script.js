@@ -8174,7 +8174,7 @@ function rptFakeUnitReportBase() {
     id: "preview", label: "التقرير الدوري للأداء — نموذج", status: "completed", createdAt: Date.now(), shared: {},
     sections: {
       basic: st({ mainEntity: "إدارة التعليم النسائي", entityName: "وحدة نموذجية", periodType: "ربع سنوي", startDate: "١٤٤٨/٠١/٠١", endDate: "١٤٤٨/٠٣/٣٠", hijriYear: "1448", preparerName: "اسم المعدّة", preparerTitle: "إدارية", managerName: "اسم الرئيسة" }),
-      goals: st({ goals: [{ operationalGoals: [{ id: "g1", name: "هدف تشغيلي أول", level: GOAL_LEVELS[0], percentage: 100 }, { id: "g2", name: "هدف تشغيلي ثانٍ", level: GOAL_LEVELS[2], percentage: 60 }] }] }),
+      goals: st({ goals: [{ operationalGoals: [{ id: "g1", name: "تنمية وزيادة أعداد المستفيدات الملتحقات بالبرامج", level: GOAL_LEVELS[0], percentage: 100 }, { id: "g2", name: "رفع مستوى الإتقان وضبط الحفظ", level: GOAL_LEVELS[1] || GOAL_LEVELS[0], percentage: 80 }, { id: "g3", name: "إثراء البيئة التعليمية للبرامج", level: GOAL_LEVELS[2], percentage: 60 }] }] }),
       kpi: st({ indicators: inds }),
       programs: st({ programs: [{ id: "p1", name: "عمل نموذجي أول", workType: "زيارة إشرافية", targetGroup: "المراكز", targetCount: "45", actualBeneficiaries: "120", achievedCount: 39, countUnit: "مركز", executionStatus: "مكتمل", highlightResult: "نتيجة نموذجية بارزة" }, { id: "p2", name: "عمل نموذجي ثانٍ", workType: "برنامج", targetGroup: "المعلمات", targetCount: "30", actualBeneficiaries: "28", executionStatus: "قيد التنفيذ" }] }),
       tools: st({ tools: [{ name: "استبانة رضا", toolType: "استبانة", sampleSize: "100", respondentsCount: "80", resultQuality: "عالية" }] }),
@@ -8231,7 +8231,16 @@ const RPT_PRESETS = [
   { name: "بنفسجي", main: "#5b3a73", chapterBg: "#eee6f4", thBg: "#eee6f4" },
   { name: "رمادي رسمي", main: "#374151", chapterBg: "#eceff2", thBg: "#eceff2" },
 ];
+function rmAutoSave() {
+  clearTimeout(window.__rmAS);
+  window.__rmAS = setTimeout(() => {
+    const st = S.ui && S.ui.rm;
+    if (S.view !== "reports-manage" || !st || !st.draft || !rmCanEdit() || !rmDirty(st)) return;
+    rptSave(st.sel, JSON.parse(JSON.stringify(st.draft))); st.draft = null; st.saved = true; render();
+  }, 700);
+}
 function rmSetField(key, value) {
+  rmAutoSave();
   const st = rmState(), d = st.draft;
   if (key.indexOf("st|") === 0) { const [, id, prop] = key.split("|"); d.statsCards = (d.statsCards || []).map((x) => (x.id === id ? { ...x, [prop]: String(value).slice(0, 120) } : x)); return; }
   if (key.indexOf("tv:") === 0) { const tk = key.slice(3); d.tv = { ...(d.tv || {}) }; if (value === "chart" || value === "both" || /^shape:/.test(value)) d.tv[tk] = value; else delete d.tv[tk]; return; }
@@ -8488,17 +8497,17 @@ function rmPanelHtml0(st) {
       rmFieldHtml("لون جدول المؤشرات", `<div class="rm-row" style="gap:6px;flex-wrap:wrap;">${[["", "وردي", "#c98494"], ["gold", "ذهبي رملي", "#e3c27d"], ["sage", "أخضر مريمية", "#8fbfa5"], ["blue", "أزرق هادئ", "#8fb4d6"], ["plum", "بنفسجي ناعم", "#b79bd0"]].map(([v, l, c]) => `<button type="button" class="flt-chip${(d.kpiPal || "") === v ? " on" : ""}" data-action="rm-kpipal" data-v="${v}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-left:6px;vertical-align:middle"></span>${l}</button>`).join("")}</div>`, "لون عنوان جدول المؤشرات وصفوفه المتبادلة في التقرير (بتدرّج فاتح).") +
       rmFieldHtml("لون الرسوم", `<div class="rm-row">${rmColor("chartMain", d.chartMain || d.mainColor)}<button type="button" class="rm-link" data-action="rm-chartmain-clear">الافتراضي (لون التقرير)</button></div>${["#6b2337", "#2f6b3f", "#1f5f8b", "#a9842f", "#5b4b8a", "#444444"].map((c) => `<button type="button" class="rm-sw" data-action="rm-chartmain" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("")}`, "يطبَّق على أشكال المكتبة ورسوم المؤشرات في التقرير. الحالات (متحقق/متعثر) تبقى بألوانها.");
     return chartsPageUi + svSettingsHtml(d) + `<div class="rm-label">الرسوم البيانية — لكل رسم إعداده</div><div class="rm-hint">تظهر لكل رسم الأنواع المناسبة لبياناته فقط (التوزيع: دائري/أعمدة، والأرقام والنسب: أعمدة/خطي).</div>${chartsAll}` +
-      `<div class="rm-sep"></div>` +
+      `<div class="rm-group">أ) الجداول — عامة لكل التقرير</div>` +
       rmFieldHtml("محاذاة رأس الجدول", rmPills("thAlign", d.thAlign, [["right", "يمين"], ["center", "وسط"], ["left", "يسار"]])) +
       rmFieldHtml("محاذاة الكلام داخل الجدول", rmPills("tdAlign", d.tdAlign, [["right", "يمين"], ["center", "وسط"], ["left", "يسار"]])) +
       rmFieldHtml("", rmToggle("numCenter", "توسيط الأرقام والنسب تلقائيًا", d.numCenter)) +
+      rmFieldHtml("حجم خط الجداول", rmPills("tableFs", d.tableFs, [["10", "10"], ["11", "11"], ["12", "12"], ["13", "13"], ["14", "14"]])) +
       rmFieldHtml("ألوان رأس الجدول", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("thBg", d.thBg)}</label><label class="rm-mini">النص${rmColor("thColor", d.thColor || d.mainColor)}</label></div>`) +
       rmFieldHtml("حدود الخلايا", rmPills("tableBorders", d.tableBorders, [["rows", "خطوط بين الصفوف"], ["grid", "شبكة كاملة"], ["none", "بدون"]])) +
-      rmFieldHtml("", rmToggle("zebra", "تلوين الصفوف بالتناوب", d.zebra)) +
-      rmFieldHtml("حجم خط الجداول", rmPills("tableFs", d.tableFs, [["10", "10"], ["11", "11"], ["12", "12"], ["13", "13"], ["14", "14"]]))
-    + `<div class="rm-sep"></div>` + rmFieldHtml("الأهداف التشغيلية — رأس الجدول", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("gThBg", d.gThBg || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">الخط${rmColor("gThColor", d.gThColor || "#000000")}</label><label class="rm-mini">خلفية الخلايا${rmColor("gTdBg", d.gTdBg || "#f9f6f7")}</label></div>`, "الافتراضي: وردي فاتح من لون التقرير وخط أسود وخلفية خلايا رمادية فاتحة.")
-    + rmFieldHtml("الأهداف التشغيلية — الرسم", `<div class="rm-row"><label class="rm-mini">المستهدف${rmColor("gTgColor", d.gTgColor || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">المتحقق${rmColor("gAcColor", d.gAcColor || d.mainColor || "#6b2337")}</label></div>`)
-    + rmFieldHtml("الأهداف التشغيلية — شريط النسبة", `<div class="rm-row"><label class="rm-mini">متحقق${rmColor("gOk", d.gOk || "#1f8a5b")}</label><label class="rm-mini">جزئي${rmColor("gWr", d.gWr || "#c9831a")}</label><label class="rm-mini">غير متحقق${rmColor("gBad", d.gBad || "#c0392b")}</label></div>`);
+      rmFieldHtml("", rmToggle("zebra", "تلوين الصفوف بالتناوب", d.zebra))
+    + `<div class="rm-group">ب) الأهداف التشغيلية (التحليل والجداول)</div>` + rmFieldHtml("رأس الجدول والخلايا", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("gThBg", d.gThBg || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">الخط${rmColor("gThColor", d.gThColor || "#000000")}</label><label class="rm-mini">خلفية الخلايا${rmColor("gTdBg", d.gTdBg || "#f9f6f7")}</label></div>`, "المحاذاة وحجم الخط من قسم (أ) تنطبق عليها أيضًا. الافتراضي: رأس وردي فاتح وخط أسود وخلايا رمادية فاتحة.")
+    + rmFieldHtml("ألوان الرسم", `<div class="rm-row"><label class="rm-mini">المستهدف${rmColor("gTgColor", d.gTgColor || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">المتحقق${rmColor("gAcColor", d.gAcColor || d.mainColor || "#6b2337")}</label></div>`)
+    + rmFieldHtml("ألوان شريط النسبة", `<div class="rm-row"><label class="rm-mini">متحقق${rmColor("gOk", d.gOk || "#1f8a5b")}</label><label class="rm-mini">جزئي${rmColor("gWr", d.gWr || "#c9831a")}</label><label class="rm-mini">غير متحقق${rmColor("gBad", d.gBad || "#c0392b")}</label></div>`);
   }
   if (tab === "fonts") {
     const extra = rptStore().fonts;
@@ -8530,7 +8539,7 @@ function rmPanelHtml0(st) {
 }
 function rmPanelHtml(st) {
   const card = (t, h) => (h ? `<div class="rm-sec"><div class="rm-sec-h">${t}</div>${h}</div>` : "");
-  if (st.tab === "look") return card("١) الألوان والخطوط", rmPanelHtml0({ ...st, tab: "fonts" })) + (() => { const h = rmPanelHtml0({ ...st, tab: "visuals" }), i0 = h.indexOf("محاذاة رأس الجدول"), i = i0 < 0 ? -1 : h.lastIndexOf('<div class="rm-sep">', i0); if (i < 0) return card("٢) الجداول والرسوم", h); return card("٢) الجداول", h.slice(i)) + `<details class="rm-sec"><summary class="rm-sec-h" style="cursor:pointer;margin:0">٣) خيارات متقدمة: الرسوم البيانية</summary><div style="margin-top:10px">${h.slice(0, i)}</div></details>`; })();
+  if (st.tab === "look") return card("١) الألوان والخطوط", rmPanelHtml0({ ...st, tab: "fonts" })) + (() => { const h = rmPanelHtml0({ ...st, tab: "visuals" }), i = h.indexOf('<div class="rm-group">أ)'); if (i < 0) return card("٢) الجداول والرسوم", h); return card("٢) الجداول", h.slice(i)) + `<details class="rm-sec"><summary class="rm-sec-h" style="cursor:pointer;margin:0">٣) خيارات متقدمة: الرسوم البيانية</summary><div style="margin-top:10px">${h.slice(0, i)}</div></details>`; })();
   if (st.tab === "page") return card("١) الصفحة", rmPanelHtml0({ ...st, tab: "page" })) + card("٢) الكليشة (رأس وتذييل الصفحة)", rmPanelHtml0({ ...st, tab: "head" })) + card("٣) الغلاف والاعتماد", rmPanelHtml0({ ...st, tab: "cover" }));
   return rmPanelHtml0(st);
 }
@@ -8551,7 +8560,9 @@ function renderReportsManage() {
   const [w] = rptPageDims(d);
   const wide = window.innerWidth >= 900;
   const dock = st.dock == null ? wide : !!st.dock;
-  const zoom = dock ? (wide ? Math.min(0.7, Math.max(0.25, (window.innerWidth * 0.38 - 40) / (w * 3.78))) : Math.min(0.7, Math.max(0.3, (Math.min(window.innerWidth, 1100) - 60) / (w * 3.78)))).toFixed(3) : Math.min(0.6, 430 / (w * 3.78)).toFixed(3);
+  const pz = Math.max(0.6, Math.min(2, Number(st.pz) || 1)), full = !!st.pfull;
+  const zoom0 = dock ? (wide ? Math.min(0.7, Math.max(0.25, (window.innerWidth * 0.38 - 40) / (w * 3.78))) : Math.min(0.7, Math.max(0.3, (Math.min(window.innerWidth, 1100) - 60) / (w * 3.78)))).toFixed(3) : Math.min(0.6, 430 / (w * 3.78)).toFixed(3);
+  const zoom = full ? Math.min(1.2, Math.max(0.3, (window.innerWidth - 40) / (w * 3.78))).toFixed(3) : Math.min(1.3, Number(zoom0) * pz).toFixed(3);
   const doc = st.sel === "unit"
     ? fullReportOrPreviewBody(RPT_FAKE_UNIT, rptFakeUnitReport(), null, { settings: d })
     : aggReportDocHtml(d, aggFakeData(d));
@@ -8566,7 +8577,7 @@ function renderReportsManage() {
         <div class="rm-panel-head">
           <div style="font-size:15px;font-weight:800;">تصميم كل التقارير (الوحدة والنهائي وغيرها)</div>
           <div class="rm-row">
-            ${dirty ? `<span class="rm-dirty">تغييرات غير محفوظة</span>` : st.saved ? `<span class="rm-saved">تم الحفظ ✓</span>` : ""}
+            ${dirty ? `<span class="rm-dirty">تغييرات غير محفوظة</span>` : st.saved ? `<span class="rm-saved">تم الحفظ تلقائيًا ✓</span>` : ""}
             ${pillBtn(dock ? "إلغاء تثبيت المعاينة" : "تثبيت المعاينة", { variant: "ghost", action: "rm-dock" })}
             ${pillBtn("استعادة الافتراضي", { variant: "ghost", icon: iconX(14, INK), action: "rm-reset" })}
             ${pillBtn("حفظ التنسيق", { icon: iconCheckCircle(15, "#fff"), action: "rm-save", disabled: !dirty })}
@@ -8575,8 +8586,8 @@ function renderReportsManage() {
         <div class="rm-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" aria-selected="${st.tab === k}" class="rm-tab${st.tab === k ? " on" : ""}" data-action="rm-tab" data-tab="${k}">${esc(l)}</button>`).join("")}</div>
         <div class="rm-body">${rmPanelHtml(st)}</div>
       </div>
-      <div class="rm-preview${dock ? " rm-docked" : ""}">
-        <div class="rm-row" style="justify-content:space-between;margin-bottom:8px;"><span class="rm-label" style="margin:0;">معاينة حية — تتغير فور أي تعديل</span>${dock ? pillBtn("إغلاق", { variant: "ghost", action: "rm-dock" }) : ""}<span class="rm-badge">بيانات وهمية — لا تُعرض تقارير حقيقية</span></div>
+      <div class="rm-preview${dock ? " rm-docked" : ""}${full ? " rm-full" : ""}">
+        <div class="rm-row" style="justify-content:space-between;margin-bottom:8px;"><span class="rm-label" style="margin:0;">معاينة حية — تتغير فور أي تعديل</span>${dock ? pillBtn("إغلاق", { variant: "ghost", action: "rm-dock" }) : ""}<span class="rm-badge">بيانات وهمية — لا تُعرض تقارير حقيقية</span><span class="rm-zoomb">${pillBtn("−", { variant: "ghost", action: "rm-pz", data: { value: "-" } })}${pillBtn("+", { variant: "ghost", action: "rm-pz", data: { value: "+" } })}${pillBtn(full ? "إغلاق الشاشة الكاملة" : "ملء الشاشة", { variant: "ghost", action: "rm-pfull" })}</span></div>
         ${pgChips}
         <div class="rm-preview-scroll"><div style="zoom:${zoom};">${rptWrap(d, doc, true)}</div></div>
       </div>
@@ -8607,6 +8618,8 @@ function handleReportsManageAction(action, ds) {
     case "st-fld": d.statsCards = (d.statsCards || []).map((x) => { if (x.id !== ds.id) return x; const l = [...(x.flds || [])]; const i = l.indexOf(ds.fld); if (i === -1) l.push(ds.fld); else l.splice(i, 1); const sc = String(ds.fld).split(".")[0], sl = [...(x.secs || [])]; if (i === -1 && !sl.includes(sc)) sl.push(sc); return { ...x, flds: l, secs: sl }; }); break;
     case "st-cmp": d.statsCards = (d.statsCards || []).map((x) => (x.id === ds.id ? { ...x, cmp: !x.cmp } : x)); break;
     case "rm-pg": { const i = Number(ds.i) || 0; setTimeout(() => { const sc = document.querySelector(".rm-preview-scroll"); const pgs = sc && sc.querySelectorAll(".a4-page"); if (pgs && pgs[i]) sc.scrollTo({ top: pgs[i].offsetTop * 1 - 6, behavior: "smooth" }); }, 80); break; }
+    case "rm-pz": { const c = Number(st.pz) || 1; st.pz = Math.max(0.6, Math.min(2, c + (ds.value === "+" ? 0.2 : -0.2))); break; }
+    case "rm-pfull": st.pfull = !st.pfull; break;
     case "rm-dock": st.dock = !(st.dock == null ? window.innerWidth >= 900 : st.dock); break;
     case "rm-pick": st.pick = st.pick === ds.key ? null : ds.key; break;
     case "rm-sv": { d.secView = { ...(d.secView || {}) }; if (ds.val) d.secView[ds.key] = ds.val; else delete d.secView[ds.key]; break; }
@@ -9020,7 +9033,7 @@ function renderSiteSettingsInner() {
         ${pillBtn("استعادة إعدادات الهوية الافتراضية", { variant: "ghost", icon: iconX(14, INK), action: "restore-site-branding-defaults", disabled: isBrandingDefault })}
       </div>
       ${S.ui.siteSettingsFileError ? `<div class="error-box" style="margin-top:10px;">${esc(S.ui.siteSettingsFileError)}</div>` : ""}
-      ${S.ui.siteSettingsSaved ? `<div class="hint" style="color:${GREEN};margin-top:10px;">تم الحفظ ✓ — التغيير صار دائمًا لكل زوار الموقع.</div>` : ""}
+      ${S.ui.siteSettingsSaved ? `<div class="hint" style="color:${GREEN};margin-top:10px;">تم الحفظ تلقائيًا ✓ — التغيير صار دائمًا لكل زوار الموقع.</div>` : ""}
     </div>
   </div></div>`;
 }
@@ -12062,7 +12075,7 @@ function autoSaveRun() {
   try {
     if (navigator.onLine === false) { autoSaveSetInd("لم يُحفظ، سيُعاد تلقائيًا", DANGER); __autoSaveTimer = setTimeout(autoSaveRun, 5000); return; }
     const ok = trySaveSectionWithStatus(S.sectionCompleted ? "completed" : "draft");
-    if (ok) autoSaveSetInd("تم الحفظ ✓", GREEN); else { S.sectionSaveError = ""; autoSaveSetInd("لم يُحفظ — أكملي الحقول المطلوبة", DANGER); }
+    if (ok) autoSaveSetInd("تم الحفظ تلقائيًا ✓", GREEN); else { S.sectionSaveError = ""; autoSaveSetInd("لم يُحفظ — أكملي الحقول المطلوبة", DANGER); }
   } catch (e) { autoSaveSetInd("لم يُحفظ، سيُعاد تلقائيًا", DANGER); }
 }
 function autoSaveFlush() { if (__autoSaveTimer) { clearTimeout(__autoSaveTimer); autoSaveRun(); } }
@@ -18348,7 +18361,7 @@ function handleReportEditorAction(action, ds) {
     case "section-save-draft": {
       if (!actionAllowed("section-save-draft")) return true;
       if (trySaveSectionWithStatus(S.sectionCompleted ? "completed" : "draft")) {
-        S.sectionSaveStatus = "تم الحفظ ✓";
+        S.sectionSaveStatus = "تم الحفظ تلقائيًا ✓";
         render();
         setTimeout(() => { S.sectionSaveStatus = ""; if (S.activeSectionId) render(); }, 1500);
       } else render();
