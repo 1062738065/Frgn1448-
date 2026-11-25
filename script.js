@@ -8028,23 +8028,35 @@ function aggGoalsOnePageBody(ents) {
   ents.forEach(({ unit, report }) => dashOpGoals(report).forEach((og) => {
     const nm = String(og.name).trim(); if (!nm) return;
     const d = gbDefByName(nm), v = og.level && og.percentage !== "" ? numOrNull(og.percentage) : null, t = d ? numOrNull(ogTargetForReport(d.id, unit.id, report)) : null;
-    rows.push({ unit, name: nm, v, t, p: v != null && t ? Math.min(100, Math.round(v / t * 100)) : v });
+    rows.push({ unit, report, og, name: nm, gk: unit.id + "|" + nm, v, t, p: v != null && t ? Math.min(100, Math.round(v / t * 100)) : v });
   }));
   if (!rows.length) return "";
   const L = (v) => (v == null ? "na" : v >= 75 ? "ok" : v >= 40 ? "wr" : "bad"), LT = { ok: "متحقق", wr: "متحقق جزئيًا", bad: "غير متحقق", na: "لم يُقيَّم" };
   const cnt = { ok: 0, wr: 0, bad: 0, na: 0 }; rows.forEach((r) => { cnt[L(r.v)]++; });
   const seen = rows.map((r) => r.v).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
   const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
-  const bars = rows.map((r) => `<div class="rg-hb"><div class="rg-hb-l">${esc(r.unit.name)} — ${esc(r.name)}</div><div class="rg-hb-t"><i class="tg" style="width:${r.t != null ? Math.min(100, r.t) : 100}%"></i><i class="ac" style="width:${r.v != null ? Math.min(100, r.v) : 0}%"></i></div><b>${r.v != null ? r.v + "٪" : "—"}</b></div>`).join("");
-  let prev = null, i = 0, trs = "";
-  const span = {}; rows.forEach((r) => { span[r.unit.id] = (span[r.unit.id] || 0) + 1; });
-  rows.forEach((r, k) => {
-    const first = !prev || prev.unit.id !== r.unit.id; prev = r;
-    const pc = r.p == null ? "<td>—</td>" : `<td class="rg-p-${L(r.p)}">${r.p}٪</td>`;
-    trs += `<tr>${first ? `<td rowspan="${span[r.unit.id]}" class="rg-un">${esc(r.unit.name)}</td>` : ""}<td class="rg-n">${k + 1}</td><td class="rg-nm" style="font-weight:700">${esc(r.name)}</td><td>${r.t != null ? r.t + "٪" : "—"}</td><td>${r.v != null ? r.v + "٪" : "—"}</td>${pc}<td>${LT[L(r.p)]}</td></tr>`;
+  // الرسم: نفس رسم تقرير الوحدة (أعمدة المستهدف والمتحقق + خط النسبة)
+  const W = Math.max(700, rows.length * 90 + 50), H = 250, pl = 38, pr = 10, pt = 30, pb = 54, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;max-width:${W > 760 ? "100%" : "760px"};display:block;margin:0 auto">`;
+  for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
+  rows.forEach((r, i) => {
+    const bw = Math.min(28, gw / 3), t = r.t != null ? r.t : 100;
+    svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-c1,#e3b6c5)"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`;
+    if (r.v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.v)}" width="${bw}" height="${yy(0) - yy(r.v)}" rx="3" style="fill:var(--rpt-burgundy,#7a1f3d)"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.v}%</text>`;
+    const w = r.name.split(" "), mid = Math.ceil(w.length / 2);
+    [w.slice(0, mid).join(" "), w.slice(mid).join(" ")].forEach((ln, q) => { svg += `<text x="${cx(i)}" y="${H - pb + 16 + q * 12}" font-size="8" text-anchor="middle" fill="#2b1a20" font-weight="700">${esc(ln.length > 34 ? ln.slice(0, 33) + "…" : ln)}</text>`; });
+    svg += `<text x="${cx(i)}" y="${H - pb + 42}" font-size="7.5" text-anchor="middle" fill="#8a7279">${esc(r.unit.name)}</text>`;
   });
-  const tbl = `<div class="rg-tw"><table class="rg-rtb rg-ag"><tr><th class="rg-un">الوحدة</th><th class="rg-n">م</th><th class="rg-nm">الهدف التشغيلي</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th></tr>${trs}</table></div>`;
-  return `<div class="rg-scope"><div class="rg-rh">تحليل الأهداف التشغيلية — كل الوحدات</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div><div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#6b2337)"></s> المتحقق</span></div><div class="rg-hbs">${bars}</div><div class="rg-rh" style="margin-top:14px">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}</div>`;
+  const pts = rows.map((r, i) => [cx(i), r.v]).filter((p) => p[1] != null);
+  if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join("");
+  svg += "</svg>";
+  const legend = `<div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#7a1f3d)"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
+  // الجدول: نفس أعمدة تقرير الوحدة
+  const reg = rptEvRegCore(rows.map((r) => ({ report: r.report, og: r.og, unit: r.unit, gk: r.gk }))), gnum = {}; rows.forEach((r, i) => { gnum[r.gk] = { n: i + 1, anchor: "rpt-ogx-" + r.gk }; });
+  const head = `<tr><th rowspan="2">م</th><th rowspan="2">الهدف التشغيلي</th><th colspan="3">النتيجة</th><th rowspan="2">الحالة</th><th rowspan="2">الشواهد</th></tr><tr><th>المستهدف</th><th>المتحقق</th><th>النسبة</th></tr>`;
+  const trs = rows.map((r, i) => `<tr id="rpt-ogx-${esc(r.gk)}"><td>${i + 1}</td><td style="font-weight:700">${esc(r.name)}<div style="font-size:9px;font-weight:600;color:#8a7279">${esc(r.unit.name)}</div></td><td>${r.t != null ? r.t + "٪" : "—"}</td><td>${r.v != null ? r.v + "٪" : "—"}</td>${r.p == null ? "<td>—</td>" : `<td class="rg-p-${L(r.p)}">${r.p}٪</td>`}<td>${LT[L(r.p)]}</td><td>${rptEvChips(reg, { id: r.gk }, r.name)}</td></tr>`).join("");
+  const tbl = `<div class="rg-tw"><table class="rg-rtb">${head}${trs}</table></div>`;
+  return `<div class="rg-scope"><div class="rg-rh">تحليل الأهداف التشغيلية — كل الوحدات</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div>${legend}${svg}<div class="rg-rh" style="margin-top:14px">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}</div>`;
 }
 /* التقرير النهائي بنفس تنسيق تقرير الوحدة: لكل فصل صفحة لكل وحدة (نفس البطاقات والخط والألوان والرسوم) */
 function aggUnitStylePages(data) {
