@@ -1398,3 +1398,259 @@ body.sp-body{background:#f7f3f1}
 .sp-hint{font-size:11.5px;color:#8d7e80;margin-top:6px}.sp-note{font-size:12px;color:#8d7e80;margin-top:12px}
 .sp-btn{font:inherit;font-size:15px;font-weight:800;padding:12px 26px;border-radius:12px;border:0;background:#7a3340;color:#fff;cursor:pointer;min-height:46px}
 .sp-err{color:#c0392b;font-weight:700;font-size:13px;margin:8px 0}.sp-foot{text-align:center;font-size:12px;color:#a59a9c;margin-top:14px}
+
+/* مستودع الشواهد: روابط التنقل داخل التقرير */
+.rpt-jump{color:var(--rose,#8a1f3d);font-weight:700;text-decoration:none;cursor:pointer;font-size:12px}
+.rpt-jump:hover{text-decoration:underline}
+.rpt-flash{animation:rptflash 1.8s ease}
+@keyframes rptflash{0%,60%{background:#fff3c4}100%{background:transparent}}
+.og-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+@media (max-width: 640px) { .og-trio { grid-template-columns: 1fr; } }
+.multi-dropdown-panel.mdp-float { position: absolute; inset-inline: 0; z-index: 30; box-shadow: 0 8px 24px rgba(60,20,30,.18); max-height: 260px; }
+.multi-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 44px; cursor: pointer; }
+
+/* مربع بيانات هدف اللوحة: جدول يطلع من العمود بسهم */
+.gb-pop{position:absolute;z-index:6;width:250px;background:#fff;border:1px solid #d9b8c3;border-radius:12px;box-shadow:0 12px 30px rgba(80,20,40,.28);text-align:center}
+.gb-pop::after{content:"";position:absolute;top:calc(100% - 34px);border:9px solid transparent}
+.gb-pop.aR::after{right:-18px;border-left-color:var(--rose,#7a1f3d)}
+.gb-pop.aL::after{left:-18px;border-right-color:var(--rose,#7a1f3d)}
+.gb-pop-h{background:var(--rose,#7a1f3d);color:#fff;font-weight:700;font-size:12.5px;line-height:1.4;padding:7px 30px;border-radius:11px 11px 0 0;position:relative}
+.gb-pop-h button{position:absolute;inset-inline-end:6px;top:5px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(255,255,255,.22);color:#fff;cursor:pointer;font-size:12px;line-height:1}
+.gb-pop table{width:100%;border-collapse:collapse;border-radius:0 0 11px 11px;overflow:hidden}
+.gb-pop td{border:1px solid #ead6dc;padding:5px 8px;font-size:12px;background:#fff}
+.gb-pop td:first-child{background:#f7ecef;color:var(--rose,#7a1f3d);font-weight:700;width:55%}
+.gb-pop td:last-child{font-weight:700}
+.gb-pop tr:first-child td{border-top:0}.gb-pop td:first-child{border-inline-start:0}.gb-pop td:last-child{border-inline-end:0}.gb-pop tr:last-child td{border-bottom:0}
+
+/* تقرير الأهداف: رسم + جدول + سجل الشواهد */
+.rpt-gctl{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+.rpt-gp{border:1px solid #e0cdd4;background:#fff;color:var(--rpt-burgundy,#6b2337);border-radius:999px;padding:4px 12px;font:inherit;font-size:11.5px;cursor:pointer}
+.rpt-gp.on{background:var(--rpt-burgundy,#6b2337);color:#fff;border-color:var(--rpt-burgundy,#6b2337)}
+.rpt-gx{border:0;background:#f3e1e7;color:#8a1f3d;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:11px}
+.rpt-gks{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:8px 0 10px}
+.rpt-gk{border:1px solid #ecdfe3;border-radius:12px;padding:8px 10px;background:#fff}.rpt-gk b{display:block;font-size:20px;line-height:1.2}.rpt-gk span{font-size:11px;color:#8a7279;font-weight:700}
+.rpt-evx-w{overflow-x:auto;border:1px solid #ecdfe3;border-radius:12px;margin-top:6px}
+.rpt-evx{width:100%;border-collapse:collapse;font-size:11.5px}
+.rpt-evx th{background:var(--rpt-burgundy,#6b2337);color:#fff;padding:7px 8px;font-size:11px}
+.rpt-evx td{padding:6px 8px;border-top:1px solid #f0e3e7;text-align:center;vertical-align:middle}
+.rpt-evx tr:nth-child(even) td{background:#fcf6f8}
+.rpt-evx-s{font-size:10.5px;color:#8a7279;font-weight:500}
+.rpt-ecode{display:inline-block;background:#f3e1e7;color:var(--rpt-burgundy,#6b2337);font-weight:800;border-radius:8px;padding:1px 7px;font-size:11px;text-decoration:none;margin:1px 2px}
+.rpt-gchip{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--rpt-burgundy,#6b2337);color:#fff;font-weight:800;font-size:10.5px;text-decoration:none;margin:1px 2px}
+.rpt-gal2{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:6px}
+.rpt-ph2{margin:0;border:1px solid #ecdfe3;border-radius:12px;overflow:hidden;background:#fff}
+.rpt-ph2 img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.rpt-ph2 figcaption{padding:6px 8px;font-size:10.5px}.rpt-ph2 figcaption b{display:block;margin-bottom:3px}
+@media print{.rpt-ev-open{background:none;color:var(--rpt-burgundy,#6b2337)}}
+
+/* ألوان نموذج الأهداف: عنابي #7a1f3d + ورديّات */
+.rpt-gscope{--rpt-burgundy:#7a1f3d}
+.rpt-gscope .rpt-gk{border-radius:14px}
+.rpt-gscope .rpt-gk b{font-size:24px}
+.rpt-pv{display:inline-block;min-width:44px;padding:2px 8px;border-radius:8px;font-weight:700}
+.rpt-dt{display:inline-block;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px}
+.rpt-gscope .rpt-evx th,.rpt-gscope .rpt-gchip{background:#7a1f3d}
+.rpt-gscope .rpt-ecode{background:#f3e1e7;color:#7a1f3d}
+
+/* بطاقات أرقام لوحة الأهداف + سهم الاتجاه فوق العمود */
+.gbk-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:4px 0 12px}
+.gbk{border-radius:14px;padding:10px 12px;border:1px solid #ecdfe3;background:#fff}
+.gbk span{display:block;font-size:12px;font-weight:700;color:#8a7279}.gbk b{display:block;font-size:26px;line-height:1.25}
+.gbk-ok{background:#e2f4ea;border-color:transparent}.gbk-ok b{color:#1f8a5b}
+.gbk-wr{background:#fcefd8;border-color:transparent}.gbk-wr b{color:#c9831a}
+.gbk-bad{background:#fbe3e0;border-color:transparent}.gbk-bad b{color:#c0392b}
+.gbk-avg{background:#f1eceb;border-color:transparent}.gbk-avg b{color:#7a1f3d}
+.gbk-all b{color:#2b1a20}
+.gb-dir{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;border-radius:8px;padding:1px 9px;white-space:nowrap}
+.gb-dir-up{background:#e2f4ea;color:#1f8a5b}.gb-dir-down{background:#fbe3e0;color:#c0392b}.gb-dir-same{background:#f1eceb;color:#8a7279}
+
+.gb-lk{border:0;background:none;color:#c0392b;font:inherit;font-size:11px;text-decoration:underline;cursor:pointer;margin-inline-start:6px;padding:0}
+.rpt-gctl{display:block;border:1px solid #ecdfe3;border-radius:14px;padding:10px 12px;background:#fff}
+.rpt-gl{font-size:12px;font-weight:700;color:#8a7279;margin-bottom:6px}
+.rpt-gpills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.rpt-gsel{display:flex;gap:10px;flex-wrap:wrap}
+.rpt-gl2{display:block;font-size:11.5px;font-weight:700;color:#8a7279;margin-bottom:3px}
+
+/* صفحة الأهداف: بطاقات قابلة للطيّ + حلقة النسبة + أزرار أنواع الدليل */
+.og-block.og-card{border-right:0;border:1px solid var(--line,#ecdfe3);border-radius:18px;padding:0;background:#fff;overflow:hidden;margin-top:14px}
+.og-head{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;background:linear-gradient(90deg,#fbf3f6,#fff)}
+.og-ring{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:800;font-size:12px;background:conic-gradient(var(--c) calc(var(--v)*1%),#efe6e9 0)}
+.og-ring span{width:36px;height:36px;border-radius:50%;background:#fff;display:grid;place-items:center}
+.og-ht{flex:1;min-width:0}.og-ht b{display:block;font-size:14.5px}.og-ht small{color:#8a7279;font-size:11.5px}
+.og-chev{color:#8a7279}
+.og-body{padding:0 14px 14px;border-top:1px solid var(--line,#ecdfe3)}
+.og-trio{margin:14px 0 8px}
+.og-trio>*{border:1px solid #ecdfe3;border-radius:14px;padding:10px 12px;background:#fbf3f6;min-width:0}
+.og-adv{margin:6px 0 10px;font-size:12.5px}.og-adv summary{cursor:pointer;color:#8a7279;font-weight:700}
+.og-sec{font-size:13px;font-weight:800;margin:14px 0 8px;display:flex;align-items:center;gap:8px}
+.og-sec em{font-style:normal;background:var(--rose,#6b2337);color:#fff;border-radius:99px;font-size:11px;padding:0 8px}
+.og-types{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.og-ty{border:1px solid #ecdfe3;background:#fff;color:inherit;border-radius:999px;padding:5px 12px;font:inherit;font-size:12px;cursor:pointer}
+.og-ty.on{background:var(--rose,#6b2337);color:#fff;border-color:var(--rose,#6b2337)}
+.og-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;flex:none;background:#fbf3f6}
+
+/* ===== تقرير الأهداف بنفس شكل النموذج ===== */
+.rg-scope{--rg:var(--rpt-burgundy,#7a1f3d)}
+.rg-rh{color:var(--rpt-burgundy,#7a1f3d);font-size:15px;font-weight:800;margin:14px 0 6px}
+.rg-rk{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px}
+.rg-rk div{border:1px solid var(--rpt-line,#ecdfe3);border-radius:10px;padding:7px 10px;background:var(--rpt-t0,#fffafb)}
+.rg-rk b{display:block;font-size:22px;color:var(--rpt-burgundy,#7a1f3d)}.rg-rk span{font-size:11.5px;color:#6b5a60;font-weight:700}
+.rg-rk .ok b{color:#1f8a5b}.rg-rk .wr b{color:#c9831a}.rg-rk .bad b{color:#c0392b}
+.rg-leg{font-size:12px;color:#6b5a60;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:2px}.rg-leg s{display:inline-block;width:11px;height:11px;border-radius:3px;text-decoration:none;vertical-align:-1px}
+.rg-tw{overflow-x:auto}
+.rg-rtb{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0 14px;min-width:560px}
+.rg-rtb th{background:var(--rpt-burgundy,#7a1f3d);color:#fff;padding:6px 4px;border:1px solid #fff;font-weight:700;font-size:11px;line-height:1.35}
+.rg-rtb td{border:1px solid var(--rpt-line,#ecdfe3);padding:6px 4px;text-align:center;background:var(--rpt-t0,#fffafb);line-height:1.5}
+.rg-rtb a{color:var(--rpt-burgundy,#7a1f3d);font-weight:700;text-decoration:none}
+.rg-rtb .rg-p-ok{background:#e2f4ea;color:#1f8a5b;font-weight:700}.rg-rtb .rg-p-wr{background:#fcefd8;color:#c9831a;font-weight:700}.rg-rtb .rg-p-bad{background:#fbe3e0;color:#c0392b;font-weight:700}
+.rg-dtag{display:inline-block;border-radius:999px;padding:2px 9px;font-weight:700;font-size:10.5px;white-space:nowrap}.rg-dtag.up{background:#e2f4ea;color:#1f8a5b}.rg-dtag.dn{background:#fbe3e0;color:#c0392b}.rg-dtag.eq{background:#ecebeb;color:#6d6a6b}
+.rg-eg{border:1px solid var(--rpt-line,#ecdfe3);border-radius:14px;margin-bottom:10px;background:#fff;overflow:hidden}
+.rg-eg-h{display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(90deg,var(--rpt-t1,#f6e9ee),var(--rpt-t0,#fffafb));border-bottom:1px solid var(--rpt-line,#ecdfe3);flex-wrap:wrap}
+.rg-eg-n{width:28px;height:28px;border-radius:50%;background:var(--rpt-burgundy,#7a1f3d);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.rg-eg-t{flex:1;min-width:160px;font-weight:700;color:#2b1a20}.rg-eg-t small{display:block;font-weight:500;color:#8a7279;font-size:11.5px}
+.rg-wt{font-size:10.5px;border-radius:999px;padding:1px 8px;background:var(--rpt-t1,#f0e4e8);color:var(--rpt-burgundy,#7a1f3d);font-weight:700}
+.rg-eg-b{font-weight:700;font-size:12px;color:var(--rpt-burgundy,#7a1f3d);text-decoration:none;border:1px solid var(--rpt-burgundy,#7a1f3d);border-radius:999px;padding:4px 12px}
+.rg-eg-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:6px;padding:8px 12px}
+.rg-wc{display:flex;gap:7px;align-items:center;border:1px solid var(--rpt-line,#ecdfe3);border-radius:9px;padding:4px 8px;background:var(--rpt-t0,#fffafb)}
+.rg-wc b{display:block;font-size:12px;line-height:1.35}.rg-wc small{display:block;color:#8a7279;font-size:11px;line-height:1.4}
+.rg-wi{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:13px}
+.rg-wi.img{background:var(--rpt-t1,#f6e3ea)}.rg-wi.pdf{background:var(--rpt-burgundy,#7a1f3d);color:#fff;font-size:9px;font-weight:700}.rg-wi.lnk{background:#efe6dc}.rg-wi.txt{background:#e8edf6}
+.rg-go{margin-inline-start:auto;width:22px;height:22px;border-radius:50%;border:0;background:var(--rpt-t1,#f6e9ee);color:var(--rpt-burgundy,#7a1f3d);display:grid;place-items:center;font-size:11px;font-weight:700;text-decoration:none;flex:none;cursor:pointer}
+.rg-dom{direction:ltr;unicode-bidi:embed;color:#a1868f;font-size:10.5px}
+.rg-also{display:block;font-size:10px;color:#8a7279;margin-top:1px}.rg-also a{color:var(--rpt-burgundy,#7a1f3d);font-weight:700}
+.rg-gh{padding:2px 12px 4px;font-size:11px;color:var(--rpt-burgundy,#7a1f3d);font-weight:700}
+.rg-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,118px));gap:7px;padding:0 12px 10px}
+.rg-ph{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1/1;background:var(--rpt-t1,#f0e4e8);display:block;box-shadow:0 2px 10px rgba(122,31,61,.12)}
+.rg-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.rg-ph .cap{position:absolute;inset-inline:0;bottom:0;padding:14px 6px 5px;background:linear-gradient(transparent,rgba(43,14,24,.82));color:#fff;font-size:10px;font-weight:700;text-align:right}
+.rg-hint{font-size:11.5px;color:#8a7279}
+
+/* ضبط مطابق للنموذج */
+.rg-rh{font-weight:400;font-size:15px;margin:10px 0 4px}
+.rg-rtb{table-layout:fixed;font-size:11px;min-width:860px}
+.rg-rtb td{word-wrap:break-word}
+.rg-rtb th{font-size:11px}
+.rg-rtb td:nth-child(2){text-align:center}
+.rg-eg{margin-bottom:12px}
+.rg-eg-h{padding:10px 14px}
+.rg-eg-g{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;padding:12px}
+.rg-wc{gap:9px;border-radius:12px;padding:7px 10px}
+.rg-wi{width:36px;height:36px;border-radius:10px;font-size:16px}.rg-wi.pdf{font-size:12px}
+.rg-wc b{font-size:12.5px}.rg-go{width:26px;height:26px;font-size:12px}
+.rg-also{font-size:11px;margin-top:4px}
+.rg-gh{padding:2px 14px 4px;font-size:12px}
+.rg-gal{grid-template-columns:repeat(auto-fill,minmax(180px,230px));gap:10px;padding:0 12px 12px}
+.rg-ph{aspect-ratio:4/3;border-radius:14px}
+.rg-ph .cap{padding:22px 10px 8px;font-size:12px}
+.rg-leg{font-size:12px;margin-bottom:6px}.rg-leg s{width:12px;height:12px;margin-inline-end:4px}
+
+/* ===== ملاءمة PDF/الطباعة لقسم الأهداف ===== */
+.rg-rtb{min-width:0}
+.rg-gh{display:flex;align-items:center;gap:5px}
+.rg-wi svg{display:block}
+.rg-rtb tr,.rg-eg,.rg-wc,.rg-rk div{break-inside:avoid;page-break-inside:avoid}
+.rg-rtb thead{display:table-header-group}
+.rpt-pdf .no-print{display:none!important}
+.rpt-pdf .rg-tw,.rg-tw.pdf{overflow:visible!important}
+.rpt-pdf .rg-rtb,.rpt-pdf .rg-rtb th,.rpt-pdf .rg-rtb td{font-size:9.5px!important}
+.rpt-pdf .rg-rtb{min-width:0!important;width:100%;table-layout:auto}
+.rpt-pdf .rg-rtb th,.rpt-pdf .rg-rtb td{padding:5px 3px}
+.rpt-pdf .rg-rtb td:nth-child(2){text-align:right;font-weight:700;min-width:120px}
+.rpt-pdf .rg-rtb th:first-child,.rpt-pdf .rg-rtb td:first-child{width:22px}
+.rpt-pdf .rg-rk{grid-template-columns:repeat(5,1fr);gap:6px}
+.rpt-pdf .rg-rk b{font-size:19px}
+.rpt-pdf .rg-eg-g{grid-template-columns:repeat(2,1fr)}
+.rpt-pdf .rg-gal{grid-template-columns:repeat(4,1fr)}
+.rpt-pdf .rg-rh{font-weight:700;border-inline-start:4px solid #c9a24b;padding-inline-start:8px;margin:14px 0 8px}
+.rpt-pdf .rg-eg-b,.rpt-pdf .rg-go{display:none}
+.rpt-pdf .rg-rtb a{text-decoration:none}
+.rpt-pdf svg{max-width:100%;height:auto}
+@media print{
+  .rg-tw{overflow:visible!important}
+  .rg-rtb,.rg-rtb th,.rg-rtb td{font-size:9.5px!important;min-width:0!important}
+  .rg-rtb{width:100%;table-layout:auto}
+  .rg-eg-b,.rg-go{display:none}
+  .rg-rtb th,.rg-rtb td,.rg-rk div,.rg-eg-h,.rg-wi,.rg-ph .cap{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+.rg-rtb{table-layout:auto}
+.rg-rtb th:nth-child(2),.rg-rtb td:nth-child(2){min-width:150px;text-align:right}
+.rg-rtb th:first-child,.rg-rtb td:first-child{width:30px}
+/* خط وألوان القسم مطابقة للنموذج */
+.rg-scope{font-family:var(--rpt-font-body,'Cairo'),'Cairo','Tajawal',sans-serif;color:#2b1a20;font-weight:500}
+.rg-scope .rg-rh,.rg-scope .rg-rk b,.rg-scope .rg-rtb th,.rg-scope .rg-eg-t,.rg-scope .rg-eg-n{font-family:var(--rpt-font-heading,'Cairo'),'Cairo','Tajawal',sans-serif}
+.rg-scope .rg-rh{font-weight:700;color:var(--rpt-burgundy,#7a1f3d);font-size:15.5px}
+.rg-scope .rg-rtb td{font-weight:600;color:#2b1a20;font-size:11.5px}
+.rg-scope .rg-rtb td:nth-child(2){font-weight:700}
+.rg-scope .rg-rtb th{font-weight:700;font-size:11.5px;color:#fff;background:var(--rpt-burgundy,#7a1f3d)}
+.rg-scope .rg-rtb .rg-p-ok{color:#1f8a5b;background:#e2f4ea}.rg-scope .rg-rtb .rg-p-wr{color:#c9831a;background:#fcefd8}.rg-scope .rg-rtb .rg-p-bad{color:#c0392b;background:#fbe3e0}
+.rg-scope .rg-rk span{font-weight:700;color:#6b5a60}
+.rg-scope .rg-wc b{font-weight:700;color:#2b1a20}.rg-scope .rg-wc small{font-weight:500;color:#8a7279}
+.rg-scope svg text{font-family:inherit}
+.rpt-pdf .rg-rtb td,.rpt-pdf .rg-rtb th{font-size:9.5px!important}
+/* جدول الأهداف: توزيع أعمدة ثابت + توسيط + خط أنظف */
+.rg-scope .rg-tw{overflow:visible}
+.rg-scope .rg-rtb{table-layout:fixed!important;width:100%;min-width:0!important;font-family:'IBM Plex Sans Arabic','Cairo',sans-serif}
+.rg-scope .rg-rtb th,.rg-scope .rg-rtb td{font-family:'IBM Plex Sans Arabic','Cairo',sans-serif;text-align:center!important;vertical-align:middle;font-size:11px;font-weight:600;padding:6px 3px;word-break:break-word}
+.rg-scope .rg-rtb th{font-weight:700;font-size:11px}
+.rg-scope .rg-rtb td:nth-child(2){min-width:0;font-weight:700}
+.rg-scope .rg-rtb tr:first-child th:first-child{width:28px}
+.rg-scope .rg-rtb tr:first-child th:nth-child(2){width:19%}
+.rg-scope .rg-rtb tr:first-child th:nth-last-child(1){width:11%}
+.rg-scope .rg-rtb tr:first-child th:nth-last-child(2){width:11%}
+.rg-scope .rg-rtb a{white-space:nowrap;font-size:10.5px}
+.rg-scope .rg-dtag{font-size:10px;padding:2px 7px}
+.rg-scope .rg-rtb a{white-space:normal}
+.rg-scope .rg-rtb tr:first-child th:nth-last-child(1){width:13%}
+
+.rg-scope .rg-rtb th{background:var(--rpt-gh-bg,var(--rpt-burgundy,#7a1f3d))!important;color:var(--rpt-gh-color,#6b2337)!important}
+.rg-scope .rg-rtb td,.rg-scope .rg-rtb th{font-family:var(--rpt-font-body,'IBM Plex Sans Arabic'),'IBM Plex Sans Arabic','Cairo',sans-serif}
+.rg-scope .rg-rtb td{font-size:var(--rpt-table-fs,11px)}
+.rg-scope .rg-rtb td:not(:nth-child(2)){text-align:var(--rpt-td-align,center)!important}
+.rg-scope .rg-rtb td:nth-child(2){text-align:var(--rpt-td-align,center)!important}
+.rg-scope.rg-zebra .rg-rtb tr:nth-child(even) td{filter:brightness(.98)}
+.rg-scope .rg-wi.pdf{color:#fff}
+
+/* ===== جداول الأهداف كلها بنفس التنسيق: رأس برغندي فاتح + توسيط + خط موحّد ===== */
+.rg-scope .rg-rtb th,.gb-board table.prs-table th,.rg-flat table.prs-table th,.rpt-evx th{background:var(--rpt-gh-bg,#f4ece4)!important;color:var(--rpt-gh-color,#6b2337)!important;text-align:center!important;vertical-align:middle;font-weight:700;font-family:var(--rpt-font-body,'IBM Plex Sans Arabic'),'IBM Plex Sans Arabic','Cairo',sans-serif;border:1px solid rgba(255,255,255,.7)}
+.gb-board table.prs-table td,.rg-flat table.prs-table td,.rpt-evx td,.rg-scope .rg-rtb td{text-align:center!important;vertical-align:middle;font-weight:600;font-family:var(--rpt-font-body,'IBM Plex Sans Arabic'),'IBM Plex Sans Arabic','Cairo',sans-serif}
+.gb-board table.prs-table td:first-child,.rg-flat table.prs-table td:first-child{font-weight:700}
+.rpt-evx td:nth-child(2){text-align:center}
+.rg-scope .rg-rtb td:nth-child(2){text-align:center!important}
+/* اللوحة: نفس تنسيق جداول الأهداف في التقرير (رأس برغندي فاتح، توسيط، خط موحّد) */
+.gb-pop{--ghd:#a8395c;font-family:'IBM Plex Sans Arabic','Cairo',sans-serif}
+.gb-pop-h{background:var(--ghd);font-family:'IBM Plex Sans Arabic','Cairo',sans-serif;text-align:center;font-weight:700}
+.gb-pop.aR::after{border-left-color:var(--ghd)}.gb-pop.aL::after{border-right-color:var(--ghd)}
+.gb-pop td{text-align:center;vertical-align:middle;font-weight:600;font-family:'IBM Plex Sans Arabic','Cairo',sans-serif;color:#2b1a20}
+.gb-pop td:first-child{background:#f7ecef;color:var(--ghd);font-weight:700;text-align:center}
+.gb-board table.prs-table th{background:#a8395c;color:#fff}
+.gbk span,.gbk b{font-family:'IBM Plex Sans Arabic','Cairo',sans-serif}
+.gbk span{font-weight:700}
+
+/* اللوحة: رأس الجداول بنفس ألوان جداول التقرير */
+.gb-board table.prs-table th{background:#f4ece4;color:#6b2337}
+.gb-pop{--ghd:#6b2337}
+.gb-pop-h{background:#f4ece4;color:#6b2337;border-bottom:1px solid #ead6dc}
+.gb-pop-h button{background:rgba(107,35,55,.12);color:#6b2337}
+.gb-pop.aR::after{border-left-color:#f4ece4}.gb-pop.aL::after{border-right-color:#f4ece4}
+.rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th{border:1px solid rgba(107,35,55,.18)}
+/* خط جداول الأهداف = خط التقرير نفسه، وأصغر، والمحتوى في الوسط */
+.rg-scope .rg-rtb,.rg-scope .rg-rtb th,.rg-scope .rg-rtb td,.rg-flat table.prs-table th,.rg-flat table.prs-table td,.gb-board table.prs-table th,.gb-board table.prs-table td,.rpt-evx th,.rpt-evx td,.gb-pop,.gb-pop-h,.gb-pop td{font-family:inherit!important}
+.rg-scope .rg-rtb th,.rg-scope .rg-rtb td,.rg-flat table.prs-table th,.rg-flat table.prs-table td,.gb-board table.prs-table th,.gb-board table.prs-table td,.rpt-evx th,.rpt-evx td{font-size:10.5px!important;text-align:center!important;vertical-align:middle}
+.rg-scope .rg-rtb td:nth-child(2),.rg-scope .rg-rtb th:nth-child(2){text-align:center!important}
+.rpt-pdf .rg-rtb th,.rpt-pdf .rg-rtb td{font-size:9px!important}
+
+/* رأس جدول «تفاصيل الأهداف التشغيلية»: برغندي فاتح بنص أبيض */
+.rg-scope .rg-rtb th{background:var(--rpt-gl-bg,#a8395c)!important;color:#fff!important;border:1px solid rgba(255,255,255,.55)}
+/* رأس «تفاصيل الأهداف التشغيلية»: بلون عمود المستهدف + توسيط كامل */
+.rg-scope .rg-rtb th{background:var(--rpt-c1,#e3b6c5)!important;color:var(--rpt-burgundy,#6b2337)!important;text-align:center!important;vertical-align:middle!important;border:1px solid #fff}
+.rg-scope .rg-rtb thead th,.rg-scope .rg-rtb tr:first-child th{text-align:center!important}
+/* خلايا أوسع ومحتوى في الوسط */
+.rg-scope .rg-tw{overflow-x:auto}
+.rg-scope .rg-rtb{table-layout:auto!important;min-width:560px!important}
+.rg-scope .rg-rtb th,.rg-scope .rg-rtb td{padding:8px 7px!important;text-align:center!important;vertical-align:middle!important;line-height:1.55}
+.rg-scope .rg-rtb tr:nth-child(2) th,.rg-scope .rg-rtb th[colspan="1"]{min-width:72px}
+.rg-scope .rg-rtb td:nth-child(2),.rg-scope .rg-rtb th:nth-child(2){min-width:150px}
+.rpt-pdf .rg-rtb{min-width:0!important}
+.rpt-pdf .rg-rtb th,.rpt-pdf .rg-rtb td{padding:6px 4px!important}
+.rpt-pdf .rg-rtb tr:nth-child(2) th,.rpt-pdf .rg-rtb th[colspan="1"]{min-width:44px}
+@media print{.rg-scope .rg-rtb{min-width:0!important}}

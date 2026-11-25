@@ -3607,6 +3607,7 @@ function dashItemModalHtml(sid) {
     </div></div>`;
 }
 function dashFieldBlockHtml(kind, sid, units) {
+  if (sid === "evidence") return ""; // الشواهد والمرفقات مكانها التقارير فقط
   const sc = SECTION_FIELD_SCHEMAS[sid]; if (!sc) return "";
   const owner = DASH_FLD_OWNER[sid] || sid;
   const rows = [], unitOf = new Map(); let reports = 0;
@@ -4009,6 +4010,7 @@ function dashKpiShapeHtml(units) {
   } catch (e) { return ""; }
 }
 function dashFieldShapeHtml(kind, sid, units) {
+  if (sid === "evidence") return ""; // الشواهد والمرفقات مكانها التقارير فقط
   // الشكل المختار لقسم في اللوحة يحلّ محل البطاقة القديمة (أرقام + توزيع + قائمة) بدل أن يُطبَّق على جدول غير موجود
   // الصعوبات: التصميم الخاص (الأبراج) هو الافتراضي، وأي شكل تختاره مديرة النظام من المكتبة يحلّ محله
   const dm = (dashConfig() || {})._dashShapes || {}; const v = dm[sid] || "";
@@ -4438,7 +4440,7 @@ function chartsSummaryPages(pagesHtml, title) {
     const box = document.createElement("div"); box.innerHTML = pagesHtml;
     const cards = [], seen = {}, indAll = [], indSeen = {};
     box.querySelectorAll("table").forEach((tb) => {
-      if (tb.querySelector("table") || tb.closest(".rpt-v5")) return;
+      if (tb.querySelector("table") || tb.closest(".rpt-v5") || tb.closest(".rg-scope")) return;
       const items = tvShapeItems(tb); if (items.some((q) => q.x || q.meta)) items.forEach((q) => { if (!indSeen[q.title]) { indSeen[q.title] = 1; indAll.push(q); } });
       if (!items.length || !items.some((i) => i.num != null)) return;
       let ttl = ""; try { let el = (tb.closest(".table-wrap") || tb); const w = tb.closest(".tv-wrap"); if (w) el = w; let q = el.previousElementSibling; while (q && !ttl) { if (/rpt-subheading|^H[1-6]$|rpt-ch-title/.test((q.className || "") + " " + q.tagName)) ttl = q.textContent.trim(); q = q.previousElementSibling; } if (!ttl) { const ch = el.closest(".rpt-chapter,.rpt-ch,section"); const h = ch && ch.querySelector("h1,h2,h3,.rpt-ch-title"); ttl = h ? h.textContent.trim() : ""; } } catch (e) {}
@@ -4460,7 +4462,7 @@ function tvApply(html, id, mode) {
     try {
       const box = document.createElement("div"); box.innerHTML = html; let n = 0;
       box.querySelectorAll("table").forEach((tb) => {
-        if (tb.closest(".tv-wrap") || tb.closest(".gb-board") || tb.querySelector("table")) return;
+        if (tb.closest(".tv-wrap") || tb.closest(".gb-board") || tb.closest(".rg-scope") || tb.querySelector("table")) return;
         const items = tvShapeItems(tb); if (items.length < 1) return;
         let ttl = ""; try { let p = (tb.closest(".table-wrap") || tb).previousElementSibling; while (p && !ttl) { if (/rpt-subheading|^H[1-6]$|rpt-ch-title/.test((p.className || "") + " " + p.tagName)) ttl = p.textContent.trim(); p = p.previousElementSibling; } } catch (e) {}
         const sh = shapeRender(sid, { auto: true }, { sectionId: "tbl", items, label: ttl, dash: true }); if (!sh) { const hn = document.createElement("div"); hn.className = "hint no-print"; hn.style.marginBottom = "6px"; hn.textContent = "هذا الشكل لا يناسب بيانات هذا الجدول، فعُرض الجدول كما هو."; (tb.closest(".table-wrap") || tb).before(hn); return; }
@@ -4477,7 +4479,7 @@ function tvApply(html, id, mode) {
     const box = document.createElement("div"); box.innerHTML = html;
     let n = 0;
     box.querySelectorAll("table").forEach((tb) => {
-      if (tb.closest(".tv-wrap") || tb.closest(".gb-board") || tb.querySelector("table")) return;
+      if (tb.closest(".tv-wrap") || tb.closest(".gb-board") || tb.closest(".rg-scope") || tb.querySelector("table")) return;
       const ch = tvChartFromTable(tb); if (!ch) return;
       const host = tb.closest(".table-wrap") || tb; const tid = id + "#" + (n++);
       const showTbl = (S.ui.tv || {})[tid] || mode === "both";
@@ -4503,6 +4505,7 @@ function dashEff(kind) {
 }
 function dashB(kind, key, html) {
   if (key === "indicators" || key === "indMatrix") return ""; // دُمجتا في بطاقة «مؤشرات الأداء» (indBoard)
+  if (key === "yearCompare" || key === "fld_evidence") return ""; // حُذفتا من اللوحة: مقارنة 3 سنوات، والشواهد والمرفقات (مكانها التقارير)
   if (!html || dashHidden(kind, key)) return "";
   const eff = dashEff(kind), e = eff.findIndex((x) => x.k === key), o = (e === -1 ? 500 : e) + 1;
   let head = "";
@@ -4614,8 +4617,8 @@ function dashLineSvg(labels, a, b) {
   const dots = (arr, c) => arr.map((p, k) => (p == null ? "" : `<circle cx="${xs[k].toFixed(0)}" cy="${y(p).toFixed(0)}" r="5" fill="${c}"><title>${p}٪</title></circle>`)).join("");
   const grid = [0, 50, 100].map((g) => `<line x1="40" y1="${y(g)}" x2="${w - 30}" y2="${y(g)}" stroke="${BORDER}" stroke-dasharray="3,3"/><text x="8" y="${y(g) + 4}" font-size="12" fill="${SUBTLE}" direction="ltr">${g}%</text>`).join("");
   const lbl = labels.map((l, k) => `<text x="${xs[k].toFixed(0)}" y="${h - 12}" font-size="12.5" fill="${INK}" text-anchor="middle">${esc(l)}</text>`).join("");
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="height:auto;display:block;" role="img" aria-label="تطور متوسط التحقق">${grid}<path d="${path(a)}" fill="none" stroke="${ROSE}" stroke-width="3" stroke-linejoin="round"/><path d="${path(b)}" fill="none" stroke="${GOLD}" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round"/>${dots(a, ROSE)}${dots(b, GOLD)}${lbl}</svg>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;margin-top:4px;"><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:${ROSE}"></span>متوسط تحقق المؤشرات</span><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:${GOLD}"></span>متوسط تحقق الأهداف التشغيلية</span></div>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="height:auto;display:block;" role="img" aria-label="تطور نسبة التحقق">${grid}<path d="${path(a)}" fill="none" stroke="${ROSE}" stroke-width="3" stroke-linejoin="round"/><path d="${path(b)}" fill="none" stroke="${GOLD}" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round"/>${dots(a, ROSE)}${dots(b, GOLD)}${lbl}</svg>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;margin-top:4px;"><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:${ROSE}"></span>نسبة تحقق المؤشرات</span><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:${GOLD}"></span>نسبة تحقق الأهداف التشغيلية</span></div>`;
 }
 function dashTrendHtml(kind, series, title) {
   if (dashHidden(kind, "trend")) return "";
@@ -4777,7 +4780,7 @@ const GB_COLOR = { achieved: "#c4577a", partial: "#c9965a", not: "#8a919c", empt
 const GB_GRAD = { achieved: "linear-gradient(180deg,#e8a3bb,#c4577a)", partial: "linear-gradient(180deg,#ecd5b0,#d1a56b)", not: "linear-gradient(180deg,#d4d8dd,#9aa1ab)", empty: "#e6dfe2" };
 function gbEvidenceHtml(x) {
   const links = (x.og && x.og.evidenceLinks) || [], legacy = x.og && (x.og.evidenceType || x.og.evidenceAnswer);
-  const rows = links.map((ln) => { const r = ogResolveLink(x.report, ln); return `<div style="font-size:11.5px;padding:3px 0;"><span class="hint" style="margin:0;">${esc(r.kindLabel)}:</span> <b>${esc(r.title)}</b>${ogUrlHtml(r.url)}${r.sub ? ` · ${esc(r.sub)}` : ""}${r.badge ? ` · <span style="color:${r.color || SUBTLE};font-weight:800;">${esc(r.badge)}</span>` : ""}${r.gone ? " · مرجع محذوف" : ""}</div>`; }).join("");
+  const rows = links.map((ln) => { const r = ogResolveLink(x.report, ln); return `<div style="font-size:11.5px;padding:3px 0;"><span class="hint" style="margin:0;">${esc(r.kindLabel)}:</span> <b>${esc(r.title)}</b>${r.repoId ? evdOpenHtml(r.repoId) : ogUrlHtml(r.url)}${r.sub ? ` · ${esc(r.sub)}` : ""}${r.badge ? ` · <span style="color:${r.color || SUBTLE};font-weight:800;">${esc(r.badge)}</span>` : ""}${r.gone ? " · مرجع محذوف" : ""}</div>`; }).join("");
   const lg = legacy ? `<div style="font-size:11.5px;padding:3px 0;"><span class="hint" style="margin:0;">${esc(x.og.evidenceType || "دليل")}:</span> ${esc(x.og.evidenceAnswer || "")}</div>` : "";
   return rows + lg || `<div class="hint" style="margin:0;">بلا أدلة مسجلة</div>`;
 }
@@ -4796,8 +4799,9 @@ function gbBarHtml(r) {
   const a = r.avg == null ? 0 : Math.min(100, r.avg), c = GB_COLOR[r.group];
   return `<div style="position:relative;height:14px;background:#f1e9eb;border-radius:8px;overflow:visible;"><div style="width:${a}%;height:100%;background:${GB_GRAD[r.group]};border-radius:8px;"></div>${r.target != null ? `<div title="المستهدف ${r.target}٪" style="position:absolute;top:-3px;bottom:-3px;inset-inline-start:${Math.min(100, r.target)}%;width:2px;background:#2c2c2a;"></div>` : ""}</div>`;
 }
-const GB_SER = ["#d9c9ce", "#d1a56b", "#c4577a", "#6b2337", "#3b1020"];
-const GB_CMP = [["none", "بدون مقارنة"], ["terms", "الفصول داخل العام"], ["sameterm", "الفصل نفسه عبر الأعوام"], ["years", "الأعوام (عام كامل بعام أو أكثر)"], ["pair", "فترتان محددتان"], ["units", "الوحدات (الهدف المشترك)"]];
+const GB_SER = ["#f3dde4", "#e3b6c5", "#c9708f", "#a73a5c", "#7a1f3d"];
+const GB_CMP = [["none", "بدون مقارنة"], ["periods", "الفترات المحددة (فترتان أو أكثر)"], ["units", "الوحدات (الهدف المشترك)"]];
+const GB_ORD = ["الأولى", "الثانية", "الثالثة", "الرابعة"];
 const gbCmpMode = (gs) => (gs.cmp === "cols" ? gs.pm || "years" : gs.cmp);
 // أعمدة المقارنة الزمنية: كل عمود {label, keys[]}؛ العام الكامل = متوسط فصوله المتوفرة
 function gbCmpCols(sa, gs) {
@@ -4812,7 +4816,12 @@ function gbCmpCols(sa, gs) {
   if (pm === "years") cols = pick.map((y) => ({ label: y + "هـ" + (gs.term ? " · " + gs.term : ""), keys: keysOf(y, gs.term) }));
   else if (pm === "terms") { const y = Number(gs.yr) || yrs[yrs.length - 1]; const pt = gs.tsel && gs.tsel.length ? gs.tsel : null; cols = sa.cols.filter((c) => c.year === y && (!pt || pt.indexOf(gbTermOf(c)) !== -1)).map((c) => ({ label: gbTermOf(c) || c.label, keys: [c.key] })); }
   else if (pm === "sameterm") { const t = gs.term || terms[0]; cols = pick.map((y) => ({ label: (t || "") + " " + y + "هـ", keys: keysOf(y, t) })); }
-  else if (pm === "pair") {
+  else if (pm === "periods") {
+    let ks = (gs.pl && gs.pl.length ? gs.pl : periodOpts.slice(-2).map((o) => o.v)).filter((v) => periodOpts.some((o) => o.v === v)).slice(0, 4);
+    if (ks.length < 2) ks = periodOpts.slice(-2).map((o) => o.v);
+    cols = ks.map((v) => periodOpts.find((o) => o.v === v)).map((o) => ({ label: o.label, keys: o.keys }));
+    return { cols, yrs, terms, periodOpts, reason: "", pl: ks };
+  } else if (pm === "pair") {
     const dA = gs.pA || (periodOpts[periodOpts.length - 2] || {}).v, dB = gs.pB || (periodOpts[periodOpts.length - 1] || {}).v;
     if (dA && dB && dA === dB) reason = "اختيرت الفترة نفسها مرتين؛ اختاري فترتين مختلفتين.";
     else cols = [dA, dB].map((v) => periodOpts.find((o) => o.v === v)).filter(Boolean).map((o) => ({ label: o.label, keys: o.keys }));
@@ -4829,12 +4838,12 @@ function gbColVal(sa, gs, name, keys) {
   });
   return dashAvg(vals);
 }
-const gbSerCol = (i, n) => GB_SER[n <= GB_SER.length ? GB_SER.length - n + i : i % GB_SER.length];
+const gbSerCol = (i, n) => (n <= 2 ? (i ? GB_SER[4] : GB_SER[1]) : GB_SER[n <= GB_SER.length ? GB_SER.length - n + i : i % GB_SER.length]);
 function gbGroupedHtml(groups, legend, tog) {
   const legendCols = legend.map((l, i) => gbSerCol(i, legend.length));
   const n = Math.max(1, groups.length), gw = Math.max(70, Math.min(150, 900 / n));
   const bar = (b, i) => { const a = b.pct == null ? 0 : Math.min(100, b.pct); return `<div style="flex:1;max-width:44px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;"><div style="font-size:10px;font-weight:800;margin-bottom:2px;">${b.pct == null ? "—" : b.pct + "٪"}</div><div title="${esc(b.label)}" style="position:relative;width:100%;height:${a * 1.6}px;min-height:2px;background:${b.c};border-radius:5px 5px 0 0;">${b.target != null ? `<div style="position:absolute;inset-inline:-3px;bottom:${Math.min(100, b.target) * 1.6}px;height:2px;background:${INK};"></div>` : ""}</div></div>`; };
-  return `<div style="overflow-x:auto;margin-top:6px;"><div style="display:flex;gap:14px;align-items:flex-end;height:210px;border-bottom:2px solid ${BORDER};padding:16px 6px 0;min-width:${n * (gw + 14)}px;">${groups.map((g) => `<div style="flex:1;min-width:${gw}px;height:100%;display:flex;gap:4px;align-items:flex-end;justify-content:center;cursor:pointer;" ${tog(g)}>${g.bars.map(bar).join("")}</div>`).join("")}</div><div style="display:flex;gap:14px;padding:6px 6px 0;min-width:${n * (gw + 14)}px;">${groups.map((g) => `<div style="flex:1;min-width:${gw}px;font-size:11px;text-align:center;line-height:1.5;">${esc(g.name)}</div>`).join("")}</div></div><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;">${legend.map((l, i) => `<span style="display:inline-flex;align-items:center;gap:5px;"><i style="width:12px;height:12px;border-radius:3px;background:${legendCols[i]};display:inline-block;"></i>${esc(l)}</span>`).join("")}<span class="hint" style="margin:0;">الخط الأسود = المستهدف</span></div>`;
+  return `<div style="overflow-x:auto;margin-top:6px;"><div style="display:flex;gap:14px;align-items:flex-end;height:210px;border-bottom:2px solid ${BORDER};padding:16px 6px 0;min-width:${n * (gw + 14)}px;">${groups.map((g) => `<div style="flex:1;min-width:${gw}px;height:100%;display:flex;gap:4px;align-items:flex-end;justify-content:center;cursor:pointer;position:relative;" class="gb-col" data-gbn="${esc(g.name)}" ${tog(g)}>${g.dir ? `<span class="gb-dir gb-dir-${g.dir}">${g.dir === "up" ? "تحسّن ▲" : g.dir === "down" ? "تراجع ▼" : "ثبات ="}</span>` : ""}${g.bars.map(bar).join("")}</div>`).join("")}</div><div style="display:flex;gap:14px;padding:6px 6px 0;min-width:${n * (gw + 14)}px;">${groups.map((g) => `<div style="flex:1;min-width:${gw}px;font-size:11px;text-align:center;line-height:1.5;">${esc(g.name)}</div>`).join("")}</div></div><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;">${legend.map((l, i) => `<span style="display:inline-flex;align-items:center;gap:5px;"><i style="width:12px;height:12px;border-radius:3px;background:${legendCols[i]};display:inline-block;"></i>${esc(l)}</span>`).join("")}<span class="hint" style="margin:0;">الخط الأسود = المستهدف</span></div>`;
 }
 // يُرجع {controls, html, grouped}؛ لا يعرض مقارنة بلا بيانات
 function gbCmpBuild(series, rows, tog) {
@@ -4860,6 +4869,7 @@ function gbCmpBuild(series, rows, tog) {
   if (pm === "terms") ctl.push(lbl("العام:"), sel("yr", yrs.map((y) => [y, y + "هـ"]), Number(gs.yr) || yrs[yrs.length - 1]));
   if (pm === "sameterm" && terms.length) ctl.push(lbl("الفصل:"), sel("term", terms.map((t) => [t, t]), gs.term || terms[0]), lbl("الأعوام:"));
   if (pm === "years") { if (terms.length) ctl.push(lbl("الفصل:"), sel("term", [["", "كل الفصول (متوسط العام)"]].concat(terms.map((t) => [t, t])), gs.term || "")); ctl.push(lbl("الأعوام:")); }
+  if (pm === "periods") { const po = cc.periodOpts.map((o) => [o.v, o.label]); (cc.pl || []).forEach((v, i) => ctl.push(`<div style="display:flex;flex-direction:column;gap:2px;"><span class="hint" style="margin:0;">الفترة ${GB_ORD[i]}${cc.pl.length > 2 ? ` <button type="button" class="gb-lk" data-action="gb-pl-rm" data-i="${i}">حذف</button>` : ""}</span>${sel("pl\" data-i=\"" + i, po, v)}</div>`)); if ((cc.pl || []).length < 4) ctl.push(`<button type="button" class="pill-btn pill-primary" style="padding:5px 14px;font-size:12px;align-self:flex-end;" data-action="gb-pl-add">＋ إضافة فترة</button>`); }
   if (pm === "pair") { const po = cc.periodOpts.map((o) => [o.v, o.label]); ctl.push(lbl("الفترة الأولى:"), sel("pA", po, cc.pA), lbl("الفترة الثانية:"), sel("pB", po, cc.pB)); }
   if (pm === "years" || pm === "sameterm") ctl.push(...yrs.map(yrBtn));
   const controls = ctl.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">${ctl.join("")}</div>` : "";
@@ -4880,8 +4890,8 @@ function gbCmpBuild(series, rows, tog) {
   const tgVaries = (x) => new Set(tgs(x)).size > 1;
   const body = rs.map((x) => { const d = dir(x), rr = rat(x), df = d ? last(x.vs) - first(x.vs) : null;
     return `<tr><td style="font-weight:700">${esc(x.r.name)}${nv(x.vs) < 2 ? `<div class="hint" style="margin:0;">${nv(x.vs) ? "نتيجة في فترة واحدة فقط" : "لا توجد نتائج في الفترات المختارة"}</div>` : ""}</td>${x.vs.map((v, i) => `<td style="text-align:center"><span style="color:${SUBTLE};font-size:11.5px;">${x.tg[i] != null ? x.tg[i] + "٪" : "بلا مستهدف"}</span> · ${dashPctCell(v)}<div style="font-size:11px;margin-top:2px;color:${rr[i] == null ? SUBTLE : rr[i] >= 100 ? GREEN : DANGER};">${rr[i] == null ? "نسبة التحقق: —" : "نسبة التحقق: <b>" + rr[i] + "٪</b>"}${v != null && x.tg[i] ? `<span style="color:${SUBTLE};"> (${v}÷${x.tg[i]})</span>` : ""}</div></td>`).join("")}<td style="text-align:center">${df == null ? "—" : `<b style="color:${DL[d][1]}">${df > 0 ? "+" : ""}${df}</b>`}</td><td style="text-align:center"><b style="color:${DL[d || "none"][1]};font-size:11.5px;">${DL[d || "none"][0]}</b></td></tr>`; }).join("");
-  const groups = rs.map((x) => ({ name: x.r.name, bars: x.vs.map((v, i) => ({ label: live[i].label, pct: v, target: x.tg[i], c: gbSerCol(i, live.length) })) }));
-  const html = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 10px;">${stat(rs.length, "إجمالي الأهداف")}${stat(cnt.up, "تحسّنت", GREEN)}${stat(cnt.down, "تراجعت", DANGER)}${stat(cnt.same, "ثبتت", SUBTLE)}${cnt.none ? stat(cnt.none, "بلا بيانات كافية", SUBTLE) : ""}</div><div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:640px;"><thead><tr><th>الهدف</th>${live.map((c) => `<th style="text-align:center">${esc(c.label)}<div class="hint" style="margin:0;color:inherit;opacity:.85;">المستهدف · المتحقق · نسبة التحقق</div></th>`).join("")}<th style="text-align:center">الفرق في المتحقق</th><th style="text-align:center">الاتجاه</th></tr></thead><tbody>${body}</tbody></table></div><div class="hint" style="margin-top:6px;">نسبة التحقق (لكل فترة) = المتحقق ÷ مستهدف تلك الفترة · الاتجاه يقارن نسبة التحقق في آخر فترة بأولها عند توفر مستهدفي الفترتين، وإلا يقارن المتحقق · الفرق = آخر متحقق − أول متحقق · الفراغ لا يُحسب صفرًا.</div>`;
+  const groups = rs.map((x) => ({ name: x.r.name, dir: dir(x), bars: x.vs.map((v, i) => ({ label: live[i].label, pct: v, target: x.tg[i], c: gbSerCol(i, live.length) })) }));
+  const html = "";
   return { controls, html, grouped: { groups, legend: live.map((c) => c.label) } };
 }
 function gbColTarget(sa, gs, row, keys) {
@@ -4953,6 +4963,31 @@ function dashIndDetailHtml(kind, series) {
 }
 function gbCmpAll(series) { return dashSeries(series.units || [], "all"); }
 function gbCmpHtml(series, rows) { const b = gbCmpBuild(series, rows, () => ""); return b.controls + b.html; }
+// مربع بيانات الهدف: جدول صغير يطلع من العمود بسهم (يُوضع بعد الرسم في gbPlacePop)
+function gbPopHtml(name, rows, grouped) {
+  const r = rows.find((x) => x.name === name); if (!r) return "";
+  const g = grouped ? grouped.groups.find((x) => x.name === name) : null, grp = (v) => (v == null ? "empty" : v >= 75 ? "achieved" : v >= 40 ? "partial" : "not");
+  const td = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`; let t = "";
+  if (g) {
+    g.bars.forEach((b) => { t += td(esc(b.label), b.pct != null ? b.pct + "٪" : "—"); });
+    const vs = g.bars.map((b) => b.pct).filter((v) => v != null), d = vs.length > 1 ? vs[vs.length - 1] - vs[0] : null;
+    if (d != null) t += td("الاتجاه", d > 0 ? "▲ تحسّن" : d < 0 ? "▼ تراجع" : "= ثبات");
+    const lv = vs.length ? vs[vs.length - 1] : null; t += td("الحالة", badgeHtml(GOAL_GROUP_LABEL[grp(lv)], GB_COLOR[grp(lv)], "#f6f2f3"));
+  } else {
+    t += td("المستهدف", r.target != null ? r.target + "٪" : "—") + td("المتحقق", r.avg != null ? r.avg + "٪" : "—") + td("الحالة", badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3"));
+    if (r.units.length > 1) r.units.forEach((x) => { t += td(esc(x.unit.name), x.pct != null ? x.pct + "٪" : "—"); });
+  }
+  return `<div class="gb-pop" data-gbp="${esc(name)}"><div class="gb-pop-h"><span>${esc(name)}</span><button type="button" data-action="gb-open" data-v="${esc(name)}" aria-label="إغلاق">✕</button></div><table>${t}</table></div>`;
+}
+function gbPlacePop() {
+  const pop = document.querySelector(".gb-pop"); if (!pop) return;
+  const board = pop.parentElement, nm = pop.getAttribute("data-gbp"), col = [...document.querySelectorAll(".gb-col")].find((c) => c.getAttribute("data-gbn") === nm); if (!col) { pop.style.display = "none"; return; }
+  const b = board.getBoundingClientRect(), kr = [...col.children].map((k) => k.getBoundingClientRect()).filter((k) => k.width > 0), cr0 = col.getBoundingClientRect(),
+    c = kr.length ? { left: Math.min(...kr.map((k) => k.left)), right: Math.max(...kr.map((k) => k.right)), top: cr0.top, height: cr0.height } : cr0, pw = pop.offsetWidth, ph = pop.offsetHeight, onLeft = c.left - b.left >= pw + 24;
+  pop.classList.add(onLeft ? "aR" : "aL");
+  pop.style.left = Math.max(0, onLeft ? c.left - b.left - pw - 16 : Math.min(b.width - pw, c.right - b.left + 16)) + "px";
+  pop.style.top = Math.max(0, c.top - b.top + Math.min(40, c.height * 0.2) - ph + 70) + "px";
+}
 function dashGoalsBoardHtml(kind, series) {
   const gs = gbState(); let rows = gbBuild(series);
   if (!rows.length) return dashCard("الأهداف التشغيلية", "", emptyHint("لا توجد أهداف في الفترة المختارة."));
@@ -4962,7 +4997,8 @@ function dashGoalsBoardHtml(kind, series) {
   const sel = (k, opts, cur) => `<select class="input" style="width:auto;padding:4px 10px;font-size:12px;" data-action="gb-sel" data-k="${k}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(cur) === String(v) ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   const statusChips = sel("status", [["", `كل الحالات (${cnt.achieved + cnt.partial + cnt.not + cnt.empty})`]].concat(["achieved", "partial", "not", "empty"].map((k) => [k, `${GOAL_GROUP_LABEL[k]} (${cnt[k]})`])), gs.status || "");
   const viewChips = sel("vd", [["chart:col", "رسم · أعمدة طولية"], ["chart:bar", "رسم · أشرطة أفقية"], ["table", "جدول"], ["cards", "بطاقات"]], gs.view === "chart" ? "chart:" + (gs.dir === "bar" ? "bar" : "col") : gs.view);
-  const cmpChips = sel("cmp", GB_CMP, gbCmpMode(gs));
+  const cmpChips = "";
+  const cmpPills = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${GB_CMP.map(([v, l]) => `<button type="button" class="pill-btn ${gbCmpMode(gs) === v ? "pill-primary" : "pill-ghost"}" style="padding:5px 14px;font-size:12px;" data-action="gb-sel-cmp" data-v="${v}">${l}</button>`).join("")}</div>`;
   const unitSel = `<select class="input" style="width:auto;padding:4px 10px;font-size:12px;" data-action="gb-sel" data-k="unit"><option value="">كل الوحدات</option>${(series.units || []).map((u) => `<option value="${esc(u.id)}" ${gs.unit === u.id ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select>`;
   const terms = [...new Set((series.cols || []).map(gbTermOf).filter(Boolean))];
   const termSel = terms.length ? `<select class="input" style="width:auto;padding:4px 10px;font-size:12px;" data-action="gb-sel" data-k="term"><option value="">كل الفصول</option>${terms.map((t) => `<option value="${esc(t)}" ${gs.term === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>` : "";
@@ -4970,20 +5006,25 @@ function dashGoalsBoardHtml(kind, series) {
   const open = S.ui.gbOpen || {}; const tog = (r) => `data-action="gb-open" data-v="${esc(r.name)}"`;
   S.ui._gbUnits = series.units || [];
   const cb = gbCmpBuild(series, rows, tog);
+  const lastVals = cb.grouped ? cb.grouped.groups.map((g) => { const v = g.bars.map((b) => b.pct).filter((x) => x != null); return v.length ? v[v.length - 1] : null; }) : rows.map((r) => r.avg);
+  const kg = (v) => (v == null ? "empty" : v >= 75 ? "achieved" : v >= 40 ? "partial" : "not"), kc = { achieved: 0, partial: 0, not: 0, empty: 0 }; lastVals.forEach((v) => { kc[kg(v)]++; });
+  const kseen = lastVals.filter((v) => v != null), kavg = kseen.length ? Math.round(kseen.reduce((t, v) => t + v, 0) / kseen.length) : null;
+  const kt = (n, l, k) => `<div class="gbk gbk-${k}"><span>${l}</span><b>${n}</b></div>`;
+  const kpisHtml = `<div class="gbk-row">${kt(lastVals.length, "إجمالي الأهداف", "all")}${kt(kc.achieved, "متحقق", "ok")}${kt(kc.partial, "متحقق جزئيًا", "wr")}${kt(kc.not + kc.empty, "غير متحقق", "bad")}${kt(kavg == null ? "—" : kavg + "٪", cb.grouped ? "نسبة التحقق (آخر فترة)" : "نسبة التحقق", "avg")}</div>`;
   let body = "";
   if (cb.grouped && gs.view === "chart" && gs.dir !== "bar") {
-    body = gbGroupedHtml(cb.grouped.groups, cb.grouped.legend, tog) + rows.filter((r) => open[r.name]).map((r) => `<div class="card" style="padding:12px;margin-top:10px;"><b style="font-size:12.5px;">${esc(r.name)}</b>${gbUnitsDetailHtml(r)}</div>`).join("");
+    body = gbGroupedHtml(cb.grouped.groups, cb.grouped.legend, tog) + (rows.find((r) => open[r.name]) ? gbPopHtml(rows.find((r) => open[r.name]).name, rows, cb.grouped) : "");
   } else if (gs.view === "table") {
     body = `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:640px;"><thead><tr><th>الهدف</th><th style="text-align:center">الوحدات</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المتحقق</th><th style="text-align:center">الحالة</th></tr></thead><tbody>${rows.map((r) => `<tr style="cursor:pointer" ${tog(r)}><td style="font-weight:700">${esc(r.name)}${r.shared ? ` <span class="hint" style="margin:0;">(مشترك)</span>` : ""}</td><td style="text-align:center">${r.units.length}</td><td style="text-align:center">${r.target != null ? r.target + "٪" : "—"}</td><td style="text-align:center">${dashPctCell(r.avg)}</td><td style="text-align:center">${badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3")}</td></tr>${open[r.name] ? `<tr><td colspan="5">${gbUnitsDetailHtml(r)}</td></tr>` : ""}`).join("")}</tbody></table></div>`;
   } else if (gs.view === "cards") {
     body = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">${rows.map((r) => `<div class="card" style="padding:12px;border-inline-start:4px solid ${GB_COLOR[r.group]};cursor:pointer;" ${tog(r)}><div style="font-weight:800;font-size:13px;margin-bottom:6px;">${esc(r.name)}</div>${badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3")} ${r.shared ? `<span class="hint" style="margin:0;">مشترك · ${r.units.length} وحدات</span>` : `<span class="hint" style="margin:0;">${esc(r.units[0].unit.name)}</span>`}<div style="margin:10px 0 4px;">${gbBarHtml(r)}</div><div class="hint" style="margin:0;">المستهدف ${r.target != null ? r.target + "٪" : "—"} · المتحقق ${r.avg != null ? r.avg + "٪" : "—"}</div>${open[r.name] ? gbUnitsDetailHtml(r) : ""}</div>`).join("")}</div>`;
   } else if (gs.dir !== "bar") {
     const cw = Math.max(64, Math.min(120, Math.floor(100 / Math.max(rows.length, 1)) * 8));
-    body = `<div style="overflow-x:auto;"><div style="display:flex;align-items:flex-end;gap:12px;height:230px;border-bottom:2px solid ${BORDER};padding:18px 6px 0;min-width:${rows.length * (cw + 12)}px;">${rows.map((r) => { const a = r.avg == null ? 0 : Math.min(100, r.avg); return `<div style="flex:1;min-width:${cw}px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;" ${tog(r)}><div style="font-weight:800;font-size:12px;margin-bottom:3px;color:${GB_COLOR[r.group]}">${r.avg != null ? r.avg + "٪" : "—"}</div><div style="position:relative;width:100%;max-width:90px;height:${a * 1.8}px;min-height:3px;background:${GB_GRAD[r.group]};border-radius:6px 6px 0 0;">${r.target != null ? `<div title="المستهدف ${r.target}٪" style="position:absolute;inset-inline:-4px;bottom:${Math.min(100, r.target) * 1.8}px;height:2px;background:${INK};"></div>` : ""}</div></div>`; }).join("")}</div><div style="display:flex;gap:12px;padding:6px 6px 0;min-width:${rows.length * (cw + 12)}px;">${rows.map((r) => `<div style="flex:1;min-width:${cw}px;font-size:11px;text-align:center;line-height:1.5;cursor:pointer;" ${tog(r)}>${esc(r.name)}${r.shared ? `<div class="hint" style="margin:0;">مشترك · ${r.units.length}</div>` : ""}</div>`).join("")}</div></div><div class="hint" style="margin-top:8px;">الخط الأسود = المستهدف · اضغطي على العمود لتفاصيل الوحدات وأدلتها.</div>${rows.filter((r) => open[r.name]).map((r) => `<div class="card" style="padding:12px;margin-top:10px;"><b style="font-size:12.5px;">${esc(r.name)}</b>${gbUnitsDetailHtml(r)}</div>`).join("")}`;
+    body = `<div style="overflow-x:auto;"><div style="display:flex;align-items:flex-end;gap:12px;height:230px;border-bottom:2px solid ${BORDER};padding:18px 6px 0;min-width:${rows.length * (cw + 12)}px;">${rows.map((r) => { const a = r.avg == null ? 0 : Math.min(100, r.avg); return `<div style="flex:1;min-width:${cw}px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;" class="gb-col" data-gbn="${esc(r.name)}" ${tog(r)}><div style="font-weight:800;font-size:12px;margin-bottom:3px;color:${GB_COLOR[r.group]}">${r.avg != null ? r.avg + "٪" : "—"}</div><div style="position:relative;width:100%;max-width:90px;height:${a * 1.8}px;min-height:3px;background:${GB_GRAD[r.group]};border-radius:6px 6px 0 0;">${r.target != null ? `<div title="المستهدف ${r.target}٪" style="position:absolute;inset-inline:-4px;bottom:${Math.min(100, r.target) * 1.8}px;height:2px;background:${INK};"></div>` : ""}</div></div>`; }).join("")}</div><div style="display:flex;gap:12px;padding:6px 6px 0;min-width:${rows.length * (cw + 12)}px;">${rows.map((r) => `<div style="flex:1;min-width:${cw}px;font-size:11px;text-align:center;line-height:1.5;cursor:pointer;" ${tog(r)}>${esc(r.name)}${r.shared ? `<div class="hint" style="margin:0;">مشترك · ${r.units.length}</div>` : ""}</div>`).join("")}</div></div><div class="hint" style="margin-top:8px;">الخط الأسود = المستهدف · اضغطي على العمود لتظهر بياناته.</div>${rows.find((r) => open[r.name]) ? gbPopHtml(rows.find((r) => open[r.name]).name, rows, null) : ""}`;
   } else {
     body = `<div style="display:flex;flex-direction:column;gap:12px;">${rows.map((r) => `<div><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer;margin-bottom:4px;" ${tog(r)}><span style="font-size:12.5px;font-weight:700;">${esc(r.name)}${r.shared ? ` <span class="hint" style="margin:0;">(مشترك · ${r.units.length})</span>` : ""}</span><span style="white-space:nowrap;">${badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3")} <span style="font-size:11.5px;color:${SUBTLE};">${r.avg != null ? r.avg + "٪" : "—"} / ${r.target != null ? r.target + "٪" : "—"}</span></span></div>${gbBarHtml(r)}${open[r.name] ? gbUnitsDetailHtml(r) : ""}</div>`).join("")}</div><div class="hint" style="margin-top:8px;">الخط الأسود = المستهدف · اضغطي على الهدف لتفاصيل الوحدات وأدلتها.</div>`;
   }
-  return dashCard("لوحة الأهداف التشغيلية", "كل الأهداف: المتحقق وغير المتحقق، مع نتيجة كل وحدة بصورة مستقلة · اختاري «الفصل» لمقارنة نفس الفصل عبر السنوات", `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">${viewChips}<span style="flex:1"></span>${statusChips}${unitSel}${gs.cmp === "none" ? termSel + colSel : ""}${cmpChips}</div><div style="margin-bottom:12px;"></div>${cb.controls}<div class="gb-board">${body}${cb.html}</div>`);
+  return dashCard("لوحة الأهداف التشغيلية", "كل الأهداف: المتحقق وغير المتحقق، مع نتيجة كل وحدة بصورة مستقلة · اختاري «الفصل» لمقارنة نفس الفصل عبر السنوات", `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">${viewChips}<span style="flex:1"></span>${statusChips}${kind === "admin" ? unitSel : ""}${gs.cmp === "none" ? termSel + colSel : ""}</div>${cmpPills}${cb.controls}${kpisHtml}<div class="gb-board" style="position:relative;">${body}${cb.html}</div>`);
 }
 // الأجزاء المشتركة الجديدة بالترتيب (لوحة الوحدة/القسم/المكتب)
 function dashPeriodBlocksHtml(kind, series) {
@@ -5056,8 +5097,8 @@ function exBlocksInner(kind, units, extra) {
     const card = (label, value, color, sub, sp) => `<div class="card" style="padding:14px 16px 8px;"><div style="font-size:12px;color:${SUBTLE};">${label}</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:2px;"><span style="font-size:26px;font-weight:900;color:${color};">${value}</span>${sub}</div>${sp || ""}</div>`;
     const indA = perCol.map((x) => x.ind), goalA = perCol.map((x) => x.goal);
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px;margin-bottom:18px;">
-      ${card("متوسط تحقق المؤشرات", lastV(indA) == null ? "—" : lastV(indA) + "٪", ROSE, delta(indA), spark(indA, ROSE))}
-      ${card("متوسط تحقق الأهداف", lastV(goalA) == null ? "—" : lastV(goalA) + "٪", "#a5581a", delta(goalA), spark(goalA, "#a5581a"))}
+      ${card("نسبة تحقق المؤشرات", lastV(indA) == null ? "—" : lastV(indA) + "٪", ROSE, delta(indA), spark(indA, ROSE))}
+      ${card("نسبة تحقق الأهداف", lastV(goalA) == null ? "—" : lastV(goalA) + "٪", "#a5581a", delta(goalA), spark(goalA, "#a5581a"))}
       ${card("إنجاز الأعمال والبرامج", progs.length ? Math.round(done / progs.length * 100) + "٪" : "—", BLUE, `<span style="font-size:11.5px;color:${SUBTLE}">${done} من ${progs.length}</span>`)}
       ${card("المستفيدون", fmtNum(ben), "#8B4A73", "")}
       ${card("تقارير معتمدة (آخر فترة)", series.units.length ? Math.round(appr / series.units.length * 100) + "٪" : "—", GREEN, `<span style="font-size:11.5px;color:${SUBTLE}">${appr} من ${series.units.length}</span>`)}
@@ -7485,6 +7526,7 @@ function unitChapterDefs(report, unitId) {
   return [
     { key: "summary", title: "ملخص التقرير", icon: "sparkles", special: "summary" },
     ...(report ? reportSections(report, unitId) : SECTIONS).map((sc) => ({ key: sc.id, title: sc.label, icon: UNIT_SECTION_ICONS[sc.id] || "document", sections: [sc.id] })),
+    ...(svMergeOn() ? [{ key: "evidenceReg", title: "الشواهد والمرفقات", icon: "document", sections: ["evidence"] }] : []),
     { key: "approval", title: "الإغلاق والاعتماد", icon: "check", special: "approval" },
   ];
 }
@@ -7671,7 +7713,7 @@ function syncCustomReportPages() {
 function rptOrdered(defs, s) {
   const keys = defs.map((d) => d.key);
   const ord = (s.order || []).filter((k) => keys.includes(k));
-  keys.forEach((k) => { if (!ord.includes(k)) { const ci = k === "challengesChart" ? ord.indexOf("closing") : -1; if (ci >= 0) ord.splice(ci, 0, k); else ord.push(k); } });
+  keys.forEach((k) => { if (!ord.includes(k)) { const ci = k === "challengesChart" ? ord.indexOf("closing") : -1; if (ci >= 0) ord.splice(ci, 0, k); else if (k === "evidenceReg" && ord.includes("impact")) ord.splice(ord.indexOf("impact") + 1, 0, k); else if (k === "evidenceReg" && ord.includes("approval")) ord.splice(ord.indexOf("approval"), 0, k); else ord.push(k); } });
   return ord.map((k) => defs.find((d) => d.key === k));
 }
 function rptChapterTitle(def, s) { return ((s.titles || {})[def.key] || "").trim() || def.title; }
@@ -7687,7 +7729,7 @@ function rptWrap(s, inner, isPreview) {
   const [w, h] = rptPageDims(s);
   const [t, b, r, l] = rptMargins(s);
   const main = /^#[0-9a-fA-F]{6}$/.test(s.mainColor) ? s.mainColor : "#6b2337";
-  let vars = `--rpt-burgundy:${main};--rpt-burgundy-dark:${mixHex(main, "#000000", 0.25)};--rpt-paper:${rptCssSafe(s.paper)};--rpt-chapter-bg:${rptCssSafe(s.chapterBg)};` +
+  let vars = `--rpt-burgundy:${main};--rpt-t0:${mixHex(main, "#ffffff", 0.96)};--rpt-t1:${mixHex(main, "#ffffff", 0.9)};--rpt-line:${mixHex(main, "#ffffff", 0.82)};--rpt-c1:${mixHex(main, "#ffffff", 0.7)};--rpt-c2:${mixHex(main, "#ffffff", 0.45)};--rpt-c3:${mixHex(main, "#ffffff", 0.2)};--rpt-gl-bg:${rptLighten(main, 0.14)};--rpt-gh-bg:${rptCssSafe(s.thBg)};--rpt-gh-color:${rptCssSafe(s.thColor || main)};--rpt-burgundy-dark:${mixHex(main, "#000000", 0.25)};--rpt-paper:${rptCssSafe(s.paper)};--rpt-chapter-bg:${rptCssSafe(s.chapterBg)};` +
     `--rpt-font-body:'${rptCssSafe(s.fontBody)}';--rpt-font-title:'${rptCssSafe(s.fontTitle)}';--rpt-font-heading:'${rptCssSafe(s.fontHeading)}';` +
     `--rpt-page-w:${w}mm;--rpt-page-h:${h}mm;--rpt-mt:${t}mm;--rpt-mb:${b}mm;--rpt-mr:${r}mm;--rpt-ml:${l}mm;` +
     `--rpt-th-align:${["right", "center", "left"].includes(s.thAlign) ? s.thAlign : "center"};--rpt-td-align:${["right", "center", "left"].includes(s.tdAlign) ? s.tdAlign : "center"};` +
@@ -7708,6 +7750,17 @@ function rptPageNumText(s, n, total) {
   return "";
 }
 // صفحة واحدة من التقرير مع الكليشة (رأس) والتذييل ورقم الصفحة والعلامة المائية
+function rptLighten(hex, dl) {
+  try {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim()); if (!m) return hex;
+    const n = parseInt(m[1], 16); let r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, sat = 0, l = (mx + mn) / 2;
+    if (mx !== mn) { const d = mx - mn; sat = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; }
+    l = Math.min(0.5, l + dl); sat = Math.min(1, sat + 0.05);
+    const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat, p = 2 * l - q, f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    return "#" + [f(h + 1 / 3), f(h), f(h - 1 / 3)].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
+  } catch (e) { return hex; }
+}
 function rptUnitSettings(unit) {
   const s = rptSettings("unit");
   const ul = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit && unit.id] || {};
@@ -7926,10 +7979,13 @@ function aggGoalsChapterBody(flat) {
   const sum = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${["achieved", "partial", "not", "empty"].map((k) => cnt[k] ? badgeHtml(GOAL_GROUP_LABEL[k] + ": " + cnt[k], GB_COLOR[k], "#f6f2f3") : "").join("")}</div>`;
   const det = (r) => `<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:11px;color:${SUBTLE};">تفاصيل ${r.units.length} وحدات</summary>${r.units.map((x) => `<div style="padding:6px 0;border-bottom:1px solid #f1e9eb;font-size:11.5px;"><b>${esc(x.unit.name)}</b> · ${esc(GOAL_STATUS_LABEL[x.key])} · المستهدف ${x.target != null ? x.target + "٪" : "—"} · المتحقق ${x.pct != null ? x.pct + "٪" : "—"}<div style="padding-inline-start:10px;">${gbEvidenceHtml(x)}</div></div>`).join("")}</details>`;
   const bar = (r) => r.avg == null ? "—" : `<div style="display:flex;align-items:center;gap:6px;"><div style="width:70px;">${progressBarHtml(r.avg, GB_COLOR[r.group])}</div><b style="color:${GB_COLOR[r.group]}">${r.avg}٪</b></div>`;
-  return sum + reportTable(["الهدف التشغيلي", "المستهدف", "المتحقق", "الحالة", "الأدلة"], rows.map((r) => [
-    esc(r.name) + (r.shared ? ` <span style="font-size:10.5px;color:${SUBTLE};">(مشترك)</span>` : "") + (r.shared ? det(r) : ""),
+  const pairs = []; rows.forEach((r) => r.units.forEach((x) => pairs.push({ report: x.report, og: x.og, unit: x.unit, gk: r.name })));
+  const reg = rptEvRegCore(pairs), gnum = {}; rows.forEach((r, i) => { gnum[r.name] = { n: i + 1, anchor: "rpt-ogx-" + r.name }; });
+  const chart = gbGroupedHtml(rows.map((r) => ({ name: r.name, bars: [{ label: "المتحقق", pct: r.avg, target: r.target, c: GB_COLOR[r.group] }] })), ["المتحقق (الخط الأسود = المستهدف)"], () => "");
+  return sum + chart + `<div class="rg-flat rg-scope">` + reportTable(["الهدف التشغيلي", "المستهدف", "المتحقق", "الحالة", "الشواهد"], rows.map((r) => [
+    `<span id="rpt-ogx-${esc(r.name)}">${esc(r.name)}</span>` + (r.shared ? ` <span style="font-size:10.5px;color:${SUBTLE};">(مشترك)</span>` : "") + (r.shared ? det(r) : ""),
     r.target != null ? r.target + "٪" : "—", bar(r), badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3"),
-    r.shared ? r.units.reduce((t, x) => t + ((x.og.evidenceLinks || []).length + (x.og.evidenceType ? 1 : 0)), 0) + " دليل" : gbEvidenceHtml(r.units[0])]));
+    rptEvChips(reg, { id: r.name }, r.name)])) + `</div>` + rptEvRegisterHtml(reg, gnum);
 }
 function aggChapterHasData(key, data) {
   const m = { goalsChapter: data.hasGoals ? data.hasGoals() : false, perf: data.deptPerf.length || data.unitRows.length, indicators: data.indicators.length, yearCompare: data.hasYearCompare(), programs: data.hasPrograms(),
@@ -8741,6 +8797,12 @@ function renderSiteSettingsInner() {
         ${pillBtn("إضافة", { icon: iconPlus(14, "#fff"), action: "add-period-type" })}
         ${pillBtn("استعادة الافتراضي", { variant: "ghost", icon: iconX(14, INK), action: "restore-period-types" })}
       </div>
+    </div>
+
+    <div class="card" data-st="report" style="${stH("report")}margin-bottom:16px;">
+      <div class="subhead" style="margin-top:0;">من يرى الشواهد المقيّدة</div>
+      <div class="hint" style="margin-bottom:10px;">مدير النظام والإدارة التنفيذية وصاحب الوحدة يرون كل الشواهد دائمًا. اختاري/اختر من يُضاف إليهم:</div>
+      ${(() => { const a = evdAuthCfg(); const row = (k, lab) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" data-action="evd-auth" data-k="${k}" ${a[k] ? "checked" : ""} /> ${lab}</label>`; return `<div style="display:flex;flex-direction:column;gap:8px;"><div style="font-weight:700;font-size:12.5px;">«متاح للإدارة فقط»</div>${row("admDept", "مستخدمو الأقسام")}${row("admOffice", "مستخدمو المكاتب")}<div style="font-weight:700;font-size:12.5px;margin-top:6px;">«سري ولا يظهر إلا للمخولين»</div>${row("secDept", "مستخدمو الأقسام")}${row("secOffice", "مستخدمو المكاتب")}</div>`; })()}
     </div>
 
     <div class="card" data-st="look" style="${stH("look")}margin-bottom:16px;">
@@ -11064,17 +11126,32 @@ function ogResolveLink(report, ln) {
   const draft = (k, arr) => (S.sectionDraft && S.activeSectionId === k && S.sectionDraft[arr]) || null;
   if (ln.kind === "ind") {
     const row = (draft("kpi", "indicators") || sec("kpi").indicators || []).find((x) => x.id === ln.refId);
-    if (!row) return { gone: true, title: ln.refName || "مؤشر", kindLabel: "مؤشر أداء" };
+    if (!row) return { gone: true, title: ln.refName || "مؤشر", kindLabel: "رقم مؤشر" };
     const def = findIndicatorDef(row.name), rs = resolveIndicatorRow(row, def), st = computeIndicatorStatus(rs);
-    return { title: row.name, kindLabel: "مؤشر أداء", sub: `المتحقق ${row.actual !== "" && row.actual != null ? row.actual : "—"} من المستهدف ${rs.target !== "" && rs.target != null ? rs.target : "—"}`, badge: st.label, color: st.color };
+    return { title: ogIndCode(def, ((draft("kpi", "indicators") || sec("kpi").indicators || []).indexOf(row))) + " | " + row.name, kindLabel: "رقم مؤشر", det: [["المستهدف", rs.target], ["المتحقق", row.actual], ["نسبة التحقق", (() => { const pc = indicatorRowView(row).pct; return pc == null ? "" : pc + "٪"; })()], ["الحالة", st.label], ["الوحدة", def && def.unit], ["الدورية", def && def.frequency], ["طريقة الحساب", def && def.calculationMethod], ["مصدر البيانات", def && def.dataSource]], sub: `المتحقق ${row.actual !== "" && row.actual != null ? row.actual : "—"} من المستهدف ${rs.target !== "" && rs.target != null ? rs.target : "—"}${(() => { const pc = indicatorRowView(row).pct; return pc == null ? "" : " · التحقق " + pc + "٪"; })()}`, badge: st.label, color: st.color };
   }
   if (ln.kind === "tool") {
     const t = (draft("tools", "tools") || sec("tools").tools || []).find((x) => x.id === ln.refId);
     if (!t) return { gone: true, title: ln.refName || "أداة", kindLabel: "أداة قياس" };
     const rr = computeResponseRate(t.sampleSize, t.respondentsCount);
-    return { title: t.name, kindLabel: "أداة قياس", sub: [t.toolType, rr != null ? "نسبة الاستجابة " + rr + "٪" : ""].filter(Boolean).join(" · "), badge: t.resultQuality || "", color: SUBTLE, url: t.resultsLink || t.toolLink || "" };
+    return { title: t.name, kindLabel: "أداة قياس", det: [["النوع", t.toolType], ["الغرض", t.purpose], ["الفئة المستهدفة", t.targetGroup], ["حجم العينة", t.sampleSize], ["عدد المستجيبات", t.respondentsCount], ["نسبة الاستجابة", rr != null ? rr + "٪" : ""], ["جودة النتائج", t.resultQuality], ["تاريخ التطبيق", t.applicationDate], ["رابط الأداة", t.toolLink], ["رابط النتائج", t.resultsLink]], sub: [t.toolType, rr != null ? "نسبة الاستجابة " + rr + "٪" : ""].filter(Boolean).join(" · "), badge: t.resultQuality || "", color: SUBTLE, url: t.resultsLink || t.toolLink || "" };
   }
+  if (ln.kind === "inddef") {
+    const d = (S.indicatorDefinitions || []).find((x) => x.id === ln.refId); if (!d) return { gone: true, title: ln.refName || "مؤشر", kindLabel: "رقم مؤشر" };
+    return { title: ogIndCode(d, 0) + " | " + d.name, kindLabel: "رقم مؤشر", det: [["المستهدف", d.target], ["الوحدة", d.unit], ["الدورية", d.frequency], ["طريقة الحساب", d.calculationMethod], ["مصدر البيانات", d.dataSource]], sub: "لم يُدخل إنجازه في «مؤشرات الأداء» بعد، فلا يدخل في حساب النسبة.", badge: "", color: SUBTLE };
+  }
+  if (ln.kind === "follow") {
+    if (ln.refId) { const r = (((S.reports || {})[S.currentUnitId]) || []).find((x) => x.id === ln.refId); return { title: r ? (r.label || r.id) : (ln.refName || "تقرير"), kindLabel: "تقرير متابعة", sub: r ? "تقرير في الموقع" : "", badge: "", color: SUBTLE, gone: !r, reportId: r ? r.id : "", det: r ? [["الحالة", r.status], ["الفترة", [r.shared && r.shared.hijriYear, r.shared && r.shared.term, r.shared && r.shared.periodType].filter(Boolean).join(" · ")]] : null }; }
+    return { title: ln.text || "تقرير متابعة", kindLabel: "تقرير متابعة", sub: "", badge: "", color: SUBTLE, url: ln.url || "" };
+  }
+  if (ln.kind === "official") return { title: ln.text || "سجل رسمي", kindLabel: "سجل رسمي", sub: "", badge: "", color: SUBTLE, url: ln.url || "" };
   if (ln.kind === "custom") return { title: ln.text || "دليل آخر", kindLabel: "دليل آخر", sub: "", badge: "", color: SUBTLE, url: ln.url || "", custom: true };
+  if (ln.kind === "repo") {
+    const it = evdFind(ln.refId);
+    if (!it) return { gone: true, title: ln.refName || "شاهد", kindLabel: "شاهد" };
+    if (!evdCanSee(it)) return { title: "شاهد غير متاح للعرض", kindLabel: "شاهد", sub: "", badge: "", color: SUBTLE };
+    return { title: it.name, kindLabel: it.type || "شاهد", sub: it.description || "", badge: "", color: SUBTLE, repoId: it.id };
+  }
   const e = (draft("evidence", "evidenceItems") || sec("evidence").evidenceItems || []).find((x) => x.id === ln.refId);
   if (!e) return { gone: true, title: ln.refName || "شاهد", kindLabel: "شاهد" };
   return { title: e.name, kindLabel: e.evidenceType || "شاهد", sub: e.description || "", badge: "", color: SUBTLE, url: e.fileLink || "" };
@@ -11083,9 +11160,22 @@ function ogLinkOptionsHtml(report, og) {
   const sec = (k) => (report && report.sections && report.sections[k] && report.sections[k].data) || {};
   const used = new Set((og.evidenceLinks || []).map((l) => l.kind + ":" + l.refId));
   const grp = (label, kind, list) => { const o = (list || []).filter((x) => x && x.name && !used.has(kind + ":" + x.id)); return o.length ? `<optgroup label="${label}">${o.map((x) => `<option value="${kind}:${esc(x.id)}">${esc(x.name)}</option>`).join("")}</optgroup>` : ""; };
-  return grp("مؤشرات الأداء", "ind", sec("kpi").indicators) + grp("أدوات القياس", "tool", sec("tools").tools) + grp("الشواهد والتقارير والسجلات الرسمية والمرفقات", "evd", sec("evidence").evidenceItems);
+  return grp("مؤشرات الأداء", "ind", sec("kpi").indicators) + grp("أدوات القياس", "tool", sec("tools").tools) + grp("الشواهد والتقارير والسجلات الرسمية والمرفقات", "evd", sec("evidence").evidenceItems) + grp("مستودع الشواهد", "repo", evdRepo().filter(evdCanSee));
 }
 function ogUrlHtml(u) { const x = String(u || "").trim(); return /^https?:\/\//i.test(x) ? ` <a href="${esc(x)}" target="_blank" rel="noopener" style="color:${ROSE};font-weight:700;font-size:11.5px;">فتح الرابط ↗</a>` : (x ? ` <span style="font-size:11.5px;color:${SUBTLE};">${esc(x)}</span>` : ""); }
+function ogTitleHtml(r, lat, ln) {
+  const st = `background:none;border:0;padding:0;cursor:pointer;color:${ROSE};font-weight:800;text-decoration:underline;font-family:inherit;font-size:inherit;text-align:right;`;
+  if (r.url && /^https?:\/\//i.test(String(r.url).trim())) return `<a href="${esc(String(r.url).trim())}" target="_blank" rel="noopener noreferrer" style="color:${ROSE};font-weight:800;text-decoration:underline;">${esc(r.title)} ↗</a>`;
+  if (r.repoId) return `<button type="button" data-action="evr-open" data-id="${esc(r.repoId)}" style="${st}">${esc(r.title)}</button>${evdOpenHtml(r.repoId)}`;
+  if (r.det && r.det.some((x) => x[1] !== "" && x[1] != null && x[1] !== undefined && x[1] !== false)) return `<button type="button" data-action="og-evd-tg" ${lat} style="${st}">${esc(r.title)} ${((S.ui.ogOpenLn || {})[ln.id]) ? "▴" : "▾"}</button>`;
+  return esc(r.title);
+}
+function ogDetHtml(r, ln) {
+  if (!r.det || !((S.ui.ogOpenLn || {})[ln.id])) return "";
+  const rows = r.det.filter((x) => x[1] !== "" && x[1] != null && x[1] !== false).map(([k, v]) => `<div style="display:flex;gap:8px;font-size:12px;padding:3px 0;border-bottom:1px dashed ${BORDER};"><span style="min-width:110px;color:${SUBTLE};">${esc(k)}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere;">${/^https?:\/\//i.test(String(v)) ? `<a href="${esc(v)}" target="_blank" rel="noopener noreferrer" style="color:${ROSE};font-weight:700;">فتح الرابط ↗</a>` : esc(String(v))}</span></div>`).join("");
+  const open = r.reportId ? `<div style="margin-top:6px;">${pillBtn("فتح التقرير", { variant: "ghost", action: "og-follow-open", data: { rid: r.reportId } })}</div>` : "";
+  return `<div style="margin-top:8px;background:#fff;border-radius:8px;padding:6px 10px;">${rows}${open}</div>`;
+}
 function ogLinksHtml(gid, og) {
   const rep = getCurrentReportEntry(); const links = og.evidenceLinks || [];
   const att = `data-gid="${esc(gid)}" data-ogid="${esc(og.id)}"`;
@@ -11093,16 +11183,12 @@ function ogLinksHtml(gid, og) {
     const r = ogResolveLink(rep, ln), lat = `${att} data-lid="${esc(ln.id)}"`;
     const del = `<button type="button" class="icon-btn" style="width:28px;height:28px;" data-action="og-evd-del" ${lat} title="إلغاء الربط (لا يحذف العنصر من قسمه)">${iconX(13, DANGER)}</button>`;
     if (ln.kind === "custom") return `<div style="padding:8px 10px;border:1px solid ${BORDER};border-radius:10px;background:#fbf9f8;margin-top:6px;"><div style="display:flex;gap:8px;align-items:center;"><span style="font-size:10.5px;background:${GRAY_BG};border-radius:999px;padding:2px 9px;white-space:nowrap;">دليل آخر</span><input class="input" style="flex:1;padding:5px 8px;" placeholder="وصف الدليل" value="${esc(ln.text || "")}" data-action="og-evd-field" data-f="text" ${lat} /></div><div style="display:flex;gap:8px;align-items:center;margin-top:6px;"><input class="input" style="flex:1;padding:5px 8px;direction:ltr;" placeholder="رابط الدليل أو مرفقه (https://…)" value="${esc(ln.url || "")}" data-action="og-evd-field" data-f="url" ${lat} />${ogUrlHtml(ln.url)}${del}</div></div>`;
-    const opts = ogLinkOptionsHtml(rep, og);
-    return `<div style="padding:8px 10px;border:1px solid ${BORDER};border-radius:10px;background:#fbf9f8;margin-top:6px;${r.gone ? "opacity:.7;" : ""}"><div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:10.5px;background:${GRAY_BG};border-radius:999px;padding:2px 9px;white-space:nowrap;">${esc(r.kindLabel)}</span>
-      <div style="flex:1;min-width:0;"><div style="font-size:12.5px;font-weight:700;">${esc(r.title)}${r.gone ? " — مرجع محذوف من قسمه" : ""}${ogUrlHtml(r.url)}</div>${r.sub ? `<div style="font-size:11px;color:${SUBTLE};">${esc(r.sub)}</div>` : ""}</div>
+    return `<div style="padding:8px 10px;border:1px solid ${BORDER};border-radius:10px;background:#fbf9f8;margin-top:6px;${r.gone ? "opacity:.7;" : ""}"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span class="og-ic" title="${esc(r.kindLabel)}">${ogEvIcon(r.kindLabel)}</span>
+      <div style="flex:1;min-width:170px;"><div style="font-size:12.5px;font-weight:700;">${ogTitleHtml(r, lat, ln)}${r.gone ? " — مرجع محذوف من قسمه" : ""}</div><div style="font-size:11px;color:${SUBTLE};">${esc(r.kindLabel)}${r.sub ? " · " + esc(r.sub) : ""}</div></div>
       ${r.badge ? `<span style="font-size:11px;font-weight:800;color:${r.color || SUBTLE};">${esc(r.badge)}</span>` : ""}${del}</div>
-      ${opts ? `<select class="input" style="margin-top:6px;padding:4px 8px;font-size:11.5px;" data-action="og-evd-chg" ${lat}><option value="">تغيير الدليل المرتبط…</option>${opts}</select>` : ""}</div>`; }).join("");
-  const opts = ogLinkOptionsHtml(rep, og);
-  return `<div style="margin-top:10px;"><div style="font-size:12px;font-weight:800;margin-bottom:4px;">أدلة التحقق المرتبطة (اختيارية) <span style="font-weight:600;color:${SUBTLE};">— تُسحب بياناتها ورابطها من قسمها دون إعادة إدخال، ولا تدخل في نسبة التحقق</span></div>${rows}
-    <select class="input" style="margin-top:8px;" data-action="og-evd-add" ${att}><option value="">＋ ربط دليل: مؤشر أو أداة قياس أو شاهد أو سجل…</option>${opts}<option value="custom:new">＋ دليل آخر (وصف أو رابط أو مرفق)</option></select>
-    ${links.length ? "" : `<div class="hint">اختياري — لا يلزم ربط جميع الأنواع.</div>`}</div>`;
+      ${ogDetHtml(r, ln)}</div>`; }).join("");
+  return rows ? `<div style="margin-top:6px;">${rows}</div>` : "";
 }
 function goalSimHintHtml(g) {
   const sm = goalSimilarList(g.name, g.id).slice(0, 2); if (!sm.length) return "";
@@ -11940,17 +12026,27 @@ function expandableSelectHtml(name, value, baseOptions, customOptions, placehold
     </div>` : "";
   return selectHtmlStr + otherRow;
 }
-function multiSelectDropdownHtml(fieldKey, options, values, placeholder) {
+function multiSelectDropdownHtml(fieldKey, options, values, placeholder, extra) {
   const open = S.ui.openMultiDropdown === fieldKey;
   const chips = values.map((v) => `<span class="multi-chip">${esc(v)}<button type="button" data-action="multi-toggle" data-key="${esc(fieldKey)}" data-value="${esc(v)}" style="background:none;border:none;cursor:pointer;color:${ROSE};padding:0;">${iconX(10, ROSE)}</button></span>`).join(" ");
+  if (extra) {
+    const inChips = values.map((v) => `<span class="multi-chip">${esc(v)}<span role="button" data-action="multi-toggle" data-key="${esc(fieldKey)}" data-value="${esc(v)}" style="cursor:pointer;color:${ROSE};display:inline-flex;padding:0 2px;">${iconX(10, ROSE)}</span></span>`).join("");
+    return `<div style="position:relative;">
+      <div class="input multi-box" role="button" tabindex="0" data-action="toggle-multi-dropdown" data-key="${esc(fieldKey)}">${inChips || `<span style="color:${SUBTLE};">${esc(placeholder || "اختاري")}</span>`}</div>
+      ${open ? `<div class="multi-dropdown-panel mdp-float">${options.map((o) => `
+        <div class="multi-dropdown-item" data-action="multi-toggle" data-key="${esc(fieldKey)}" data-value="${esc(o)}">
+          <input type="checkbox" ${values.includes(o) ? "checked" : ""} style="pointer-events:none;" /> ${esc(o)}
+        </div>`).join("")}${extra}</div>` : ""}
+    </div>`;
+  }
   return `
     <div>
       <button type="button" class="input" style="text-align:right;cursor:pointer;" data-action="toggle-multi-dropdown" data-key="${esc(fieldKey)}">${values.length ? "" : esc(placeholder || "اختاري")}</button>
       ${chips ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${chips}</div>` : ""}
-      ${open ? `<div class="multi-dropdown-panel">${options.map((o) => `
+      ${open ? `<div class="multi-dropdown-panel${extra ? " mdp-float" : ""}">${options.map((o) => `
         <div class="multi-dropdown-item" data-action="multi-toggle" data-key="${esc(fieldKey)}" data-value="${esc(o)}">
           <input type="checkbox" ${values.includes(o) ? "checked" : ""} style="pointer-events:none;" /> ${esc(o)}
-        </div>`).join("")}</div>` : ""}
+        </div>`).join("")}${extra || ""}</div>` : ""}
     </div>`;
 }
 
@@ -12188,9 +12284,6 @@ function validateGoalsData(data) {
   const goals = data.goals || [];
   for (const g of goals) {
     for (const og of g.operationalGoals || []) {
-      if (og.evidenceType && !(og.evidenceAnswer && og.evidenceAnswer.trim())) {
-        return { valid: false, message: `أدخلي إجابة دليل التحقق لهدف "${og.name}" قبل الحفظ` };
-      }
     }
   }
   return { valid: true };
@@ -12225,7 +12318,7 @@ function persistSection(sectionId, data, status) {
   }
   const updatedEntry = { ...current, label: updatedLabel, sections: updatedSections, shared: updatedShared, updatedAt: Date.now(), lastSectionId: sectionId };
   // saveReportEntry يرفع التقرير كامل (بكل أقسامه) لـ Supabase دفعة وحدة.
-  saveReportEntry(unitId, updatedEntry);
+  saveReportEntry(unitId, ogRecomputeEntry(updatedEntry, unitId));
 }
 
 function pfProgramsList() { const e = getCurrentReportEntry(); const sec = e && e.sections && e.sections.programs; const live = S.activeSectionId === "programs" && S.sectionDraft && S.sectionDraft.programs; return (live || (sec && sec.data && sec.data.programs) || []); }
@@ -12406,6 +12499,7 @@ function renderSectionFields(section, d, unit, report) {
   // النهائية") تُستثنى من هذا التحويل التلقائي وتمر عبر السويتش كالمعتاد، لأن
   // دالتها اليدوية (basicSectionHtml/reviewSectionHtml) هي اللي تستخدم الحقول
   // الآن عبر renderSchemaFixedHtml، مع الحفاظ على منطق عرض/زخرفة خاص بها.
+  if (section.id === "evidence") return evidenceSectionHtml(d); // مستودع الشواهد يحل محل المحرك العام
   const schema = SECTION_FIELD_SCHEMAS[section.id];
   if (schema && !schema.fixed && (schema.fields || []).length) return renderSchemaRepeaterHtml(schema, d);
   switch (section.id) {
@@ -12617,6 +12711,431 @@ function goalOverallAchieved(g) {
   const ogs = g.operationalGoals || [];
   return ogs.length > 0 && ogs.every((og) => og.level === "تحقق بالكامل");
 }
+/* ===== تحقق الهدف تلقائيًا: النسبة تُحسب من المؤشرات المرتبطة بالهدف، والمستوى يُحدَّد منها =====
+   النطاقات مقترحة (٩٠ / ٧٥ / ٥٠). «لم يبدأ» و«أجل بقرار» حالتان يدويتان (حقل special).
+   لو لا توجد مؤشرات مرتبطة ببيانات إنجاز، يبقى الاختيار اليدوي القديم كما كان. */
+const GOAL_AUTO_RANGES = [[90, "تحقق بالكامل"], [75, "تحقق بدرجة مرتفعة"], [50, "تحقق جزئيًا"], [0, "لم يتحقق"]];
+const GOAL_SPECIAL_LEVELS = ["لم يبدأ", "أجل بقرار"];
+function goalLevelFromPct(p) { for (const r of GOAL_AUTO_RANGES) if (p >= r[0]) return r[1]; return "لم يتحقق"; }
+function ogAutoInfo(report, og, unitId) {
+  const live = S.sectionDraft && S.activeSectionId === "kpi" && S.sectionDraft.indicators;
+  const kpi = live || (report && report.sections && report.sections.kpi && report.sections.kpi.data && report.sections.kpi.data.indicators) || [];
+  try { indStampRows(report, unitId); } catch (e) { /* تجاهل */ }
+  const vals = [];
+  (og.evidenceLinks || []).forEach((ln) => {
+    if (!ln || ln.kind !== "ind") return;
+    const row = kpi.find((x) => x && x.id === ln.refId); if (!row) return;
+    const v = indicatorRowView(row).pct; if (v != null) vals.push(Math.max(0, Math.min(100, v)));
+  });
+  return { n: vals.length, pct: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null };
+}
+// يحدّث level/percentage على الهدف التشغيلي نفسه (تبقى مخزّنة كما كانت فتعمل كل اللوحات دون تغيير)
+function ogApplyAuto(report, og, unitId) {
+  if (!og) return {};
+  if (og.special && GOAL_SPECIAL_LEVELS.indexOf(og.special) !== -1) { og.level = og.special; og.percentage = 0; return { special: true }; }
+  const a = ogAutoInfo(report, og, unitId);
+  if (a.pct == null) return { auto: false };
+  og.percentage = a.pct; og.level = goalLevelFromPct(a.pct);
+  return { auto: true, n: a.n, pct: a.pct };
+}
+// عند حفظ أي قسم (مثل المؤشرات): تُعاد حسبة الأهداف المرتبطة تلقائيًا
+function ogRecomputeEntry(entry, unitId) {
+  const gs = entry && entry.sections && entry.sections.goals, goals = gs && gs.data && gs.data.goals;
+  if (!goals || !goals.length) return entry;
+  let changed = false;
+  const ng = goals.map((g) => ({ ...g, operationalGoals: (g.operationalGoals || []).map((og) => { const c = { ...og }; ogApplyAuto(entry, c, unitId); if (c.level !== og.level || c.percentage !== og.percentage) changed = true; return c; }) }));
+  return changed ? { ...entry, sections: { ...entry.sections, goals: { ...gs, data: { ...gs.data, goals: ng } } } } : entry;
+}
+
+function ogEvTypes() { return [...EVIDENCE_TYPES, "أخرى"]; }
+function ogEvIcon(t) { const m = { "رقم مؤشر": "📊", "نتيجة أداة قياس": "🧪", "رابط شاهد": "🔗", "تقرير متابعة": "📄", "سجل رسمي": "📘", "دليل آخر": "✎", "أخرى": "✎" }; return m[t] || "📎"; }
+function ogIndCode(def, i) { return "KPI-" + String((def ? (S.indicatorDefinitions || []).indexOf(def) : i) + 1).padStart(2, "0"); }
+function ogIndOptions(rep, og) {
+  const rows = ((rep && rep.sections && rep.sections.kpi && rep.sections.kpi.data) || {}).indicators || [];
+  const used = new Set((og.evidenceLinks || []).map((l) => l.kind + ":" + l.refId));
+  const out = [], seenDef = new Set();
+  rows.forEach((r, i) => { if (!r || !r.name) return; const def = findIndicatorDef(r.name); if (def) seenDef.add(def.id); if (!used.has("ind:" + r.id)) out.push({ v: "ind:" + r.id, t: ogIndCode(def, i) + " | " + r.name }); });
+  (S.indicatorDefinitions || []).filter((d) => scopeAllows("ind", d.id, S.currentUnitId) && !seenDef.has(d.id)).forEach((d) => { if (!used.has("inddef:" + d.id)) out.push({ v: "inddef:" + d.id, t: ogIndCode(d, 0) + " | " + d.name }); });
+  return out;
+}
+function ogToolOptions(rep, og) {
+  const rows = ((rep && rep.sections && rep.sections.tools && rep.sections.tools.data) || {}).tools || [];
+  const used = new Set((og.evidenceLinks || []).map((l) => l.kind + ":" + l.refId));
+  return rows.filter((t) => t && t.name && !used.has("tool:" + t.id)).map((t) => ({ v: "tool:" + t.id, t: t.name + (t.toolType ? " — " + t.toolType : "") }));
+}
+function ogFollowOptions(og) {
+  const cur = S.currentReportId, used = new Set((og.evidenceLinks || []).map((l) => l.kind + ":" + l.refId));
+  return ((S.reports || {})[S.currentUnitId] || []).filter((r) => r && r.id !== cur && !used.has("follow:" + r.id)).map((r) => ({ v: "follow:" + r.id, t: r.label || r.id }));
+}
+function ogTopRowHtml(g, og) {
+  const rep = getCurrentReportEntry(), au = ogApplyAuto(rep, og, S.currentUnitId) || {}, gm = goalLevelMeta(og.level);
+  const barHtml = og.level ? `<div style="display:flex;align-items:center;gap:8px;min-height:38px;"><div style="flex:1;">${progressBarHtml(og.percentage || 0, gm.color)}</div><span style="font-size:13px;font-weight:800;color:${gm.color};">${og.percentage}٪</span></div>` : `<div class="hint" style="margin:0;min-height:38px;display:flex;align-items:center;">تُحسب تلقائيًا</div>`;
+  const levelCell = (au.auto || au.special)
+    ? fieldWrap("مستوى تحقق الهدف", `<div style="min-height:38px;display:flex;align-items:center;">${badgeHtml(og.level, gm.color, gm.bg)}</div>`)
+    : fieldWrap("مستوى تحقق الهدف", true, selSub("goals", g.id, "operationalGoals", og.id, "level", og.level, GOAL_LEVELS, "اختاري المستوى"));
+  const pctCell = fieldWrap("نسبة تحقق الهدف", barHtml);
+  const cur = (S.ui.ogEvT || {})[og.id] || "";
+  const indCell = `<div class="field"><label class="field-label">مؤشرات مرتبطة</label><div style="font-size:13px;font-weight:800;min-height:24px;">${au.auto ? au.n + (au.n === 1 ? " مؤشر" : " مؤشرات") : "لا يوجد"}</div><div class="hint" style="margin:2px 0 0;">${au.special ? "حالة خاصة اخترتِها" : au.auto ? "الحساب تلقائي" : "اختيار يدوي"}</div></div>`;
+  const note = au.special ? `<div class="hint" style="margin:0 0 8px;">حالة خاصة اخترتِها.</div>` : au.auto ? `<div class="hint" style="margin:0 0 8px;">النسبة والمستوى تُحسبان تلقائيًا من ${au.n} ${au.n === 1 ? "مؤشر مرتبط" : "مؤشرات مرتبطة"} بالهدف.</div>` : "";
+  const special = au.auto || au.special ? `<details class="og-adv"${au.special ? " open" : ""}><summary>خيارات متقدمة: حالة خاصة</summary>${fieldWrap("حالة خاصة (اختياري)", selSub("goals", g.id, "operationalGoals", og.id, "special", og.special || "", GOAL_SPECIAL_LEVELS, "— لا يوجد (يُحسب تلقائيًا)"))}</details>` : "";
+  return `<div class="og-trio">${levelCell}${pctCell}${indCell}</div>${note}${special}`;
+}
+function ogEvidenceAreaHtml(g, og) {
+  const rep = getCurrentReportEntry(), type = (S.ui.ogEvT || {})[og.id] || "", att = `data-gid="${esc(g.id)}" data-ogid="${esc(og.id)}"`;
+  const sel = (opts, ph, kind) => opts.length ? `<select class="input" data-action="og-evd-pick" ${att}><option value="">${esc(ph)}</option>${opts.map((o) => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("")}</select>` : `<div class="hint">${esc(kind)}</div>`;
+  const add = (k, label) => pillBtn(label || "إضافة", { icon: iconPlus(14, "#fff"), action: "og-evd-new", data: { gid: g.id, ogid: og.id, k } });
+  let body = "";
+  if (type === "رقم مؤشر") body = sel(ogIndOptions(rep, og), "اختاري المؤشر (رقمه | اسمه)", "لا توجد مؤشرات متاحة للوحدة. أضيفي مؤشرًا في قسم «مؤشرات الأداء» أولًا.");
+  else if (type === "نتيجة أداة قياس") body = sel(ogToolOptions(rep, og), "اختاري أداة القياس", "لا توجد أدوات قياس مسجلة في هذا التقرير.");
+  else if (type === "رابط شاهد") {
+    evdLoad();
+    const opts = evdRepo().filter(evdCanSee).filter((x) => !(og.evidenceLinks || []).some((l) => l.kind === "repo" && l.refId === x.id)).map((x) => ({ v: "repo:" + x.id, t: x.name + (x.type ? " — " + x.type : "") }));
+    body = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${opts.length ? `<div style="flex:1;min-width:220px;">${sel(opts, "اختاري شاهدًا مضافًا مسبقًا", "")}</div>` : ""}${pillBtn("＋ إضافة شاهد جديد (ينقلك لصفحة الشواهد)", { variant: "ghost", action: "evr-goal-new", data: { gid: g.id, ogid: og.id } })}</div>`;
+  } else if (type === "تقرير متابعة") {
+    const opts = ogFollowOptions(og);
+    body = `${opts.length ? sel(opts, "استيراد تقرير موجود في الموقع", "") : ""}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><input class="input" id="ogev-name-${esc(og.id)}" style="flex:1;min-width:160px;" placeholder="اسم التقرير" /><input class="input" id="ogev-url-${esc(og.id)}" style="flex:2;min-width:200px;direction:ltr;" placeholder="رابط التقرير أو رابط درايف (https://…)" />${add("follow-url")}</div>`;
+  } else if (type === "سجل رسمي") body = `<div style="display:flex;gap:8px;flex-wrap:wrap;"><input class="input" id="ogev-name-${esc(og.id)}" style="flex:1;min-width:160px;" placeholder="اسم السجل" /><input class="input" id="ogev-url-${esc(og.id)}" style="flex:2;min-width:200px;direction:ltr;" placeholder="رابط السجل الرسمي (https://…)" />${add("official")}</div>`;
+  else if (type === "أخرى") body = `<div style="display:flex;gap:8px;flex-wrap:wrap;"><input class="input" id="ogev-name-${esc(og.id)}" style="flex:1;min-width:200px;" placeholder="وصف الدليل" /><input class="input" id="ogev-url-${esc(og.id)}" style="flex:2;min-width:200px;direction:ltr;" placeholder="رابط الدليل أو ملفه على درايف (https://…)" />${add("custom")}</div>`;
+  const legacy = (og.evidenceAnswer && String(og.evidenceAnswer).trim() && !(og.evidenceLinks || []).some((l) => l.kind === "repo")) ? `<div style="padding:8px 10px;border:1px dashed ${BORDER};border-radius:10px;margin-top:6px;display:flex;align-items:center;gap:8px;"><span style="font-size:10.5px;background:${GRAY_BG};border-radius:999px;padding:2px 9px;">${esc(og.evidenceType || "دليل سابق")}</span><span style="flex:1;font-size:12.5px;">${/^https?:\/\//i.test(String(og.evidenceAnswer || "").trim()) ? `<a href="${esc(String(og.evidenceAnswer).trim())}" target="_blank" rel="noopener noreferrer" style="color:${ROSE};font-weight:800;text-decoration:underline;">${esc(og.evidenceAnswer)} ↗</a>` : esc(og.evidenceAnswer || "")}</span><button type="button" class="icon-btn" style="width:28px;height:28px;" data-action="og-evd-legacy-clear" ${att}>${iconX(13, DANGER)}</button></div>` : "";
+  const nEv = (og.evidenceLinks || []).length + (legacy ? 1 : 0);
+  const chips = `<div class="og-types">${ogEvTypes().map((t) => `<button type="button" class="og-ty ${t === type ? "on" : ""}" data-action="og-evt-set" data-ogid="${esc(og.id)}" data-v="${esc(t)}">${ogEvIcon(t)} ${esc(t)}</button>`).join("")}</div>`;
+  return `<div style="margin-bottom:10px;"><div class="og-sec">أدلة تحقق الهدف <em>${nEv}</em></div>${chips}${type ? fieldWrap("إجابة الدليل — " + type, body) : ""}${ogLinksHtml(g.id, og)}${legacy}${type ? "" : ((og.evidenceLinks || []).length || legacy ? "" : `<div class="hint">اختاري نوع الدليل لإضافة دليل. ويمكن إضافة أكثر من دليل.</div>`)}</div>`;
+}
+function ogLevelPctHtml(g, og) {
+  const rep = getCurrentReportEntry(), au = ogApplyAuto(rep, og, S.currentUnitId) || {}, gm = goalLevelMeta(og.level);
+  const bar = og.level ? `<div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;">${progressBarHtml(og.percentage || 0, gm.color)}</div><span style="font-size:13px;font-weight:800;color:${gm.color};min-width:34px;text-align:left;">${og.percentage}٪</span></div>` : "";
+  if (au.auto || au.special) {
+    return fieldWrap("مستوى تحقق الهدف", `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${badgeHtml(og.level, gm.color, gm.bg)}<span class="hint" style="margin:0;">${au.special ? "حالة خاصة اخترتِها" : "يُحدد تلقائيًا من نسبة التحقق"}</span></div>`)
+      + fieldWrap("نسبة تحقق الهدف", bar + (au.special ? "" : `<div class="hint">تُحسب تلقائيًا: متوسط تحقق ${au.n} ${au.n === 1 ? "مؤشر مرتبط" : "مؤشرات مرتبطة"} بالهدف (من «أدلة التحقق المرتبطة» أدناه).</div>`))
+      + fieldWrap("حالة خاصة (اختياري)", selSub("goals", g.id, "operationalGoals", og.id, "special", og.special || "", GOAL_SPECIAL_LEVELS, "— لا يوجد (يُحسب تلقائيًا)"));
+  }
+  return fieldWrap("مستوى تحقق الهدف", true, selSub("goals", g.id, "operationalGoals", og.id, "level", og.level, GOAL_LEVELS, "اختاري مستوى التحقق"))
+    + fieldWrap("نسبة تحقق الهدف", og.level ? bar : `<div class="hint">تُحسب تلقائيًا بعد اختيار المستوى.</div>`)
+    + `<div class="hint" style="margin:-4px 0 10px;">لا توجد مؤشرات مرتبطة ببيانات إنجاز. اربطي مؤشرًا من «أدلة التحقق المرتبطة» لتُحسب النسبة والمستوى تلقائيًا، أو اختاري المستوى يدويًا.</div>`;
+}
+
+/* ===== مستودع الشواهد المركزي =====
+   الشاهد يُحفظ مرة واحدة في جدول evidence_repo ويُربط بأي عدد من الأهداف (og.evidenceLinks بنوع «repo»).
+   الشواهد القديمة داخل التقارير (evidenceItems) تبقى كما هي وتُنقل للمستودع بزر. */
+const EVD_KINDS = [["link", "رابط خارجي"], ["file", "ملف PDF أو مستند"], ["image", "صورة"], ["text", "نص مباشر"]];
+const EVD_FILE_UPLOAD = true; // موقع الشيت يُغلقه عند البناء (حدّ حجم الخلية)
+const EVD_FILE_MAX = 2.5 * 1024 * 1024;
+const EVD_LS = "evd_repo_v1";
+function evdRepo() { if (!S.__evdRepo) { try { S.__evdRepo = JSON.parse(lsGet(EVD_LS) || "[]"); } catch (e) { S.__evdRepo = []; } } return S.__evdRepo; }
+function evdCache() { try { lsSet(EVD_LS, JSON.stringify(evdRepo().map((x) => ({ ...x, file_data: "" })))); } catch (e) { /* تجاهل */ } }
+async function evdLoad() {
+  if (!dbConnected() || S.__evdLoaded || S.__evdLoading) return;
+  S.__evdLoading = true;
+  const r = await supabaseRequest("evidence_repo?select=id,unit_id,kind,type,name,department,program,url,description,confidentiality,body,file_name,created_at,updated_at&order=created_at.desc");
+  S.__evdLoading = false; S.__evdLoaded = true;
+  if (r.ok && Array.isArray(r.data)) { S.__evdRepo = r.data; S.__evdErr = ""; evdCache(); }
+  else S.__evdErr = "تعذّر تحميل مستودع الشواهد. هل شُغّل ملف «الشواهد-إضافات.sql»؟";
+  render();
+}
+// درجة السرية: العامة للجميع · «للإدارة فقط» للإدارات ومالكة الشاهد · «سري» لمديرة النظام والإدارة التنفيذية ومالكة الشاهد
+function evdAuthCfg() {
+  const t = (S.siteSettings && S.siteSettings.theme) || {}, a = t.evdAuth || {};
+  return { admDept: a.admDept !== false, admOffice: a.admOffice !== false, secDept: !!a.secDept, secOffice: !!a.secOffice };
+}
+function evdCanSee(it) {
+  const c = it.confidentiality || CONFIDENTIALITY_LEVELS[0];
+  if (c === CONFIDENTIALITY_LEVELS[0]) return true;
+  if (S.isAdmin || S.isExecutive || (it.unit_id && it.unit_id === S.currentUnitId)) return true;
+  const a = evdAuthCfg();
+  if (c === CONFIDENTIALITY_LEVELS[1]) return !!((S.isDepartmentUser && a.admDept) || (S.isOfficeUser && a.admOffice));
+  return !!((S.isDepartmentUser && a.secDept) || (S.isOfficeUser && a.secOffice));
+}
+function evdCanEdit(it) { return !!(S.isAdmin || !it.unit_id || it.unit_id === S.currentUnitId); }
+function evdFind(id) { return evdRepo().find((x) => x.id === id) || null; }
+async function evdSaveItem(it) {
+  it.updated_at = Date.now(); if (!it.created_at) it.created_at = it.updated_at;
+  const list = evdRepo(), i = list.findIndex((x) => x.id === it.id);
+  if (i >= 0) list[i] = { ...it, file_data: "" }; else list.unshift({ ...it, file_data: "" });
+  evdCache();
+  if (!dbConnected()) { if (it.file_data) list.find((x) => x.id === it.id).file_data = it.file_data; return { ok: true }; }
+  const row = { id: it.id, unit_id: it.unit_id || "", kind: it.kind, type: it.type || "", name: it.name || "", department: it.department || "", program: it.program || "", url: it.url || "", description: it.description || "", confidentiality: it.confidentiality || "", body: it.body || "", file_name: it.file_name || "", created_at: it.created_at, updated_at: it.updated_at };
+  if (it.file_data) row.file_data = it.file_data;
+  const r = await supabaseRequest("evidence_repo?on_conflict=id", { method: "POST", prefer: "return=minimal,resolution=merge-duplicates", body: JSON.stringify([row]) });
+  return r.ok ? { ok: true } : { ok: false, error: r.error };
+}
+async function evdDelete(id) {
+  const it = evdFind(id); if (!it || !evdCanEdit(it)) return;
+  if (!confirm("حذف الشاهد «" + it.name + "» من المستودع؟ الأهداف المرتبطة به ستظهر بعلامة «مرجع محذوف».")) return;
+  S.__evdRepo = evdRepo().filter((x) => x.id !== id); evdCache();
+  if (dbConnected()) await supabaseRequest(`evidence_repo?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", prefer: "return=minimal" });
+  render();
+}
+async function evdOpen(id) {
+  const it = evdFind(id); if (!it) return;
+  if (!evdCanSee(it)) { alert("هذا الشاهد غير متاح لك."); return; }
+  if (it.kind === "link") { if (/^https?:\/\//i.test(it.url || "")) window.open(it.url, "_blank", "noopener"); return; }
+  if (it.kind === "text") { S.ui.evdShow = S.ui.evdShow === id ? null : id; render(); return; }
+  let data = it.file_data;
+  if (!data && dbConnected()) { const r = await supabaseRequest(`evidence_repo?id=eq.${encodeURIComponent(id)}&select=file_data&limit=1`); data = r.ok && r.data && r.data[0] && r.data[0].file_data; }
+  if (!data) { alert("تعذّر فتح الملف."); return; }
+  try {
+    const b = await (await fetch(data)).blob(), u = URL.createObjectURL(b), isImg = /^image\//.test(b.type) || it.kind === "image";
+    const ov = document.createElement("div");
+    ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(30,10,15,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:10px;";
+    ov.innerHTML = `<div style="display:flex;gap:10px;align-items:center;color:#fff;font-weight:700;direction:rtl;"><span>${esc(it.name || "")}</span><a href="${u}" target="_blank" rel="noopener" style="color:#fff;text-decoration:underline;">فتح في تبويب ↗</a><button type="button" style="background:#fff;border:0;border-radius:999px;padding:4px 14px;font-weight:800;cursor:pointer;">إغلاق ✕</button></div>${isImg ? `<img src="${u}" style="max-width:96vw;max-height:80vh;border-radius:10px;background:#fff;" />` : `<iframe src="${u}" style="width:96vw;height:80vh;border:0;border-radius:10px;background:#fff;"></iframe>`}`;
+    const close = () => { try { URL.revokeObjectURL(u); } catch (e) { /* تجاهل */ } ov.remove(); };
+    ov.addEventListener("click", (ev) => { if (ev.target === ov || ev.target.tagName === "BUTTON") close(); });
+    document.body.appendChild(ov);
+  } catch (e) { alert("تعذّر فتح الملف."); }
+}
+// رابط خارجي (درايف مثلًا): رابط حقيقي قابل للضغط (يبقى كذلك في ملف PDF المطبوع)؛ غيره: زر يفتحه من القاعدة
+function evdOpenHtml(id) {
+  const it = evdFind(id);
+  if (it && it.kind === "link" && evdCanSee(it) && /^https?:\/\//i.test(it.url || "")) return ` <a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" title="فتح الشاهد" style="text-decoration:none;font-size:14px;padding:0 4px;">🔗</a>`;
+  return ` <button type="button" data-action="evr-open" data-id="${esc(id)}" title="فتح الشاهد" style="border:0;background:none;cursor:pointer;font-size:14px;padding:0 4px;">🔗</button>`;
+}
+function evdNewForm(ret) { return { id: "", kind: "link", type: "", name: "", department: "", program: "", url: "", description: "", confidentiality: "", body: "", file_name: "", file_data: "", unit_id: S.currentUnitId || "", ret: ret || null, msg: "", busy: false }; }
+function evdProgramNames() {
+  const rep = getCurrentReportEntry(), ps = (rep && rep.sections && rep.sections.programs && rep.sections.programs.data && rep.sections.programs.data.programs) || [];
+  return [...new Set(ps.map((p) => String((p && p.name) || "").trim()).filter(Boolean))];
+}
+function evdFormHtml() {
+  const f = S.ui.evdForm; if (!f) return "";
+  const inpE = (k, ph) => `<input class="input" type="text" data-evf="${k}" value="${esc(f[k] || "")}" placeholder="${esc(ph || "")}" />`;
+  const selE = (k, opts, ph) => `<select class="input" data-evf="${k}"><option value="">${esc(ph)}</option>${opts.map((o) => `<option value="${esc(o)}" ${o === f[k] ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  const kinds = EVD_KINDS.filter((k) => EVD_FILE_UPLOAD || (k[0] !== "file" && k[0] !== "image"));
+  const kindBtns = `<div class="radio-group">${kinds.map((k) => `<button type="button" class="radio-pill ${f.kind === k[0] ? "active" : ""}" data-action="evr-kind" data-v="${k[0]}">${k[1]}</button>`).join("")}</div>`;
+  const depts = (S.departments || []).filter((x) => x.status === "active").map((x) => x.name), progs = evdProgramNames();
+  let content = "";
+  if (f.kind === "link") content = fieldWrap("رابط الملف", true, inpE("url", "https://..."));
+  else if (f.kind === "text") content = fieldWrap("نص الشاهد", true, `<textarea class="input" style="min-height:90px" data-evf="body" placeholder="اكتبي نص الشاهد">${esc(f.body || "")}</textarea>`);
+  else content = fieldWrap(f.kind === "image" ? "الصورة" : "الملف (PDF أو مستند، حتى ٢٫٥ ميجا)", true, `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><input type="file" data-evf="${f.kind}" accept="${f.kind === "image" ? "image/*" : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"}" />${f.file_name ? `<span class="hint" style="margin:0;">${esc(f.file_name)}</span><button type="button" class="pill-ghost" style="padding:2px 10px;" data-action="evr-file-clear">إزالة</button>` : ""}</div>`);
+  return `<div class="repeat-item" style="border:1px solid ${ROSE};">
+    <div class="repeat-item-head"><span class="repeat-item-title">${f.id ? "تعديل الشاهد" : "إضافة شاهد جديد"}</span></div>
+    ${fieldWrap("طريقة الإضافة", kindBtns)}
+    ${fieldWrap("نوع الشاهد", true, selE("type", EVIDENCE_TYPES_LIST, "اختاري نوع الشاهد"))}
+    ${fieldWrap("اسم الشاهد", true, inpE("name", "اسم الشاهد"))}
+    ${content}
+    ${fieldWrap("القسم المرتبط به (اختياري)", selE("department", depts, "اختاري القسم"))}
+    ${fieldWrap("البرنامج المرتبط (اختياري)", selE("program", progs, "اختاري البرنامج"))}
+    ${fieldWrap("وصف مختصر", `<textarea class="input" style="min-height:60px" data-evf="description">${esc(f.description || "")}</textarea>`)}
+    ${fieldWrap("درجة السرية", true, `<div class="radio-group">${CONFIDENTIALITY_LEVELS.map((o) => `<button type="button" class="radio-pill ${o === f.confidentiality ? "active" : ""}" data-action="evr-conf" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`)}
+    ${f.msg ? `<div class="hint" style="color:${DANGER};font-weight:700;">${esc(f.msg)}</div>` : ""}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">${pillBtn(f.busy ? "جارٍ الحفظ…" : (f.ret ? "حفظ وربطه بالهدف" : "حفظ الشاهد"), { variant: "primary", action: "evr-save" })}${pillBtn("إلغاء", { variant: "ghost", action: "evr-cancel" })}</div>
+  </div>`;
+}
+function evdFormInput(el, typing) {
+  const f = S.ui.evdForm; if (!f) return; const k = el.dataset.evf;
+  if (el.type === "file") {
+    const file = el.files && el.files[0]; if (!file) return;
+    if (k === "image") { evdResizeImage(file, 1200, 0.75).then((u) => { f.file_data = u; f.file_name = file.name; render(); }).catch((err) => alert((err && err.message) || "تعذّر تحميل الصورة")); return; }
+    if (file.size > EVD_FILE_MAX) { alert("حجم الملف أكبر من ٢٫٥ ميجا. ارفعيه في درايف وأدخلي رابطه بطريقة «رابط خارجي»."); el.value = ""; return; }
+    const fr = new FileReader(); fr.onload = () => { f.file_data = String(fr.result); f.file_name = file.name; render(); }; fr.onerror = () => alert("تعذّرت قراءة الملف"); fr.readAsDataURL(file);
+    return;
+  }
+  f[k] = el.value;
+}
+async function evdFormSave() {
+  const f = S.ui.evdForm; if (!f || f.busy) return;
+  const miss = !String(f.name || "").trim() ? "اكتبي اسم الشاهد." : !f.type ? "اختاري نوع الشاهد." : !f.confidentiality ? "اختاري درجة السرية."
+    : f.kind === "link" && !/^https?:\/\//i.test(String(f.url || "").trim()) ? "أدخلي رابطًا صحيحًا يبدأ بـ http."
+    : (f.kind === "file" || f.kind === "image") && !f.file_data && !f.file_name ? "أرفقي الملف."
+    : f.kind === "text" && !String(f.body || "").trim() ? "اكتبي نص الشاهد." : "";
+  if (miss) { f.msg = miss; render(); return; }
+  f.busy = true; f.msg = ""; render();
+  const it = { id: f.id || uid("evr"), unit_id: f.unit_id != null ? f.unit_id : (S.currentUnitId || ""), kind: f.kind, type: f.type, name: String(f.name).trim(), department: f.department || "", program: f.program || "",
+    url: f.kind === "link" ? String(f.url).trim() : "", description: f.description || "", confidentiality: f.confidentiality, body: f.kind === "text" ? f.body : "", file_name: (f.kind === "file" || f.kind === "image") ? (f.file_name || "") : "", file_data: (f.kind === "file" || f.kind === "image") ? (f.file_data || "") : "", created_at: f.created_at };
+  const r = await evdSaveItem(it);
+  f.busy = false;
+  if (!r.ok) { f.msg = "تعذّر الحفظ: " + r.error + " — هل شُغّل ملف «الشواهد-إضافات.sql»؟"; render(); return; }
+  const ret = f.ret; S.ui.evdForm = null;
+  if (ret) { loadSectionIntoDraft("goals"); (S.ui.expandedRepeatItem || (S.ui.expandedRepeatItem = {})).goals = ret.gid; evdLinkToGoal(ret.gid, ret.ogid, it); autoSaveFlush(); try { trySaveSectionWithStatus("draft"); } catch (e) { /* تجاهل */ } window.scrollTo(0, 0); }
+  render();
+}
+// ربط الشاهد بالهدف (مرة واحدة) وإظهار اسمه في «إجابة الدليل»
+function evdLinkToGoal(gid, ogid, it) {
+  const g = findById(getItemList("goals"), gid), og = g && (g.operationalGoals || []).find((x) => x.id === ogid); if (!og || !it) return;
+  og.evidenceRepoId = it.id;
+  if (!(og.evidenceLinks || []).some((l) => l.kind === "repo" && l.refId === it.id)) og.evidenceLinks = [...(og.evidenceLinks || []), { id: uid("ev"), kind: "repo", refId: it.id, refName: it.name }];
+  autoSaveSchedule();
+}
+function evdGoalAnswerHtml(gid, og) {
+  evdLoad();
+  const f = S.ui.evdForm;
+  if (f && f.ret && f.ret.ogid === og.id) return fieldWrap("إجابة الدليل", true, evdFormHtml());
+  const it = og.evidenceRepoId ? evdFind(og.evidenceRepoId) : null, att = `data-gid="${esc(gid)}" data-ogid="${esc(og.id)}"`;
+  if (it) {
+    const ok = evdCanSee(it);
+    return fieldWrap("إجابة الدليل", true, `<div style="display:flex;align-items:center;gap:10px;border:1px solid ${BORDER};border-radius:10px;padding:8px 12px;background:#fff;"><b style="flex:1;min-width:0;">${esc(ok ? it.name : "شاهد غير متاح للعرض")}</b>${ok ? evdOpenHtml(it.id) : ""}<button type="button" class="pill-ghost" style="padding:3px 12px;" data-action="evr-goal-clear" ${att}>تغيير</button></div><div class="hint">الشاهد محفوظ في صفحة الشواهد مرة واحدة، ويظهر هنا باسمه.</div>`);
+  }
+  const opts = evdRepo().filter(evdCanSee).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}${x.type ? " — " + esc(x.type) : ""}</option>`).join("");
+  return fieldWrap("إجابة الدليل", true, `${og.evidenceAnswer ? `<div class="hint">القيمة السابقة: ${esc(og.evidenceAnswer)}</div>` : ""}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${pillBtn("＋ شاهد جديد", { variant: "primary", action: "evr-goal-new", data: { gid, ogid: og.id } })}</div><select class="input" data-action="evr-goal-pick" ${att}><option value="">أو اختاري شاهدًا مسجلًا مسبقًا…</option>${opts}</select><div class="hint">الشاهد الجديد يُحفظ في صفحة الشواهد ويُربط بهذا الهدف تلقائيًا، واختيار شاهد مسجل لا يكرر بياناته.${S.__evdErr ? " " + esc(S.__evdErr) : ""}</div>`);
+}
+function evdLinkedCount(id) {
+  const rep = getCurrentReportEntry(); let n = 0;
+  (((rep && rep.sections && rep.sections.goals && rep.sections.goals.data) || {}).goals || []).forEach((g) => (g.operationalGoals || []).forEach((og) => { if ((og.evidenceLinks || []).some((l) => l.kind === "repo" && l.refId === id)) n++; }));
+  return n;
+}
+function evdRepoPageHtml() {
+  evdLoad();
+  const f = S.ui.evdForm, items = evdRepo().filter(evdCanSee);
+  const retGoal = f && f.ret ? (() => { const gg = findById(((getCurrentReportEntry() || {}).sections || {}).goals ? (getCurrentReportEntry().sections.goals.data.goals || []) : [], f.ret.gid), oo = gg && (gg.operationalGoals || []).find((x) => x.id === f.ret.ogid); return oo ? `<div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:8px 12px;margin-bottom:8px;">سيُربط الشاهد بالهدف: <b>${esc(oo.name)}</b> ويُحفظ في المستودع، ثم تعودين لصفحة الأهداف.</div>` : ""; })() : "";
+  const form = f ? retGoal + evdFormHtml() : "";
+  const rows = items.map((it) => {
+    const kind = (EVD_KINDS.find((k) => k[0] === it.kind) || [, "شاهد"])[1], n = evdLinkedCount(it.id), sub = [it.department, it.program].filter(Boolean).join(" · ");
+    return `<div class="repeat-item" style="padding:10px 12px;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span class="rpt-ev-type">${esc(it.type || kind)}</span><button type="button" data-action="evr-open" data-id="${esc(it.id)}" style="flex:1;min-width:140px;text-align:right;background:none;border:0;padding:0;cursor:pointer;color:${ROSE};font-weight:800;text-decoration:underline;font-family:inherit;font-size:inherit;">${esc(it.name)}</button>
+      ${badgeHtml(it.confidentiality || CONFIDENTIALITY_LEVELS[0], SUBTLE, GRAY_BG)}
+      ${evdOpenHtml(it.id)}${evdCanEdit(it) ? `<button type="button" class="pill-ghost" style="padding:2px 10px;" data-action="evr-edit" data-id="${esc(it.id)}">تعديل</button><button type="button" class="pill-ghost" style="padding:2px 10px;color:${DANGER};" data-action="evr-del" data-id="${esc(it.id)}">حذف</button>` : ""}</div>
+      <div class="hint" style="margin:4px 0 0;">${esc(kind)}${sub ? " · " + esc(sub) : ""}${it.description ? " — " + esc(it.description) : ""}${n ? ` · مرتبط بـ ${n} ${n === 1 ? "هدف" : "أهداف"} في هذا التقرير` : ""}</div>
+      ${S.ui.evdShow === it.id && it.kind === "text" ? `<div style="margin-top:6px;white-space:pre-wrap;font-size:12.5px;background:${GRAY_BG};border-radius:8px;padding:8px 10px;">${esc(it.body || "")}</div>` : ""}</div>`;
+  }).join("");
+  return `<div style="margin-bottom:14px;">
+    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:10px;">مستودع الشواهد: يُحفظ كل شاهد مرة واحدة ثم يُربط بالأهداف من صفحة الهدف دون إعادة إدخاله. الشواهد السرية لا تظهر إلا للمخولين.</div>
+    ${form || (f ? "" : pillBtn("إضافة شاهد", { variant: "primary", icon: iconPlus(15, "#fff"), action: "evr-new" }))}
+    ${S.__evdErr ? `<div class="hint" style="color:${DANGER};">${esc(S.__evdErr)}</div>` : ""}
+    <div style="margin-top:10px;">${rows || emptyHint("لا توجد شواهد في المستودع بعد.")}</div></div>`;
+}
+// نقل الشواهد القديمة داخل التقرير للمستودع تلقائيًا (معرّف ثابت evr-<معرّف القديم> فلا يتكرر النقل ولا يُكتب فوق تعديل لاحق)
+function evdLegacyToRepo(it, id) {
+  const kind = it.imageData ? "image" : (/^https?:\/\//i.test(it.fileLink || "") ? "link" : "text");
+  return { id, unit_id: S.currentUnitId || "", kind, type: it.evidenceType || "", name: it.name || "شاهد", department: it.relatedDepartment || "", program: it.relatedProgram || "", url: kind === "link" ? it.fileLink : "", description: it.description || "", confidentiality: it.confidentiality || CONFIDENTIALITY_LEVELS[0], body: kind === "text" ? (it.fileLink || it.description || "") : "", file_name: kind === "image" ? "صورة" : "", file_data: kind === "image" ? it.imageData : "" };
+}
+function evdAutoMigrate(d) {
+  if (dbConnected() && !S.__evdLoaded) return;
+  S.__evdMig = S.__evdMig || {};
+  (d.evidenceItems || []).forEach((it) => {
+    if (!it || !(it.name || it.fileLink || it.imageData)) return;
+    const id = "evr-" + it.id; if (evdFind(id) || S.__evdMig[id]) return;
+    S.__evdMig[id] = 1;
+    evdSaveItem(evdLegacyToRepo(it, id)).then(() => render());
+  });
+}
+function evdJump(target) {
+  const t = document.getElementById(target); if (!t) return;
+  t.scrollIntoView({ behavior: "smooth", block: "start" }); t.classList.add("rpt-flash"); setTimeout(() => t.classList.remove("rpt-flash"), 1800);
+}
+// قسم الشواهد في التقرير: شواهد كل هدف، ثم سجل الشواهد (كل شاهد مرة واحدة مع الأهداف المرتبطة به)
+// سجل شواهد التقرير: كل شاهد مرة واحدة برقم، وأرقام الأهداف المرتبطة به + معرض صور
+function rptEvRegister(report) {
+  const goals = (((report && report.sections && report.sections.goals && report.sections.goals.data) || {}).goals || []), pairs = [];
+  goals.forEach((g) => (g.operationalGoals || []).forEach((og) => pairs.push({ report, og, unit: null, gk: og.id })));
+  return rptEvRegCore(pairs);
+}
+// pairs: [{report, og, unit, gk}] — gk مفتاح الهدف في الربط (id الهدف، أو اسمه في التجميع)
+function rptEvRegCore(pairs) {
+  evdLoad();
+  const ent = {}, order = [], byOg = {};
+  const add = (key, gk, og, mk) => { if (!ent[key]) { ent[key] = { ...mk(), goals: [], gks: [] }; order.push(key); } if (ent[key].gks.indexOf(gk) === -1) { ent[key].gks.push(gk); ent[key].goals.push(og); } (byOg[gk] = byOg[gk] || []); if (byOg[gk].indexOf(key) === -1) byOg[gk].push(key); };
+  pairs.forEach(({ report, og, unit, gk }) => {
+    const pre = unit ? unit.id + ":" : "", links = (og.evidenceLinks || []).slice(); if (og.evidenceRepoId && !links.some((l) => l.kind === "repo" && l.refId === og.evidenceRepoId)) links.push({ kind: "repo", refId: og.evidenceRepoId });
+    links.forEach((ln) => {
+      if (ln.kind === "repo") {
+        add("r:" + ln.refId, gk, og, () => { const it = evdFind(ln.refId), ok = it && evdCanSee(it); return { title: !it ? "شاهد محذوف" : ok ? it.name : "شاهد غير متاح للعرض", type: ok ? (it.type || "شاهد") : "شاهد", sub: ok ? (it.description || "") : "", src: ok && it.kind === "link" ? (String(it.url || "").replace(/^https?:\/\//i, "").split("/")[0]) : (ok && it.kind === "text" ? "نص" : "مستودع الشواهد"), url: ok && it.kind === "link" && /^https?:\/\//i.test(it.url || "") ? it.url : "", repoId: ln.refId, thumb: ok ? rptEvidenceThumbUrl({ fileLink: it.url, evidenceType: it.type, imageData: /^data:image/.test(it.file_data || "") ? it.file_data : "" }) : "" }; });
+      } else {
+        const r = ogResolveLink(report, ln);
+        add(pre + ln.kind + ":" + (ln.refId || ln.url || ln.text || r.title), gk, og, () => ({ title: r.title || "دليل", type: r.kindLabel || "دليل", sub: r.sub || "", src: r.url ? String(r.url).replace(/^https?:\/\//i, "").split("/")[0] : (unit ? unit.name : "من الموقع"), url: /^https?:\/\//i.test(r.url || "") ? r.url : "", reportId: r.reportId || "", thumb: "" }));
+      }
+    });
+    if (!links.length && (og.evidenceType || og.evidenceAnswer)) add(pre + "l:" + og.id, gk, og, () => ({ title: og.evidenceAnswer || og.evidenceType, type: og.evidenceType || "دليل", sub: "", src: unit ? unit.name : "", url: /^https?:\/\//i.test(og.evidenceAnswer || "") ? og.evidenceAnswer : "", thumb: "" }));
+  });
+  const code = {}; order.forEach((k, i) => { code[k] = String(i + 1).padStart(2, "0"); });
+  return { ent, order, byOg, code };
+}
+function rptEvJump(t, label, cls) { return `<a class="${cls || "rpt-jump"}" href="#${esc(t)}" data-action="rpt-jump" data-target="${esc(t)}">${esc(label)}</a>`; }
+function rptEvChips(reg, og, gk) { const ks = reg.byOg[gk != null ? gk : og.id] || []; return ks.length ? ks.map((k) => rptEvJump("rpt-evx-" + reg.code[k], reg.code[k], "rpt-ecode")).join("") : "—"; }
+function evdReportHtml(report) {
+  const reg = rptEvRegister(report), goals = (((report.sections.goals || {}).data || {}).goals || []).flatMap((g) => g.operationalGoals || []), gnum = {};
+  goals.forEach((og, i) => { gnum[og.id] = { n: i + 1, anchor: "rpt-og-" + og.id }; });
+  return rptEvRegisterHtml(reg, gnum);
+}
+// gnum: مفتاح الهدف ← {n رقمه، anchor معرّف سطره}
+function rptEvRegisterHtml(reg, gnum) {
+  if (!reg.order.length) return "";
+  const chips = (e) => e.gks.map((gk) => { const g = gnum[gk]; return g ? rptEvJump(g.anchor, String(g.n), "rpt-gchip") : ""; }).join("");
+  const rows = reg.order.map((k) => { const e = reg.ent[k], c = reg.code[k];
+    const open = e.url ? `<a class="rpt-ev-open" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">فتح ↗</a>` : e.repoId ? `<button type="button" class="rpt-ev-open" data-action="evr-open" data-id="${esc(e.repoId)}" style="border:0;cursor:pointer;">فتح</button>` : "";
+    return `<tr id="rpt-evx-${c}"><td><span class="rpt-ecode">${c}</span></td><td style="text-align:start"><b>${esc(e.title)}</b>${e.sub ? `<div class="rpt-evx-s">${esc(e.sub)}</div>` : ""}</td><td><span class="rpt-ev-type">${esc(e.type)}</span>${e.src ? `<div class="rpt-evx-s">${esc(e.src)}</div>` : ""}</td><td>${chips(e)}</td><td>${open}</td></tr>`; }).join("");
+  const imgs = reg.order.filter((k) => reg.ent[k].thumb);
+  const gal = imgs.length ? `<div class="rpt-pc-s" style="margin-top:12px;">معرض الصور (${imgs.length})</div><div class="rpt-gal2">${imgs.map((k) => { const e = reg.ent[k]; return `<figure class="rpt-ph2"><a href="${esc(e.url || e.thumb)}" target="_blank" rel="noopener noreferrer"><img alt="${esc(e.title)}" src="${esc(e.thumb)}" loading="lazy" /></a><figcaption><b>${esc(e.title)}</b><span class="rpt-ecode">${reg.code[k]}</span>${chips(e)}</figcaption></figure>`; }).join("")}</div>` : "";
+  return `<div class="rpt-gscope" style="margin-top:14px;"><div class="rpt-pc-s">الشواهد والمرفقات</div><div class="rpt-evx-w"><table class="rpt-evx"><thead><tr><th style="width:46px">رقم</th><th>الشاهد</th><th>النوع / المصدر</th><th>الأهداف المرتبطة</th><th style="width:70px">فتح</th></tr></thead><tbody>${rows}</tbody></table></div><div class="rpt-evx-s" style="margin-top:6px;">كل شاهد يُذكر مرة واحدة مهما تكرر في الأهداف · اضغطي رقم الهدف للانتقال إليه.</div>${gal}</div>`;
+}
+// تحليل الأهداف في التقرير (بنفس شكل النموذج): بطاقات أرقام + رسم + جدول + الشواهد، والمقارنة تختارينها
+function rgState() { return S.ui.rg || (S.ui.rg = { mode: "none", keys: [], year: "", es: "A" }); }
+const RG_SVG = (p, w) => `<svg viewBox="0 0 24 24" width="${w || 17}" height="${w || 17}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const RG_P = { img: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5-5-8 8"/>', chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', tool: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>', link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>', cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>', file: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>' };
+function rgIcon(type) { const t = String(type || ""); if (/صورة/.test(t)) return ["img", RG_SVG(RG_P.img)]; if (/مؤشر/.test(t)) return ["txt", RG_SVG(RG_P.chart)]; if (/أداة/.test(t)) return ["txt", RG_SVG(RG_P.tool)]; if (/سجل|رابط|أخرى|آخر/.test(t)) return ["lnk", RG_SVG(RG_P.link)]; return ["pdf", "PDF"]; }
+function rgEvCardsHtml(reg, gnum, flat) {
+  const blocks = flat.map((og) => {
+    const ks = reg.byOg[og.id] || []; if (!ks.length) return "";
+    const g = gnum[og.id] || { n: "•" }, ev = ks.filter((k) => !reg.ent[k].thumb), im = ks.filter((k) => reg.ent[k].thumb);
+    const card = (k) => { const e = reg.ent[k], ic = rgIcon(e.type), oth = e.gks.filter((x) => x !== og.id), c = reg.code[k];
+      const open = e.url ? `<a class="rg-go" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" title="فتح">↗</a>` : e.repoId ? `<button type="button" class="rg-go" data-action="evr-open" data-id="${esc(e.repoId)}" title="فتح">↗</button>` : "";
+      return `<div class="rg-wc" id="rpt-evx-${c}-${esc(og.id)}"><span class="rg-wi ${ic[0]}">${ic[1]}</span><span style="flex:1;min-width:0"><b>${esc(e.title)}</b><small>${esc(e.type)}${e.src ? ` · <span class="rg-dom">${esc(e.src)}</span>` : ""}</small>${oth.length ? `<span class="rg-also">مشترك مع الهدف: ${oth.map((x) => rptEvJump(gnum[x] ? gnum[x].anchor : "", String(gnum[x] ? gnum[x].n : "•"), "rpt-jump")).join("، ")}</span>` : ""}</span>${open}</div>`; };
+    const gal = im.length ? `<div class="rg-gh">${RG_SVG(RG_P.cam, 14)} صور الهدف (${im.length})<span class="no-print"> — اضغطي/اضغط على الصورة لتكبيرها</span></div><div class="rg-gal">${im.map((k) => { const e = reg.ent[k]; return `<a class="rg-ph" href="${esc(e.url || e.thumb)}" target="_blank" rel="noopener noreferrer"><img alt="${esc(e.title)}" src="${esc(e.thumb)}" loading="lazy" /><span class="cap">${esc(e.title)}</span></a>`; }).join("")}</div>` : "";
+    return `<div class="rg-eg" id="rpt-evg-${esc(og.id)}"><div class="rg-eg-h"><span class="rg-eg-n">${g.n}</span><div class="rg-eg-t">شواهد الهدف<small>${esc(og.name)}</small></div><span class="rg-wt">${ks.length} ${ks.length > 2 ? "شواهد" : "شاهد"}${im.length ? " · " + im.length + " صور" : ""}</span>${rptEvJump("rpt-og-" + og.id, "العودة إلى الهدف ↑", "rg-eg-b")}</div>${ev.length ? `<div class="rg-eg-g">${ev.map(card).join("")}</div>` : ""}${gal}</div>`;
+  }).join("");
+  return blocks ? blocks + `<div class="rg-hint">الشاهد المرتبط بأكثر من هدف يظهر في كل هدف مع إشارة «مشترك مع…»، وهو نسخة واحدة في المستودع.</div>` : "";
+}
+// فصل «الشواهد والمرفقات»: كل شواهد الأهداف في مكان واحد (بطاقات لكل هدف أو فهرس موحّد + معرض صور)
+function rgEvHas(report) { try { return rptEvRegister(report).order.length > 0; } catch (e) { return false; } }
+function rgEvidenceChapterHtml(report) {
+  try {
+    const flat = (((report.sections.goals || {}).data || {}).goals || []).flatMap((g) => g.operationalGoals || []);
+    const reg = rptEvRegister(report); if (!reg.order.length) return "";
+    const gs = rgState(), es = gs.es === "B" ? "B" : "A", gnum = {}; flat.forEach((og, i) => { gnum[og.id] = { n: i + 1, anchor: "rpt-og-" + og.id }; });
+    const pill = (m, l) => `<button type="button" class="rpt-gp ${es === m ? "on" : ""}" data-action="rg-es" data-v="${m}">${l}</button>`;
+    const ctl = `<div class="no-print rpt-gctl"><div class="rpt-gl">شكل الشواهد والمرفقات</div><div class="rpt-gpills">${pill("A", "١ — بطاقات لكل هدف")}${pill("B", "٢ — فهرس موحّد + معرض صور")}</div></div>`;
+    return `<div class="rg-scope">${ctl}${es === "B" ? rptEvRegisterHtml(reg, gnum) : rgEvCardsHtml(reg, gnum, flat)}</div>`;
+  } catch (e) { return ""; }
+}
+function rptGoalsAnalysisHtml(report, flat) {
+  const uid = (RPT_CTX && RPT_CTX.unitId) || S.currentUnitId, unit = (S.units || []).find((u) => u.id === uid); if (!unit || !flat.length) return "";
+  const sa = dashSeries([unit], "all"), cols = sa.cols || [], gs = rgState(), cur = reportTermInfo(report);
+  const yrs = [...new Set(cols.map((c) => c.year).filter((y) => y > 0))].sort((a, b) => a - b);
+  const keyOpts = cols.map((c) => [c.key, c.label]), yrsMulti = yrs.filter((y) => cols.filter((c) => c.year === y).length > 1), yPick = yrsMulti.indexOf(Number(gs.year)) !== -1 ? Number(gs.year) : (yrsMulti[yrsMulti.length - 1] || 0);
+  let pu = [];
+  if (gs.mode === "pick" && cols.length > 1) { let ks = (gs.keys && gs.keys.length ? gs.keys : cols.slice(-2).map((c) => c.key)).filter((k) => cols.some((c) => c.key === k)).slice(0, 4); if (ks.length < 2) ks = cols.slice(-2).map((c) => c.key); pu = ks.map((k) => ({ label: (cols.find((c) => c.key === k) || {}).label || k, keys: [k] })); }
+  else if (gs.mode === "year" && yrsMulti.length) { pu = cols.filter((c) => c.year === yPick).map((c) => ({ label: gbTermOf(c) || c.label, keys: [c.key] })); if (pu.length < 2) pu = []; }
+  if (!pu.length) pu = [{ label: (cols.find((c) => c.key === cur.key) || {}).label || cur.label, keys: [cur.key], own: true }];
+  const nm = (og) => String(og.name).trim(), def = (og) => gbDefByName(nm(og));
+  const val = (og, p) => (p.own ? (og.level && og.percentage !== "" ? numOrNull(og.percentage) : null) : gbColVal(sa, { unit: uid }, nm(og), p.keys));
+  const tgt = (og, p) => { const d = def(og); if (!d) return null; return p.own ? numOrNull(ogTargetForReport(d.id, uid, report)) : gbColTarget(sa, { unit: uid }, { def: d, name: nm(og) }, p.keys); };
+  const rows = flat.map((og) => ({ og, vs: pu.map((p) => val(og, p)), ts: pu.map((p) => tgt(og, p)) }));
+  const lastV = (r) => { for (let i = r.vs.length - 1; i >= 0; i--) if (r.vs[i] != null) return r.vs[i]; return null; };
+  const L = (v) => (v == null ? "na" : v >= 75 ? "ok" : v >= 40 ? "wr" : "bad"), LT = { ok: "متحقق", wr: "متحقق جزئيًا", bad: "غير متحقق", na: "لم يُقيَّم" };
+  const cnt = { ok: 0, wr: 0, bad: 0, na: 0 }; rows.forEach((r) => { cnt[L(lastV(r))]++; });
+  const seen = rows.map(lastV).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((t, v) => t + v, 0) / seen.length) : null;
+  const reg = rptEvRegister(report), single = pu.length === 1, multi = pu.length > 1, es = gs.es === "B" ? "B" : "A";
+  const gnum = {}; flat.forEach((og, i) => { gnum[og.id] = { n: i + 1, anchor: "rpt-og-" + og.id }; });
+  // ---- أدوات المقارنة (لا تظهر في الطباعة) ----
+  const chk = (m, l) => `<button type="button" class="rpt-gp ${gs.mode === m ? "on" : ""}" data-action="rg-mode" data-v="${m}">${l}</button>`;
+  const sel = (k, opts, v, i) => `<select class="input" style="width:auto;padding:4px 10px;font-size:12px;" data-action="rg-sel" data-k="${k}"${i != null ? ` data-i="${i}"` : ""}>${opts.map(([a, l]) => `<option value="${esc(a)}" ${String(v) === String(a) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+  const ord = ["الأولى", "الثانية", "الثالثة", "الرابعة"];
+  let ctl = `<div class="no-print rpt-gctl"><div class="rpt-gl">اختاري ما تريدينه في التقرير من المقارنة</div><div class="rpt-gpills">${chk("none", "بدون مقارنة (فترة واحدة)")}${cols.length > 1 ? chk("pick", "مقارنة فترات محددة") : ""}${yrsMulti.length ? chk("year", "عام كامل (كل فتراته)") : ""}</div>`;
+  if (gs.mode === "pick" && cols.length > 1) { const ks = pu.map((p) => p.keys[0]); ctl += `<div class="rpt-gsel">${ks.map((k, i) => `<div><span class="rpt-gl2">الفترة ${ord[i]}${ks.length > 2 ? `<button type="button" class="gb-lk" data-action="rg-rm" data-i="${i}">حذف</button>` : ""}</span>${sel("pk", keyOpts, k, i)}</div>`).join("")}${ks.length < 4 ? `<div style="display:flex;align-items:flex-end;"><button type="button" class="rpt-gp on" data-action="rg-add">＋ إضافة فترة</button></div>` : ""}</div>`; }
+  if (gs.mode === "year" && yrsMulti.length) ctl += `<div class="rpt-gsel"><div><span class="rpt-gl2">العام</span>${sel("yr", yrsMulti.map((y) => [y, y + "هـ"]), yPick)}</div></div><div class="hint" style="margin:6px 0 0;">يظهر كل فصول هذا العام في التقرير.</div>`;
+  ctl += `</div>`;
+  // ---- الرسم ----
+  const W = 700, H = 250, pl = 38, pr = 10, pt = 30, pb = 44, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;max-width:760px;display:block;margin:0 auto">`;
+  for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
+  const lab = (r, i) => { const w = String(r.og.name).split(" "), mid = Math.ceil(w.length / 2); [w.slice(0, mid).join(" "), w.slice(mid).join(" ")].forEach((ln, q) => { svg += `<text x="${cx(i)}" y="${H - pb + 16 + q * 13}" font-size="8" text-anchor="middle" fill="#2b1a20" font-weight="700">${esc(ln)}</text>`; }); };
+  if (pu.length > 2) { const k = pu.length, bw = Math.min(22, (gw - 14) / k), CC = ["var(--rpt-c1,#e3b6c5)", "var(--rpt-c2,#c9708f)", "var(--rpt-c3,#a73a5c)", "var(--rpt-burgundy,#7a1f3d)"]; rows.forEach((r, i) => { pu.forEach((p, j) => { const v = r.vs[j]; if (v == null) return; const x = cx(i) - (k * bw) / 2 + j * bw; svg += `<rect x="${x + 1}" y="${yy(v)}" width="${bw - 2}" height="${yy(0) - yy(v)}" rx="3" style="fill:${CC[j + (4 - k)]}"/><text x="${x + bw / 2}" y="${yy(v) - 3}" font-size="7" text-anchor="middle" fill="#2b1a20">${v}%</text>`; }); lab(r, i); }); }
+  else { rows.forEach((r, i) => { const bw = Math.min(28, gw / 3), v = lastV(r), t = r.ts[r.ts.length - 1] != null ? r.ts[r.ts.length - 1] : 100; svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-c1,#e3b6c5)"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`; if (v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(v)}" width="${bw}" height="${yy(0) - yy(v)}" rx="3" style="fill:var(--rpt-burgundy,#7a1f3d)"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${v}%</text>`; lab(r, i); });
+    const pts = rows.map((r, i) => [cx(i), lastV(r)]).filter((p) => p[1] != null); if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join(""); }
+  svg += "</svg>";
+  const legend = pu.length > 2 ? `<div class="rg-leg">${pu.map((p, j) => `<span><s style="background:${["var(--rpt-c1,#e3b6c5)", "var(--rpt-c2,#c9708f)", "var(--rpt-c3,#a73a5c)", "var(--rpt-burgundy,#7a1f3d)"][j + (4 - pu.length)]}"></s> ${esc(p.label)}</span>`).join("")}</div>` : `<div class="rg-leg"><span><s style="background:var(--rpt-c1,#e3b6c5)"></s> المستهدف</span><span><s style="background:var(--rpt-burgundy,#7a1f3d)"></s> المتحقق</span><span style="color:var(--rpt-c3,#a73a5c)">● نسبة التحقق</span></div>`;
+  // ---- الجدول ----
+  const pc = (v) => (v == null ? "<td>—</td>" : `<td class="rg-p-${L(v)}">${v}٪</td>`), sg = (d) => (d > 0 ? "+" : "") + d;
+  const dirT = (d) => (d > 0 ? `<span class="rg-dtag up">تحسن ▲</span>` : d < 0 ? `<span class="rg-dtag dn">تراجع ▼</span>` : `<span class="rg-dtag eq">ثبات =</span>`);
+  const full = pu.length <= 2, rs = full ? 2 : 1;
+  const head = `<tr><th rowspan="${rs}">م</th><th rowspan="${rs}">الهدف التشغيلي</th>${pu.map((p) => `<th colspan="${full ? 3 : 1}">${esc(p.label)}</th>`).join("")}${multi ? `<th rowspan="${rs}">الفرق</th><th rowspan="${rs}">الاتجاه</th>` : ""}<th rowspan="${rs}">الحالة</th><th rowspan="${rs}">الشواهد</th></tr>${full ? `<tr>${pu.map(() => "<th>المستهدف</th><th>المتحقق</th><th>النسبة</th>").join("")}</tr>` : ""}`;
+  const ev0 = es === "B" ? "rpt-evx-" + (reg.order.length ? reg.code[reg.order[0]] : "01") : "";
+  const body = rows.map((r, i) => { const vs = r.vs.filter((x) => x != null), d = vs.length > 1 ? vs[vs.length - 1] - vs[0] : null, has = (reg.byOg[r.og.id] || []).length, jt = es === "B" ? ev0 : "rpt-evg-" + r.og.id;
+    return `<tr id="rpt-og-${esc(r.og.id)}"><td>${i + 1}</td><td style="font-weight:700">${esc(r.og.name)}</td>${r.vs.map((v, j) => (full ? `<td>${r.ts[j] != null ? r.ts[j] + "٪" : "—"}</td><td>${v != null ? v + "٪" : "—"}</td>${pc(v != null && r.ts[j] ? Math.min(100, Math.round(v / r.ts[j] * 100)) : v)}` : pc(v))).join("")}${multi ? `<td dir="ltr">${d == null ? "—" : sg(d)}</td><td>${d == null ? "—" : dirT(d)}</td>` : ""}<td>${LT[L(lastV(r))]}</td><td>${has ? rptEvJump(jt, "عرض الشواهد ↓", "rpt-jump") : "—"}</td></tr>`; }).join("");
+  const tbl = `<div class="rg-tw"><table class="rg-rtb">${head}${body}</table></div>`;
+  const title = multi ? "تحليل الأهداف التشغيلية — مقارنة: " + pu.map((p) => esc(p.label)).join(" ← ") : "تحليل الأهداف التشغيلية — " + esc(pu[0].label);
+  const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
+  const evid = "";
+  return `<div class="rg-scope">${ctl}<div class="rg-rh">${title}</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div>${legend}${svg}<div class="rg-rh">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}${evid}</div>`;
+}
+
 function goalsSectionHtml(d) {
   const goals = d.goals || [];
   const operationalAll = (S.goalsDefinitions.operational && S.goalsDefinitions.operational.length ? null : OPERATIONAL_GOALS_FALLBACK);
@@ -12635,19 +13154,22 @@ function goalsSectionHtml(d) {
     const achievedBadge = achieved ? `<span style="display:inline-flex;align-items:center;gap:4px;background:${GREEN_BG};color:${GREEN};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;margin-inline-start:8px;">✅ منجز</span>` : "";
     const head = `<div class="repeat-item-head" style="cursor:pointer;" data-action="toggle-repeat-item" data-arr="goals" data-id="${esc(g.id)}"><span class="repeat-item-title">الهدف ${i + 1}${isOpen ? "" : ` — ${esc((g.operationalGoals || []).map((x) => x.name).join("، "))}`}</span>${achievedBadge}${removeBtn("goals", g.id)}</div>`;
     if (!isOpen) return `<div class="repeat-item">${head}</div>`;
-    const ogHtml = (g.operationalGoals || []).map((og) => `
-      <div class="og-block">
-        <div style="font-size:12.5px;font-weight:800;margin-bottom:10px;">${esc(og.name)}${(() => { const dd = (S.goalsDefinitions.operational || []).find((x) => x.name === og.name); const t = dd ? ogTargetForReport(dd.id, S.currentUnitId, getCurrentReportEntry()) : ""; return t !== "" ? ` <span style="font-weight:600;color:${SUBTLE};">— المستهدف ${esc(t)}%</span>` : ""; })()}</div>
-        ${fieldWrap("مستوى تحقق الهدف", true, selSub("goals", g.id, "operationalGoals", og.id, "level", og.level, GOAL_LEVELS, "اختاري مستوى التحقق"))}
-        ${fieldWrap("نسبة تحقق الهدف", og.level ? `<div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;">${progressBarHtml(og.percentage || 0, goalLevelMeta(og.level).color)}</div><span style="font-size:13px;font-weight:800;color:${goalLevelMeta(og.level).color};min-width:34px;text-align:left;">${og.percentage}٪</span></div>` : `<div class="hint">تُحسب تلقائيًا بعد اختيار مستوى التحقق</div>`)}
-        ${renderSchemaFieldHtml(evidenceTypeField, "goals", g.id, og.evidenceType || "", d.customEvidenceTypes || [], og, "operationalGoals", og.id)}
-        ${og.evidenceType ? renderSchemaFieldHtml({ ...evidenceAnswerField, placeholder: evidenceAnswerPlaceholder(og.evidenceType) }, "goals", g.id, og.evidenceAnswer, undefined, og, "operationalGoals", og.id) : ""}
+    const ogHtml = (g.operationalGoals || []).map((og) => {
+      const rep0 = getCurrentReportEntry(); ogApplyAuto(rep0, og, S.currentUnitId); const gm = goalLevelMeta(og.level), pct = og.level && og.percentage !== "" ? Math.max(0, Math.min(100, Number(og.percentage) || 0)) : null;
+      const dd0 = (S.goalsDefinitions.operational || []).find((x) => x.name === og.name), tg0 = dd0 ? ogTargetForReport(dd0.id, S.currentUnitId, rep0) : "";
+      const nEv0 = (og.evidenceLinks || []).length + ((og.evidenceAnswer && String(og.evidenceAnswer).trim() && !(og.evidenceLinks || []).some((l) => l.kind === "repo")) ? 1 : 0);
+      const collapsed = !!(S.ui.ogCol || {})[og.id];
+      const head = `<div class="og-head" data-action="og-toggle" data-id="${esc(og.id)}"><div class="og-ring" style="--v:${pct == null ? 0 : pct};--c:${pct == null ? SUBTLE : gm.color}"><span>${pct == null ? "—" : pct + "٪"}</span></div><div class="og-ht"><b>${esc(og.name)}</b><small>${tg0 !== "" ? "المستهدف " + esc(tg0) + "٪ · " : ""}${nEv0 ? nEv0 + (nEv0 === 1 ? " دليل" : " أدلة") : "بلا أدلة بعد"}</small></div>${og.level ? badgeHtml(og.level, gm.color, gm.bg) : badgeHtml("لم يُقيَّم", SUBTLE, GRAY_BG)}<span class="og-chev">${collapsed ? "▾" : "▴"}</span></div>`;
+      if (collapsed) return `<div class="og-block og-card">${head}</div>`;
+      return `<div class="og-block og-card open">${head}<div class="og-body">
+        ${ogTopRowHtml(g, og)}
+        ${ogEvidenceAreaHtml(g, og)}
         ${renderSchemaFieldHtml(explanationField, "goals", g.id, og.explanation, undefined, og, "operationalGoals", og.id) + `<div class="char-count">${(og.explanation || "").length} / 300</div>`}
-        ${ogLinksHtml(g.id, og)}
-      </div>`).join("");
+      </div></div>`;
+    }).join("");
     return `<div class="repeat-item">
       ${head}
-      ${fieldWrap("الهدف التشغيلي للوحدة", true, multiSelectDropdownHtml(`goal-og-${g.id}`, operationalAll || operationalGoalsFor(), (g.operationalGoals || []).map((og) => og.name), "اختاري هدفًا أو أكثر") + goalAddInlineHtml(g.id, "operational"))}
+      ${fieldWrap("الهدف التشغيلي للوحدة", true, multiSelectDropdownHtml(`goal-og-${g.id}`, operationalAll || operationalGoalsFor(), (g.operationalGoals || []).map((og) => og.name), "اختاري هدفًا أو أكثر", goalAddRowHtml(g.id, "operational")) + goalAddInlineHtml(g.id, "operational", true))}
       ${ogHtml}
     </div>`;
   }).join("");
@@ -12667,10 +13189,15 @@ function operationalGoalsFor() {
 // «＋ هدف غير موجود في القائمة»: يضيف الهدف للقائمة العامة (إدارة الأهداف) ويختاره مباشرة.
 // مديرة النظام تقدر توقفه من «إدارة الأهداف والمستهدفات».
 function goalAddFromReportOn() { const th = ((S.siteSettings || {}).theme) || {}; return th.goalAddFromReport !== false; }
-function goalAddInlineHtml(goalId, kind) {
+function goalAddRowHtml(goalId, kind) {
+  if (!goalAddFromReportOn()) return "";
+  return `<div class="multi-dropdown-item" data-action="goal-add-open" data-key="${esc(goalId + ":" + kind)}" style="color:${ROSE};font-weight:800;border-top:1px solid ${BORDER};position:sticky;bottom:0;background:#fff;">＋ ${kind === "strategic" ? "هدف استراتيجي" : "هدف تشغيلي"} غير موجود في القائمة</div>`;
+}
+function goalAddInlineHtml(goalId, kind, onlyOpen) {
   if (!goalAddFromReportOn()) return "";
   const key = goalId + ":" + kind;
   const label = kind === "strategic" ? "هدف استراتيجي" : "هدف تشغيلي";
+  if (S.ui.goalAddOpen !== key && onlyOpen) return "";
   if (S.ui.goalAddOpen !== key) return `<button type="button" data-action="goal-add-open" data-key="${esc(key)}" style="background:none;border:none;cursor:pointer;color:${ROSE};font-size:12px;font-weight:700;padding:6px 0 0;font-family:inherit;">＋ ${label} غير موجود في القائمة</button>`;
   return `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
     <input class="input" id="goal-add-input" style="flex:1;min-width:200px;" placeholder="اكتبي نص ${label} الجديد" value="${esc(S.ui.goalAddText || "")}" />
@@ -13460,11 +13987,11 @@ function evdResizeImage(file, maxSide, quality) {
     fr.readAsDataURL(file);
   });
 }
-function evidenceSectionHtml(d) {
+function evidenceLegacyHtml(d) {
   const items = d.evidenceItems || [];
   const rows = items.map((item, i) => `
     <div class="repeat-item">
-      <div class="repeat-item-head"><span class="repeat-item-title">الشاهد ${i + 1}</span>${removeBtn("evidenceItems", item.id)}</div>
+      <div class="repeat-item-head"><span class="repeat-item-title">الشاهد ${i + 1}</span><span class="hint" style="margin:0;">${evdFind("evr-" + item.id) ? "نُقل للمستودع ✓" : "جارٍ النقل للمستودع…"}</span>${removeBtn("evidenceItems", item.id)}</div>
       ${fieldWrap("نوع الشاهد", true, sel("evidenceItems", item.id, "evidenceType", item.evidenceType, EVIDENCE_TYPES_LIST, "اختاري نوع الشاهد"))}
       <div class="subhead">بيانات الشاهد</div>
       ${fieldWrap("اسم الشاهد", true, inp("evidenceItems", item.id, "name", item.name, "اسم الشاهد"))}
@@ -13475,11 +14002,13 @@ function evidenceSectionHtml(d) {
       ${fieldWrap("وصف مختصر", txt("evidenceItems", item.id, "description", item.description))}
       ${fieldWrap("درجة السرية", true, radio("evidenceItems", item.id, "confidentiality", item.confidentiality, CONFIDENTIALITY_LEVELS))}
     </div>`).join("");
-  return `
-    <div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:14px;">لا تُدرج الصور أو الملفات داخل التقرير نفسه — تُحفظ بالمستودع الخاص بها ويُكتفى برابطها هنا.</div>
-    ${pillBtn("إضافة شاهد", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "evidenceItems" } })}
-    <div style="margin:14px 0;">${rows}</div>
-    ${notesFieldHtml(d)}`;
+  return `<div style="margin:10px 0;">${rows}</div>`;
+}
+function evidenceSectionHtml(d) {
+  evdLoad(); evdAutoMigrate(d);
+  const n = (d.evidenceItems || []).length;
+  const legacy = n ? `<details style="margin:14px 0;"><summary style="cursor:pointer;font-weight:800;font-size:13px;">شواهد سابقة محفوظة داخل هذا التقرير (${n}) — تُنقل للمستودع تلقائيًا</summary>${evidenceLegacyHtml(d)}</details>` : "";
+  return evdRepoPageHtml() + legacy + notesFieldHtml(d);
 }
 
 /* ---- الإقرار والمراجعة ---- */
@@ -13729,7 +14258,36 @@ function rptSchemaItemsHtml(sid, items, emptyText) {
   let lng = "";
   items.forEach((it, i) => long.forEach((f) => { const t = schemaFieldText(it[f.id]); if (t) lng += textBlock(`${f.label || f.id}${items.length > 1 || !short.length ? " — " + titleOf(it, i) : ""}`, t); }));
   if (lng) html += `<div class="rpt-tbs">${lng}</div>`;
+  html += rptNewExtrasHtml(sid, items, fields.map((f) => f.id));
   return html;
+}
+// سطر ملخص للحقول الجديدة (البرامج/الأدوات) تحت الجدول؛ لا يغيّر أعمدة الجدول ولا يظهر إلا لما فيه بيانات
+function rptNewExtrasHtml(sid, items, shown) {
+  if (sid !== "programs" && sid !== "tools") return "";
+  const rows = [];
+  items.forEach((it, i) => {
+    const parts = [], on = (id) => shown.indexOf(id) === -1;
+    if (sid === "programs") {
+      const att = it.attendanceRate !== "" && it.attendanceRate != null ? it.attendanceRate : programAttendanceAuto(it);
+      const con = it.continuationRate !== "" && it.continuationRate != null ? it.continuationRate : programContinuationAuto(it);
+      if (on("registeredCount") && schemaFieldText(it.registeredCount)) parts.push("المسجلات: " + fmtNum(Number(it.registeredCount)));
+      if (on("startCount") && schemaFieldText(it.startCount)) parts.push("بدأن: " + fmtNum(Number(it.startCount)));
+      if (on("continuingCount") && schemaFieldText(it.continuingCount)) parts.push("مستمرات: " + fmtNum(Number(it.continuingCount)));
+      if (on("attendanceRate") && att != null && att !== "") parts.push("نسبة الحضور: " + fmtNum(Number(att)) + "٪");
+      if (on("continuationRate") && con != null && con !== "") parts.push("نسبة الاستمرار: " + fmtNum(Number(con)) + "٪");
+      const cd = on("costDiff") ? programCostDiff(it) : null;
+      if (cd) parts.push("فرق التكلفة: " + fmtNum(cd.diff) + (cd.pct != null ? " (" + fmtNum(cd.pct) + "٪)" : ""));
+      if (Array.isArray(it.counts)) it.counts.forEach((x) => { const r = x && x.unit ? progPct(x.done, x.target) : null; if (r != null) parts.push(x.unit + ": " + fmtNum(r) + "٪"); });
+    } else {
+      const st = toolLinkState(it), kinds = { work: "عمل/برنامج", goal: "هدف", indicator: "مؤشر", general: "تقييم عام" };
+      if (st.kind) {
+        const names = st.kind === "general" ? [] : toolLinkItems(st.kind, it).filter((x) => st.ids.indexOf(x.id) !== -1).map((x) => x.name || x.title || x.label || "").filter(Boolean);
+        parts.push("مرتبطة بـ " + kinds[st.kind] + (names.length ? ": " + names.join("، ") : ""));
+      }
+    }
+    if (parts.length) rows.push(`<div style="margin:3px 0;"><b>${esc(schemaFieldText(it.name) || schemaFieldText(it.title) || arabicDigits(i + 1))}</b> — ${esc(parts.join(" · "))}</div>`);
+  });
+  return rows.length ? `<div class="rpt-tbs rv-nums" style="font-size:12.5px;margin-top:6px;">${rows.join("")}</div>` : "";
 }
 // قسم بحقول ثابتة (عنصر واحد)
 function rptSchemaFixedHtml(sid, d) {
@@ -14365,6 +14923,7 @@ function shapePickerHtml(target) {
 function shapeAutoFor(sectionId) { const id = shapeDefaultFor(sectionId); return id && (SHAPES_LIB[id].live || SHAPES_LIB[id].cat !== "photo") && sectionId !== "programs" ? id : ""; }
 function shapeDefaultFor(sectionId) { return ""; } // الشكل المقترح القديم مُعطّل: الاختيار صار من «شكل كل قسم»
 function shapeBlocksEditorHtml(d, sectionId) {
+  if (sectionId === "goals" || S.activeSectionId === "goals") return "";
   const defId = (!(d.shapeBlocks || []).length && sectionId) ? shapeDefaultFor(sectionId) : "";
   if (defId && shapeAutoFor(sectionId)) return shapeBlocksEditorInner(d, sectionId) + `<div class="hint no-print" style="margin-top:8px;">يظهر تلقائيًا في التقرير: <b>${esc(SHAPES_LIB[defId].name)}</b></div><div class="rpt-v5 no-print">${shapeRender(defId, { auto: true }, { editor: true, report: getCurrentReportEntry(), unitId: S.currentUnitId, sectionId, data: d })}</div>`;
   const sug = defId ? `<div class="hint" style="margin-top:8px;">الشكل المقترح لهذا القسم: <b>${esc(SHAPES_LIB[defId].name)}</b> ${pillBtn("إضافته", { variant: "ghost", action: "shp-add", data: { shape: defId } })}</div>` : "";
@@ -14596,7 +15155,7 @@ async function sbPublicBoot(fid) {
       if (bad.length) { draw(); return; }
       b.disabled = true; b.textContent = "جارٍ الإرسال…";
       const clean = {}; f.questions.forEach((q) => { const v = ans[q.id]; if (v != null && v !== "" && !(Array.isArray(v) && !v.length)) clean[q.id] = v; });
-      const r = await supabaseRequest("survey_responses", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ form_id: f.id, answers: clean }) });
+      const r = await supabaseRequest("survey_responses", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("r" + Date.now() + Math.random().toString(16).slice(2)), form_id: f.id, answers: clean, created_at: new Date().toISOString() }) });
       if (r.ok) { done = true; try { localStorage.setItem(key, "1"); } catch (e2) { } Object.keys(ans).forEach((k) => delete ans[k]); draw(); }
       else { b.disabled = false; b.textContent = "إرسال"; alert("تعذّر الإرسال. جرّبي مرة ثانية."); }
     }
@@ -14879,11 +15438,7 @@ function sectionBodyOnly(section, saved, report) {
     (d.goals || []).forEach((g) => (g.operationalGoals || []).forEach((og) => flat.push({ ...og })));
     if (!flat.length) { body = emptyHint("لا توجد أهداف مُدخلة."); }
     else {
-      body = reportTable(["الهدف التشغيلي", "المستهدف", "المستوى", "النسبة", "الأدلة"], flat.map((og) => {
-        const gm = goalLevelMeta(og.level), dd = gbDefByName(og.name), tg = dd ? ogTargetForReport(dd.id, S.currentUnitId, report) : "";
-        const bar = og.percentage !== "" ? `<div style="display:flex;align-items:center;gap:6px;"><div style="width:70px;">${progressBarHtml(og.percentage || 0, gm.color)}</div><b style="color:${gm.color}">${og.percentage}٪</b></div>` : "—";
-        return [esc(og.name), tg !== "" ? tg + "٪" : "—", og.level ? badgeHtml(og.level, gm.color, gm.bg) : "—", bar, ((og.evidenceLinks || []).length || og.evidenceType || og.evidenceAnswer) ? gbEvidenceHtml({ og, report }) : "—"];
-      }));
+      body = rptGoalsAnalysisHtml(report, flat) || emptyHint("لا توجد أهداف مُدخلة.");
     }
 
   } else if (section.id === "programs") {
@@ -14968,7 +15523,8 @@ function sectionBodyOnly(section, saved, report) {
     } else { body = emptyHint("لم تُضف أعمال رئيسة بعد."); }
 
   } else if (section.id === "evidence") {
-    body = rptEvidenceGalleryHtml(d.evidenceItems);
+    body = rgEvidenceChapterHtml(report) + ((d.evidenceItems || []).length ? rptEvidenceGalleryHtml(d.evidenceItems) : "");
+    if (!body) body = emptyHint("لا توجد شواهد مُدخلة بعد.");
 
   } else if (section.id === "review") {
     const checklist = d.checklist || {};
@@ -15259,7 +15815,8 @@ function fullReportOrPreviewBody(unit, report, afterPage, opts) {
   const review = !!afterPage;
   const dept = S.departments.find((x) => x.id === unit.departmentId);
   const chapters = rptOrdered(unitChapterDefs(opts.capture ? null : report, unit.id), s).filter((c) => review || (!s.hidden[c.key] && !rptLevelHides(s, c.key) &&
-    (s.showEmpty || opts.capture || c.special || c.sections.some((sid) => sectionHasData(report, sid)))));
+    (s.showEmpty || opts.capture || c.special || c.sections.some((sid) => sectionHasData(report, sid) || (sid === "evidence" && rgEvHas(report))))));
+  if (!(s.order || []).includes("evidence")) { const ei = chapters.findIndex((c) => c.key === "evidence"), ii = chapters.findIndex((c) => c.key === "impact"); if (ei >= 0 && ii >= 0 && ei !== ii + 1) { const ev = chapters.splice(ei, 1)[0]; chapters.splice(chapters.findIndex((c) => c.key === "impact") + 1, 0, ev); } }
   const mergeBasic = !review && !opts.capture && s.mergeBasic !== false && chapters.some((c) => c.special === "summary") && chapters.some((c) => c.key === "basic");
   const grouped = opts.capture ? chapters : rptGroupChapters(chapters.filter((c) => !(mergeBasic && c.key === "basic")), report);
   return rptWithCtx({ ...rptChartCtx(s), hiddenCols: review ? null : rptHiddenColsForViewer(s), colsShow: s.colsShow, capture: opts.capture || null, unitId: unit.id }, () => {
@@ -15635,6 +16192,7 @@ function liveUpdateComputed(el) {
 function attachFormListeners() {
   appEl.addEventListener("input", (e) => {
     const el = e.target;
+    if (el.dataset && el.dataset.evf && el.type !== "file") { evdFormInput(el, true); return; }
     if (el.dataset && el.dataset.arr === "shapeBlocks" && el.dataset.id) {
       const ab = findById(getItemList("shapeBlocks"), el.dataset.id);
       if (ab && ab.auto) { Object.assign(ab, shapeAutoData(ab.shapeId, { sectionId: ab.sectionId || S.activeSectionId, data: S.sectionDraft })); ab.auto = false; }
@@ -15853,6 +16411,17 @@ function attachFormListeners() {
 
   appEl.addEventListener("change", (e) => {
     const t0 = e.target;
+    if (t0 && t0.dataset && t0.dataset.evf) { evdFormInput(t0, false); return; }
+    if (t0 && t0.dataset && t0.dataset.action === "og-evt") { (S.ui.ogEvT || (S.ui.ogEvT = {}))[t0.dataset.ogid] = t0.value; render(); return; }
+    if (t0 && t0.dataset && t0.dataset.action === "og-evd-pick") {
+      const g = findById(getItemList("goals"), t0.dataset.gid), og = g && (g.operationalGoals || []).find((x) => x.id === t0.dataset.ogid);
+      if (og && t0.value) { const [k, id] = t0.value.split(":");
+        if (k === "repo") evdLinkToGoal(t0.dataset.gid, t0.dataset.ogid, evdFind(id));
+        else { const r = ogResolveLink(getCurrentReportEntry(), { kind: k, refId: id }); og.evidenceLinks = [...(og.evidenceLinks || []), { id: uid("ev"), kind: k, refId: id, refName: r.title || "" }]; autoSaveSchedule(); }
+        (S.ui.ogEvT || {})[og.id] = ""; }
+      render(); return;
+    }
+    if (t0 && t0.dataset && t0.dataset.action === "evr-goal-pick") { if (t0.value) { evdLinkToGoal(t0.dataset.gid, t0.dataset.ogid, evdFind(t0.value)); } render(); return; }
     if (t0 && t0.dataset && t0.dataset.indSel) { if (t0.dataset.indSel === "impview") S.ui.impView = t0.value; else if (t0.dataset.indSel === "impstat") S.ui.impStat = t0.value; else if (t0.dataset.indSel === "view") S.ui.indView = t0.value; else if (t0.dataset.indSel === "ind") S.ui.indSel = t0.value; else S.ui.indStat = t0.value; render(); return; }
     if (t0 && t0.dataset && t0.dataset.ccKind && t0.dataset.ccId) { dashCCSave(t0.dataset.ccKind, (c) => { const k = c.cards.find((x) => x.id === t0.dataset.ccId); if (k) k[t0.dataset.ccF] = t0.value; }); render(); return; }
     if (t0 && t0.dataset && t0.dataset.viewKind && t0.dataset.viewKey) { const kk = t0.dataset.viewKind; const cfg = JSON.parse(JSON.stringify(dashConfig())); cfg[kk] = cfg[kk] || {}; cfg[kk].view = cfg[kk].view || {}; if (t0.value) cfg[kk].view[t0.dataset.viewKey] = t0.value; else delete cfg[kk].view[t0.dataset.viewKey]; S.dashboardConfig = cfg; dataStore.saveDashboardConfig(cfg); render(); return; }
@@ -15921,8 +16490,9 @@ function attachFormListeners() {
     }
     if (el.dataset && el.dataset.ogPnew) { const [gid_, uid2, f] = el.dataset.ogPnew.split("|"), kk = gid_ + "|" + uid2; (S.ui.ogTgNew || (S.ui.ogTgNew = {}))[kk] = { ...((S.ui.ogTgNew || {})[kk] || {}), [f]: el.value }; return;
     }
+    if (el.dataset && el.dataset.action === "rg-sel") { const g_ = rgState(), k_ = el.dataset.k; if (k_ === "yr") g_.year = el.value; else if (k_ === "pk") { const ks = (g_.keys && g_.keys.length ? g_.keys.slice() : []); ks[Number(el.dataset.i)] = el.value; g_.keys = ks; } render(); return; }
     if (el.dataset && el.dataset.action === "ib-sel") { const g_ = ibState(); g_[el.dataset.k] = el.value; render(); return; }
-    if (el.dataset && el.dataset.action === "gb-sel") { const g_ = gbState(); if (el.dataset.k === "vd") { const [v_, d_] = el.value.split(":"); g_.view = v_; g_.dir = d_ || "col"; } else g_[el.dataset.k] = el.value; if (el.dataset.k === "term") g_.col = ""; render(); return; }
+    if (el.dataset && el.dataset.action === "gb-sel") { const g_ = gbState(); if (el.dataset.k === "pl") { const cc_ = gbCmpCols(gbCmpAll({ units: S.ui._gbUnits || [] }), g_), ks_ = (cc_.pl || []).slice(); ks_[Number(el.dataset.i)] = el.value; g_.pl = ks_; render(); return; } if (el.dataset.k === "vd") { const [v_, d_] = el.value.split(":"); g_.view = v_; g_.dir = d_ || "col"; } else g_[el.dataset.k] = el.value; if (el.dataset.k === "term") g_.col = ""; render(); return; }
     if (el.dataset && el.dataset.action === "og-evd-add") {
       const g = findById(getItemList("goals"), el.dataset.gid), og = g && (g.operationalGoals || []).find((x) => x.id === el.dataset.ogid);
       if (og && el.value) { const [k, id] = el.value.split(":"); if (k === "custom") og.evidenceLinks = [...(og.evidenceLinks || []), { id: uid("ev"), kind: "custom", text: "", url: "" }]; else { const r = ogResolveLink(getCurrentReportEntry(), { kind: k, refId: id }); og.evidenceLinks = [...(og.evidenceLinks || []), { id: uid("ev"), kind: k, refId: id, refName: r.title || "" }]; } }
@@ -16033,7 +16603,7 @@ function attachFormListeners() {
         const list = getItemList(el.dataset.arr);
         const item = findById(list, el.dataset.id);
         const sub = item && findById(item[el.dataset.subarr] || [], el.dataset.subid);
-        if (sub) sub.evidenceAnswer = "";
+        if (sub) { sub.evidenceAnswer = ""; sub.evidenceRepoId = ""; }
       }
       render();
       return;
@@ -16207,6 +16777,8 @@ function attachClickListener() {
       return;
     }
 
+    const jmp = e.target.closest('[data-action="rpt-jump"]');
+    if (jmp) { e.preventDefault(); evdJump(jmp.dataset.target); return; }
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const action = btn.dataset.action;
@@ -16724,7 +17296,14 @@ function attachClickListener() {
       case "og-pt-add": { if (!S.isAdmin) break; const [g_, u_] = ds.v.split("|"), n_ = (S.ui.ogTgNew || {})[ds.v] || {}; if (!n_.y || n_.v === "" || n_.v == null) break; ogPtSet(g_, u_, String(n_.y), n_.t || "", Math.max(0, Math.min(100, Number(n_.v) || 0))); S.ui.ogTgNew[ds.v] = { y: n_.y, t: "", v: "" }; break; }
       case "ib-yr": { const g_ = ibState(), all_ = [...new Set(dashSeries(S.ui._gbUnits || [], "all").cols.map((c) => String(c.year)).filter((y) => y !== "0"))]; let cur_ = g_.yrs && g_.yrs.length ? g_.yrs.slice() : all_.slice(); const i_ = cur_.indexOf(ds.v); if (i_ >= 0) cur_.splice(i_, 1); else cur_.push(ds.v); g_.yrs = cur_.length === all_.length ? [] : cur_; render(); break; }
       case "gb-yr": { const g_ = gbState(), all_ = [...new Set(gbCmpAll({ units: S.ui._gbUnits || [] }).cols.map((c) => String(c.year)).filter((y) => y !== "0"))]; let cur_ = g_.yrs && g_.yrs.length ? g_.yrs.slice() : all_.slice(); const i_ = cur_.indexOf(ds.v); if (i_ >= 0) cur_.splice(i_, 1); else cur_.push(ds.v); g_.yrs = cur_.length === all_.length ? [] : cur_; render(); break; }
-      case "gb-open": { const o = S.ui.gbOpen || (S.ui.gbOpen = {}); o[ds.v] = !o[ds.v]; render(); break; }
+      case "rg-es": { rgState().es = ds.v; render(); break; }
+      case "rg-mode": { const g_ = rgState(); g_.mode = ds.v; if (ds.v === "pick" && !(g_.keys && g_.keys.length)) { const sa_ = dashSeries([(S.units || []).find((u) => u.id === S.currentUnitId)].filter(Boolean), "all"); g_.keys = sa_.cols.slice(-2).map((c) => c.key); } render(); break; }
+      case "rg-add": { const g_ = rgState(), sa_ = dashSeries([(S.units || []).find((u) => u.id === S.currentUnitId)].filter(Boolean), "all"), ks = (g_.keys && g_.keys.length ? g_.keys : sa_.cols.slice(-2).map((c) => c.key)).slice(); const nx = sa_.cols.find((c) => ks.indexOf(c.key) === -1); ks.push(nx ? nx.key : ks[ks.length - 1]); g_.keys = ks.slice(0, 4); render(); break; }
+      case "rg-rm": { const g_ = rgState(); if (g_.keys && g_.keys.length > 2) g_.keys.splice(Number(ds.i), 1); render(); break; }
+      case "gb-sel-cmp": { const g_ = gbState(); g_.cmp = ds.v; S.ui.gbOpen = {}; render(); break; }
+      case "gb-pl-add": { const g_ = gbState(), cc_ = gbCmpCols(gbCmpAll({ units: S.ui._gbUnits || [] }), g_), ks_ = (cc_.pl || []).slice(), nx_ = cc_.periodOpts.find((o) => ks_.indexOf(o.v) === -1); ks_.push(nx_ ? nx_.v : ks_[ks_.length - 1]); g_.pl = ks_.slice(0, 4); render(); break; }
+      case "gb-pl-rm": { const g_ = gbState(), cc_ = gbCmpCols(gbCmpAll({ units: S.ui._gbUnits || [] }), g_), ks_ = (cc_.pl || []).slice(); if (ks_.length > 2) ks_.splice(Number(ds.i), 1); g_.pl = ks_; render(); break; }
+      case "gb-open": { const g_ = gbState(); let o = S.ui.gbOpen || (S.ui.gbOpen = {}); const was = !!o[ds.v]; if (g_.view === "chart" && g_.dir !== "bar") o = S.ui.gbOpen = {}; o[ds.v] = !was; render(); break; }
       case "heat-open": { const ho = S.ui.heatOpen; S.ui.heatOpen = ho && ho.hk === ds.hk && ho.u === ds.u ? null : { hk: ds.hk, u: ds.u }; render(); break; }
       case "ex-drill": S.ui.exDrill = { path: ds.path ? ds.path.split(",") : [] }; render(); break;
       case "us-period": S.ui.usPeriod = ds.pt; S.ui.usMsg = ""; render(); break;
@@ -17438,7 +18017,7 @@ function attachClickListener() {
         break;
       }
       case "goal-add-toggle": saveSiteTheme({ goalAddFromReport: !goalAddFromReportOn() }); render(); break;
-      case "goal-add-open": S.ui.goalAddOpen = ds.key; S.ui.goalAddErr = ""; S.ui.goalAddText = ""; S.ui.goalAddConfirm = ""; render(); setTimeout(() => { const el = document.getElementById("goal-add-input"); if (el) el.focus(); }, 30); break;
+      case "goal-add-open": S.ui.openMultiDropdown = null; S.ui.goalAddOpen = ds.key; S.ui.goalAddErr = ""; S.ui.goalAddText = ""; S.ui.goalAddConfirm = ""; render(); setTimeout(() => { const el = document.getElementById("goal-add-input"); if (el) el.focus(); }, 30); break;
       case "goal-add-cancel": S.ui.goalAddOpen = null; S.ui.goalAddErr = ""; render(); break;
       case "goal-add-save": {
         const el = document.getElementById("goal-add-input");
@@ -17837,6 +18416,47 @@ function handleReportEditorAction(action, ds) {
       const row = findById(getItemList("indicators"), ds.id); if (!row) return true;
       indLinkToggle(row, ds.kind, ds.v, rptProgramList(getCurrentReportEntry())); render(); return true;
     }
+    case "evr-new": S.ui.evdForm = evdNewForm(null); render(); return true;
+    case "evr-edit": { const it = evdFind(ds.id); if (it) { S.ui.evdForm = { ...evdNewForm(null), ...it, file_data: "", ret: null, msg: "" }; render(); } return true; }
+    case "evr-cancel": { const rt = S.ui.evdForm && S.ui.evdForm.ret; S.ui.evdForm = null; if (rt) { loadSectionIntoDraft("goals"); (S.ui.expandedRepeatItem || (S.ui.expandedRepeatItem = {})).goals = rt.gid; } render(); return true; }
+    case "evr-kind": if (S.ui.evdForm) { S.ui.evdForm.kind = ds.v; S.ui.evdForm.file_data = ""; S.ui.evdForm.file_name = ""; } render(); return true;
+    case "evd-auth": { const k = ds.k; saveSiteTheme((th) => ({ evdAuth: { ...(th.evdAuth || {}), [k]: !evdAuthCfg()[k] } })); return true; }
+    case "evr-conf": if (S.ui.evdForm) S.ui.evdForm.confidentiality = ds.v; render(); return true;
+    case "evr-file-clear": if (S.ui.evdForm) { S.ui.evdForm.file_data = ""; S.ui.evdForm.file_name = ""; } render(); return true;
+    case "evr-save": evdFormSave(); return true;
+    case "evr-del": evdDelete(ds.id); return true;
+    case "evr-open": evdOpen(ds.id); return true;
+    case "evr-goal-new": {
+      autoSaveFlush(); try { trySaveSectionWithStatus("draft"); } catch (e) { /* تجاهل */ }
+      S.ui.evdForm = evdNewForm({ gid: ds.gid, ogid: ds.ogid });
+      loadSectionIntoDraft("evidence"); render(); window.scrollTo(0, 0); return true;
+    }
+    case "og-evd-new": {
+      const g = findById(getItemList("goals"), ds.gid), og = g && (g.operationalGoals || []).find((x) => x.id === ds.ogid); if (!og) return true;
+      const val = (id) => String((document.getElementById(id + og.id) || {}).value || "").trim(), nm = val("ogev-name-"), url = val("ogev-url-");
+      if (!nm && !url) { S.sectionSaveError = ""; alert("اكتبي الاسم أو الوصف، أو ضعي الرابط."); return true; }
+      if (url && !/^https?:\/\//i.test(url)) { alert("الرابط يجب أن يبدأ بـ http أو https."); return true; }
+      const kind = ds.k === "follow-url" ? "follow" : ds.k;
+      og.evidenceLinks = [...(og.evidenceLinks || []), { id: uid("ev"), kind, text: nm, url }];
+      (S.ui.ogEvT || {})[og.id] = ""; autoSaveSchedule(); render(); return true;
+    }
+    case "og-evd-legacy-clear": {
+      const g = findById(getItemList("goals"), ds.gid), og = g && (g.operationalGoals || []).find((x) => x.id === ds.ogid);
+      if (og) { og.evidenceType = ""; og.evidenceAnswer = ""; og.evidenceRepoId = ""; autoSaveSchedule(); }
+      render(); return true;
+    }
+    case "evr-goal-clear": {
+      const g = findById(getItemList("goals"), ds.gid), og = g && (g.operationalGoals || []).find((x) => x.id === ds.ogid);
+      if (og) { og.evidenceLinks = (og.evidenceLinks || []).filter((l) => !(l.kind === "repo" && l.refId === og.evidenceRepoId)); og.evidenceRepoId = ""; og.evidenceAnswer = ""; autoSaveSchedule(); }
+      render(); return true;
+    }
+    case "og-toggle": { const c_ = S.ui.ogCol || (S.ui.ogCol = {}); c_[ds.id] = !c_[ds.id]; render(); return true; }
+    case "og-evt-set": { const m_ = S.ui.ogEvT || (S.ui.ogEvT = {}); m_[ds.ogid] = m_[ds.ogid] === ds.v ? "" : ds.v; render(); return true; }
+    case "og-evd-tg": { S.ui.ogOpenLn = S.ui.ogOpenLn || {}; S.ui.ogOpenLn[ds.lid] = !S.ui.ogOpenLn[ds.lid]; render(); return true; }
+    case "og-follow-open": {
+      autoSaveFlush(); try { trySaveSectionWithStatus("draft"); } catch (e) { /* تجاهل */ }
+      S.currentReportId = ds.rid; S.view = "unit-report"; S.openPhaseId = null; S.activeSectionId = null; render(); window.scrollTo(0, 0); return true;
+    }
     case "og-evd-del": {
       const g = findById(getItemList("goals"), ds.gid), og = g && (g.operationalGoals || []).find((x) => x.id === ds.ogid);
       if (og) og.evidenceLinks = (og.evidenceLinks || []).filter((l) => l.id !== ds.lid);
@@ -18075,6 +18695,7 @@ window.addEventListener("resize", () => { clearTimeout(window.__dfg); window.__d
 function afterRender() {
   applyButtonPermissions();
   dashFillGaps();
+  try { gbPlacePop(); } catch (e) { /* تجاهل */ }
   try { if (S.view === "full-report" || S.view === "report-preview" || S.view === "executive-final-report") linkifyReportView(); decorateLinkInputs(); } catch (e) { /* تجاهل */ }
   const loginUserEl = document.getElementById("login-username");
   if (loginUserEl) loginUserEl.focus();
