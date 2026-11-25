@@ -7729,7 +7729,7 @@ function rptWrap(s, inner, isPreview) {
   const [w, h] = rptPageDims(s);
   const [t, b, r, l] = rptMargins(s);
   const main = /^#[0-9a-fA-F]{6}$/.test(s.mainColor) ? s.mainColor : "#6b2337";
-  let vars = `--rpt-burgundy:${main};--rpt-t0:${mixHex(main, "#ffffff", 0.96)};--rpt-t1:${mixHex(main, "#ffffff", 0.9)};--rpt-line:${mixHex(main, "#ffffff", 0.82)};--rpt-c1:${mixHex(main, "#ffffff", 0.7)};--rpt-c2:${mixHex(main, "#ffffff", 0.45)};--rpt-c3:${mixHex(main, "#ffffff", 0.2)};--rpt-gl-bg:${s.thBg && s.thBg !== "#f4ece4" ? rptCssSafe(s.thBg) : mixHex(main, "#ffffff", 0.7)};--rpt-gl-color:${s.thBg && s.thBg !== "#f4ece4" ? rptCssSafe(s.thColor || main) : main};--rpt-gh-bg:${rptCssSafe(s.thBg)};--rpt-gh-color:${rptCssSafe(s.thColor || main)};--rpt-burgundy-dark:${mixHex(main, "#000000", 0.25)};--rpt-paper:${rptCssSafe(s.paper)};--rpt-chapter-bg:${rptCssSafe(s.chapterBg)};` +
+  let vars = `--rpt-burgundy:${main};--rpt-t0:${mixHex(main, "#ffffff", 0.96)};--rpt-t1:${mixHex(main, "#ffffff", 0.9)};--rpt-line:${mixHex(main, "#ffffff", 0.82)};--rpt-c1:${mixHex(main, "#ffffff", 0.7)};--rpt-c2:${mixHex(main, "#ffffff", 0.45)};--rpt-c3:${mixHex(main, "#ffffff", 0.2)};--rpt-gl-bg:${s.thBg && s.thBg !== "#f4ece4" ? rptCssSafe(s.thBg) : mixHex(main, "#ffffff", 0.7)};--rpt-gl-color:${s.thColor ? rptCssSafe(s.thColor) : "#000000"};--rpt-gh-bg:${rptCssSafe(s.thBg)};--rpt-gh-color:${rptCssSafe(s.thColor || main)};--rpt-burgundy-dark:${mixHex(main, "#000000", 0.25)};--rpt-paper:${rptCssSafe(s.paper)};--rpt-chapter-bg:${rptCssSafe(s.chapterBg)};` +
     `--rpt-font-body:'${rptCssSafe(s.fontBody)}';--rpt-font-title:'${rptCssSafe(s.fontTitle)}';--rpt-font-heading:'${rptCssSafe(s.fontHeading)}';` +
     `--rpt-page-w:${w}mm;--rpt-page-h:${h}mm;--rpt-mt:${t}mm;--rpt-mb:${b}mm;--rpt-mr:${r}mm;--rpt-ml:${l}mm;` +
     `--rpt-th-align:${["right", "center", "left"].includes(s.thAlign) ? s.thAlign : "center"};--rpt-td-align:${["right", "center", "left"].includes(s.tdAlign) ? s.tdAlign : "center"};` +
@@ -8036,16 +8036,15 @@ function aggGoalsOnePageBody(ents) {
   const seen = rows.map((r) => r.v).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
   const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
   // الرسم: نفس رسم تقرير الوحدة (أعمدة المستهدف والمتحقق + خط النسبة)
-  const W = Math.max(700, rows.length * 90 + 50), H = 250, pl = 38, pr = 10, pt = 30, pb = 54, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
+  const W = Math.max(700, rows.length * 70 + 50), H = 350, pl = 38, pr = 10, pt = 30, pb = 150, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;max-width:${W > 760 ? "100%" : "760px"};display:block;margin:0 auto">`;
   for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
   rows.forEach((r, i) => {
     const bw = Math.min(28, gw / 3), t = r.t != null ? r.t : 100;
     svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-c1,#e3b6c5)"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${t}%</text>`;
     if (r.v != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.v)}" width="${bw}" height="${yy(0) - yy(r.v)}" rx="3" style="fill:var(--rpt-burgundy,#7a1f3d)"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.v) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.v}%</text>`;
-    const w = r.name.split(" "), mid = Math.ceil(w.length / 2);
-    [w.slice(0, mid).join(" "), w.slice(mid).join(" ")].forEach((ln, q) => { svg += `<text x="${cx(i)}" y="${H - pb + 16 + q * 12}" font-size="8" text-anchor="middle" fill="#2b1a20" font-weight="700">${esc(ln.length > 34 ? ln.slice(0, 33) + "…" : ln)}</text>`; });
-    svg += `<text x="${cx(i)}" y="${H - pb + 42}" font-size="7.5" text-anchor="middle" fill="#8a7279">${esc(r.unit.name)}</text>`;
+    const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t), ly = H - pb + 8;
+    svg += `<text transform="translate(${cx(i) + 3},${ly}) rotate(90)" font-size="8.5" text-anchor="start" fill="#2b1a20" font-weight="700">${esc(cut(r.name, 30))}</text><text transform="translate(${cx(i) + 14},${ly}) rotate(90)" font-size="7.5" text-anchor="start" fill="#8a7279">${esc(cut(r.unit.name, 26))}</text>`;
   });
   const pts = rows.map((r, i) => [cx(i), r.v]).filter((p) => p[1] != null);
   if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join("");

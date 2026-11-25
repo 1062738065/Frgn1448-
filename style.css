@@ -1675,3 +1675,6 @@ body.sp-body{background:#f7f3f1}
 .rg-scope .rg-rtb.rg-ag td,.rg-scope .rg-rtb.rg-ag th{min-width:56px}
 .rg-scope .rg-rtb.rg-ag td.rg-n,.rg-scope .rg-rtb.rg-ag th.rg-n{min-width:0!important;width:28px!important;padding-inline:2px!important}
 .rg-scope .rg-rtb.rg-ag td.rg-nm,.rg-scope .rg-rtb.rg-ag th.rg-nm{width:38%}
+/* رؤوس جداول الأهداف دائمًا في الوسط (المحاذاة المحفوظة القديمة «يمين» ما تأثر عليها) */
+.rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th{text-align:center!important}
+.rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th,.gb-board table.prs-table th{color:var(--rpt-gl-color,#000)!important}
