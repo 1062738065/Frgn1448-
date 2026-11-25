@@ -1696,3 +1696,11 @@ body.sp-body{background:#f7f3f1}
 .rm-layout > .rm-preview.rm-full{position:fixed!important;inset:8px!important;width:auto!important;max-height:none!important;z-index:90;background:#fffdf9;border:1px solid #e7dccb;border-radius:16px;padding:10px;box-shadow:0 8px 30px rgba(43,29,33,.3);flex:none}
 .rm-full .rm-preview-scroll{max-height:calc(100vh - 110px)!important}
 @media (min-width:900px){.rm-layout > .rm-preview.rm-docked{width:46vw!important}.rm-layout.rm-has-dock{padding-left:calc(46vw + 14px)!important}}
+/* جدول المؤشرات في «الأهداف والمستهدفات»: نفس تنسيق جداول الأهداف ويتبع الإعدادات */
+.rpt-wrap table.kpi-t th,.rpt-pdf table.kpi-t th,table.kpi-t th{background:var(--rpt-gl-bg,#d3bdc3)!important;background-image:none!important;color:var(--rpt-gl-color,#000)!important;text-align:center!important;border:1px solid #fff!important}
+.rpt-wrap table.kpi-t td,.rpt-pdf table.kpi-t td,table.kpi-t td{background:var(--rpt-g-td,#f9f6f7)!important;text-align:var(--rpt-td-align,center)!important;border:1px solid var(--rpt-line,#ecdfe3)!important;font-size:calc(var(--rpt-table-fs,12px) - 1.5px)!important}
+table.kpi-t th{font-size:calc(var(--rpt-table-fs,12px) - 1.5px)!important}
+.rpt-v5 .rpt-chapter-body table.prs-table.kpi-t th,.rpt-chapter-body table.prs-table.kpi-t th,.rpt-pdf table.prs-table.kpi-t th{background:var(--rpt-gl-bg,#d3bdc3)!important;background-image:none!important;color:var(--rpt-gl-color,#000)!important;border:1px solid #fff!important}
+.rpt-chapter-body table.prs-table.kpi-t tbody tr:nth-child(n) td,.rpt-v5 .rpt-chapter-body table.prs-table.kpi-t tbody tr:nth-child(n) td{background:var(--rpt-g-td,#f9f6f7)!important;background-image:none!important}
+html body table.prs-table.kpi-t:not(#z) th{background:var(--rpt-gl-bg,#d3bdc3)!important;background-image:none!important;color:var(--rpt-gl-color,#000)!important;text-shadow:none!important;text-align:center!important;border:1px solid #fff!important;font-size:calc(var(--rpt-table-fs,12px) - 1.5px)!important}
+html body table.prs-table.kpi-t:not(#z) tbody tr td{background:var(--rpt-g-td,#f9f6f7)!important;background-image:none!important;border:1px solid var(--rpt-line,#ecdfe3)!important}
