@@ -1721,3 +1721,29 @@ html body .rpt-x-ch-center .rpt-chapter-head::after{display:none!important}
 html body .rpt-x-ch-left .rpt-chapter-head{justify-content:flex-end!important;text-align:left!important}
 html body .rpt-x-cv-center .rpt-cover-v4-text,html body .rpt-x-cv-center .rpt-cover-v4-title,html body .rpt-x-cv-center .rpt-cover-v4-sub,html body .rpt-x-cv-center .rpt-cover-title{text-align:center!important;align-items:center!important}
 html body .rpt-x-cv-left .rpt-cover-v4-text,html body .rpt-x-cv-left .rpt-cover-v4-title,html body .rpt-x-cv-left .rpt-cover-v4-sub,html body .rpt-x-cv-left .rpt-cover-title{text-align:left!important;align-items:flex-start!important}
+
+/* مربع بيانات الهدف — عرضي بتصميم جديد */
+.gb-pop{width:min(560px,92%);text-align:start;border:1px solid #ead6dc;border-radius:16px;box-shadow:0 16px 40px rgba(80,20,40,.22);overflow:hidden}
+.gb-pop-h{border-radius:0;padding:12px 44px 12px 16px;text-align:start;font-size:14px;line-height:1.6;background:#f4ece4;color:#6b2337;border-bottom:1px solid #ead6dc}
+.gb-pop-h button{inset-inline-end:auto;inset-inline-start:10px;top:10px;width:26px;height:26px;font-size:13px}
+.gbp-top{display:flex;gap:10px;padding:12px 14px;background:#fff;flex-wrap:wrap}
+.gbp-st{flex:1;min-width:110px;background:#faf5f6;border-radius:12px;padding:8px 10px;text-align:center}
+.gbp-st small{display:block;font-size:11px;color:#8a7d7f;margin-bottom:3px}
+.gbp-st b{font-size:16px;color:#2b1a20}
+.gbp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:0 14px 14px;max-height:260px;overflow:auto;background:#fff}
+.gbp-c{border:1px solid #f0e2e6;border-radius:12px;padding:8px 10px;background:#fff}
+.gbp-c span{display:block;font-size:11.5px;color:#6b2337;font-weight:700;line-height:1.5;min-height:34px}
+.gbp-c b{display:block;font-size:15px;color:#2b1a20;margin:2px 0 5px}
+.gbp-c i{display:block;height:6px;border-radius:99px;background:#f3e6e8;overflow:hidden}
+.gbp-c u{display:block;height:100%;background:linear-gradient(90deg,#c9607f,#8a2a4c);border-radius:99px;text-decoration:none}
+.gb-pop.aR::after,.gb-pop.aL::after{display:none}
+
+/* بطاقة المستخدم في الشريط الجانبي: توسيط الاسم والدور وعرض الاسم كاملًا */
+.sidebar-user-block{gap:10px}
+.sidebar-user-block > div:nth-child(2){flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;align-items:center}
+.sidebar-user-name{white-space:normal;overflow:visible;text-overflow:clip;text-align:center;line-height:1.5}
+.sidebar-role-badge{white-space:normal;text-align:center;max-width:100%}
+
+/* كل جداول التقرير بنفس شكل جدول الأهداف: رأس موحّد وتوسيط الأرقام والكلام */
+html body :where(.a4-page) table.prs-table:not(#z) th{background:var(--rpt-gl-bg,#d3bdc3)!important;background-image:none!important;color:var(--rpt-gl-color,#000)!important;text-shadow:none!important;text-align:var(--rpt-th-align,center)!important;vertical-align:middle;border:1px solid #fff!important}
+html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt-g-td,#f9f6f7)!important;background-image:none!important;text-align:var(--rpt-td-align,center)!important;vertical-align:middle;border:1px solid var(--rpt-line,#ecdfe3)!important}

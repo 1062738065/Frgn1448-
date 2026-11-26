@@ -4967,17 +4967,19 @@ function gbCmpHtml(series, rows) { const b = gbCmpBuild(series, rows, () => "");
 function gbPopHtml(name, rows, grouped) {
   const r = rows.find((x) => x.name === name); if (!r) return "";
   const g = grouped ? grouped.groups.find((x) => x.name === name) : null, grp = (v) => (v == null ? "empty" : v >= 75 ? "achieved" : v >= 40 ? "partial" : "not");
-  const td = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`; let t = "";
+  const stat = (l, v) => `<div class="gbp-st"><small>${l}</small><b>${v}</b></div>`;
+  const cell = (l, v) => `<div class="gbp-c"><span>${l}</span><b>${v != null ? v + "٪" : "—"}</b><i><u style="width:${v != null ? Math.max(0, Math.min(100, v)) : 0}%"></u></i></div>`;
+  let top = "", cells = "";
   if (g) {
-    g.bars.forEach((b) => { t += td(esc(b.label), b.pct != null ? b.pct + "٪" : "—"); });
-    const vs = g.bars.map((b) => b.pct).filter((v) => v != null), d = vs.length > 1 ? vs[vs.length - 1] - vs[0] : null;
-    if (d != null) t += td("الاتجاه", d > 0 ? "▲ تحسّن" : d < 0 ? "▼ تراجع" : "= ثبات");
-    const lv = vs.length ? vs[vs.length - 1] : null; t += td("الحالة", badgeHtml(GOAL_GROUP_LABEL[grp(lv)], GB_COLOR[grp(lv)], "#f6f2f3"));
+    const vs = g.bars.map((b) => b.pct).filter((v) => v != null), d = vs.length > 1 ? vs[vs.length - 1] - vs[0] : null, lv = vs.length ? vs[vs.length - 1] : null;
+    if (d != null) top += stat("الاتجاه", d > 0 ? "▲ تحسّن" : d < 0 ? "▼ تراجع" : "= ثبات");
+    top += stat("الحالة", badgeHtml(GOAL_GROUP_LABEL[grp(lv)], GB_COLOR[grp(lv)], "#f6f2f3"));
+    cells = g.bars.map((b) => cell(esc(b.label), b.pct)).join("");
   } else {
-    t += td("المستهدف", r.target != null ? r.target + "٪" : "—") + td("المتحقق", r.avg != null ? r.avg + "٪" : "—") + td("الحالة", badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3"));
-    if (r.units.length > 1) r.units.forEach((x) => { t += td(esc(x.unit.name), x.pct != null ? x.pct + "٪" : "—"); });
+    top = stat("المستهدف", r.target != null ? r.target + "٪" : "—") + stat("المتحقق", r.avg != null ? r.avg + "٪" : "—") + stat("الحالة", badgeHtml(GOAL_GROUP_LABEL[r.group], GB_COLOR[r.group], "#f6f2f3"));
+    if (r.units.length > 1) cells = r.units.map((x) => cell(esc(x.unit.name), x.pct)).join("");
   }
-  return `<div class="gb-pop" data-gbp="${esc(name)}"><div class="gb-pop-h"><span>${esc(name)}</span><button type="button" data-action="gb-open" data-v="${esc(name)}" aria-label="إغلاق">✕</button></div><table>${t}</table></div>`;
+  return `<div class="gb-pop" data-gbp="${esc(name)}"><div class="gb-pop-h"><span>${esc(name)}</span><button type="button" data-action="gb-open" data-v="${esc(name)}" aria-label="إغلاق">✕</button></div><div class="gbp-top">${top}</div>${cells ? `<div class="gbp-grid">${cells}</div>` : ""}</div>`;
 }
 function gbPlacePop() {
   const pop = document.querySelector(".gb-pop"); if (!pop) return;
