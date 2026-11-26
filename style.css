@@ -1753,3 +1753,10 @@ html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt
 .ind-tg{background:#e5f3ec;color:#1f6b4a}.ind-tp{background:#efeaf8;color:#5a4a8a}.ind-tc{background:#fdeee0;color:#9a5b1e}.ind-tl{background:#e6eef7;color:#2f5a85}.ind-to{background:#f1ecee;color:#8a7279}
 .rg-scope .rg-leg{flex-wrap:wrap}
 .rg-leg s{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:4px}
+
+.rg-rtb.ind2{table-layout:fixed;width:100%}
+.rg-rtb.ind2 th,.rg-rtb.ind2 td{font-size:9.5px;padding:5px 4px;vertical-align:middle;word-break:normal;overflow-wrap:break-word}
+.rg-rtb.ind2 th{white-space:normal;line-height:1.35}
+.rg-rtb.ind2,.rpt-pdf .rg-rtb.ind2{table-layout:fixed!important;width:100%!important;min-width:0!important}
+.rg-rtb.ind2 th,.rg-rtb.ind2 td,.rpt-pdf .rg-rtb.ind2 td:nth-child(n),.rpt-pdf .rg-rtb.ind2 th{min-width:0!important;font-size:9.5px!important;padding:5px 3px}
+@media print{.rg-rtb.ind2{table-layout:fixed!important}}

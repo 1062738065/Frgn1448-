@@ -4919,6 +4919,11 @@ function dashIndDetailHtml0(kind, series, DC) {
   const controls = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">${ctl.join("")}</div>`;
   const none = (m) => `<div class="hint" style="margin-top:10px;">${esc(m)}</div>`;
   const num = (v) => { const n = Number(v); return v === "" || v == null || isNaN(n) ? null : n; };
+  const ln_ = (t, v) => { v = Array.isArray(v) ? v.join("، ") : v; return v ? `<div style="font-size:11px;margin-top:2px;"><b>${t}:</b> ${esc(String(v))}</div>` : ""; };
+  const barP = (ratio, color) => { if (ratio == null || !isFinite(ratio)) return `<span style="color:${SUBTLE}">—</span>`; const r = Math.round(ratio * 100); return `<div style="min-width:70px"><div style="height:7px;border-radius:4px;background:#efe6e9;overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100, r)}%;background:${color};border-radius:4px"></i></div><b style="font-size:11.5px;color:${color}">${r}٪</b></div>`; };
+  const tagsOf = (g, p, cum, low) => `<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px;">${(g || []).map((n) => badgeHtml(n, GREEN, GREEN_BG)).join("")}${(p || []).map((n) => badgeHtml(n, "#5a4a8a", "#efeaf8")).join("")}${cum ? badgeHtml("تراكمي", "#9a5b1e", "#fdeee0") : ""}${low ? badgeHtml("الأقل أفضل", "#2f5a85", "#e6eef7") : ""}</div>`;
+  const actOf = (r0, ac, tg) => { let dv = ""; if (ac != null && tg != null) { const x = Math.round((ac - tg) * 100) / 100, pc = tg ? Math.round(x / tg * 100) : null; dv = `<div style="font-weight:800;font-size:12px;color:${x === 0 ? GREEN : DANGER}">${x === 0 ? "لا انحراف" : (x > 0 ? "+" : "−") + Math.abs(x) + (pc != null ? " (" + (x > 0 ? "+" : "−") + Math.abs(pc) + "٪)" : "")}</div>`; } return dv + ln_("السبب", r0.deviationReason) + ln_("الإجراء", r0.correctiveAction) + ln_("المسؤولة", r0.responsiblePerson) + ln_("الإغلاق", r0.closureDate) + ln_("الدعم", r0.requiredSupport); };
+  const baseOf = (u, rep, row) => { let bs = null; try { const pb = indicatorPrevBaseline(u.id, rep, String(row.name).trim()); bs = pb ? pb.value : (row.baseline !== "" && row.baseline != null ? row.baseline : null); } catch (e) {} return bs; };
   // ---------- المقارنة ----------
   if (pm !== "none") {
     if (cc.reason) return DC("مؤشرات الأداء", "", controls + none(cc.reason));
@@ -4931,18 +4936,20 @@ function dashIndDetailHtml0(kind, series, DC) {
         const avg = (a) => a.length ? Math.round(a.reduce((t, v) => t + v, 0) / a.length * 100) / 100 : null;
         const target = avg(tg), actual = e.cum && ac.length ? ac[ac.length - 1] : avg(ac);
         const st = computeIndicatorStatus({ ...its[0].rs, target: target == null ? "" : target, actual: actual == null ? "" : actual });
-        e.cells[ci] = { target, actual, ratio: st.ratio, st }; });
+        e.cells[ci] = { target, actual, ratio: st.ratio, st }; e.last = its[its.length - 1]; });
     }));
     const rows = Object.values(map).filter((e) => e.cells.filter((c) => c && c.actual != null).length);
     const live = cc.cols.map((c, ci) => ({ c, ci })).filter((x) => rows.some((e) => e.cells[x.ci] && e.cells[x.ci].actual != null));
     if (live.length < 2) return DC("مؤشرات الأداء", "", controls + none("لا تتوفر بيانات متحقق كافية للمقارنة في الفترات المختارة."));
     const cnt = { up: 0, down: 0, same: 0, none: 0 };
+    let __n = 0;
     const body = rows.map((e) => { const rs_ = live.map((x) => e.cells[x.ci]), have = rs_.filter((c) => c && c.ratio != null && isFinite(c.ratio)); let d = "none"; if (have.length >= 2) { const f = have[0].ratio, l = have[have.length - 1].ratio; d = l > f + 1e-9 ? "up" : l < f - 1e-9 ? "down" : "same"; } cnt[d]++;
       const DL = { up: ["▲ تحسّن", GREEN], down: ["▼ تراجع", DANGER], same: ["= ثبات", SUBTLE], none: ["بيانات غير كافية", SUBTLE] };
       const lastC = [...rs_].reverse().find((c) => c && c.actual != null);
-      return `<tr><td style="font-weight:700">${esc(e.name)}${e.cum ? `<div style="margin-top:3px;">${badgeHtml("تراكمي", "#9a5b1e", "#fdeee0")}</div>` : ""}</td><td>${esc(e.unit.name)}</td>${rs_.map((c) => c && c.actual != null ? `<td style="text-align:center;border-inline-start:2px solid #d9c3cb;color:${SUBTLE};">${c.target != null ? c.target : "بلا مستهدف"}</td><td style="text-align:center;font-weight:800;">${c.actual}</td>` : `<td style="text-align:center;border-inline-start:2px solid #d9c3cb;">—</td><td style="text-align:center;">—</td>`).join("")}<td style="text-align:center">${lastC && lastC.ratio != null && isFinite(lastC.ratio) ? Math.round(lastC.ratio * 100) + "٪" : "—"}</td><td style="text-align:center"><b style="color:${DL[d][1]};font-size:11.5px;">${DL[d][0]}</b></td></tr>`; }).join("");
+      const L = e.last || {}, lr = L.row || {}, lc = lastC || {}, bs = L.row ? baseOf(e.unit, L.report, lr) : null, low = L.rs ? indBetter(L.rs.direction) === "L" : false;
+      return `<tr><td style="text-align:center">${++__n}</td><td style="font-weight:700">${esc(e.name)}${tagsOf(L.goals, L.progs, e.cum, low)}</td><td>${esc(e.unit.name)}</td><td style="text-align:center">${bs != null && bs !== "" ? esc(bs) : "—"}</td>${rs_.map((c) => c && c.actual != null ? `<td style="text-align:center;border-inline-start:2px solid #d9c3cb;color:${SUBTLE};">${c.target != null ? c.target : "بلا مستهدف"}</td><td style="text-align:center;font-weight:800;">${c.actual}</td>` : `<td style="text-align:center;border-inline-start:2px solid #d9c3cb;">—</td><td style="text-align:center;">—</td>`).join("")}<td>${barP(lc.ratio, lc.st ? lc.st.color : SUBTLE)}</td><td style="text-align:center">${lc.st ? badgeHtml(lc.st.label, lc.st.color, lc.st.bg) : "—"}</td><td style="text-align:center"><b style="color:${DL[d][1]};font-size:11.5px;">${DL[d][0]}</b></td><td>${L.row ? actOf(lr, lc.actual, lc.target) || "—" : "—"}</td></tr>`; }).join("");
     const stat = (n, l, c) => `<div style="flex:1;min-width:100px;background:#faf5f3;border-radius:14px;padding:10px 12px;"><div style="font-size:22px;font-weight:800;color:${c || ROSE};line-height:1.2;">${n}</div><div style="font-size:11.5px;color:${SUBTLE};margin-top:2px;">${l}</div></div>`;
-    return DC("مؤشرات الأداء", "مقارنة المستهدف والمتحقق لكل مؤشر في كل فترة · مستهدف كل فترة بجانب المتحقق", controls + `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:620px;"><thead><tr><th rowspan="2">المؤشر</th><th rowspan="2">الوحدة</th>${live.map((x) => `<th colspan="2" style="text-align:center;border-inline-start:2px solid rgba(255,255,255,.5)">${esc(x.c.label)}</th>`).join("")}<th rowspan="2" style="text-align:center">نسبة الإنجاز (آخر فترة)</th><th rowspan="2" style="text-align:center">الاتجاه</th></tr><tr>${live.map(() => `<th style="text-align:center;font-size:11px;border-inline-start:2px solid rgba(255,255,255,.5)">المستهدف</th><th style="text-align:center;font-size:11px;">المتحقق</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div><div class="hint" style="margin-top:6px;">الاتجاه يراعي اتجاه المؤشر (تصاعدي/تنازلي) · المؤشر التراكمي يؤخذ آخر متحقق في العام · الفراغ لا يُحسب صفرًا.</div>`);
+    return DC("مؤشرات الأداء", "مقارنة المستهدف والمتحقق لكل مؤشر في كل فترة · مستهدف كل فترة بجانب المتحقق", controls + `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:1000px;"><thead><tr><th rowspan="2">م</th><th rowspan="2">المؤشر</th><th rowspan="2">الوحدة</th><th rowspan="2" style="text-align:center">خط الأساس</th>${live.map((x) => `<th colspan="2" style="text-align:center;border-inline-start:2px solid rgba(255,255,255,.5)">${esc(x.c.label)}</th>`).join("")}<th rowspan="2" style="text-align:center">النسبة (آخر فترة)</th><th rowspan="2" style="text-align:center">الحالة</th><th rowspan="2" style="text-align:center">الاتجاه</th><th rowspan="2">الانحراف والإجراء</th></tr><tr>${live.map(() => `<th style="text-align:center;font-size:11px;border-inline-start:2px solid rgba(255,255,255,.5)">المستهدف</th><th style="text-align:center;font-size:11px;">المتحقق</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div><div class="hint" style="margin-top:6px;">الاتجاه يراعي اتجاه المؤشر (تصاعدي/تنازلي) · المؤشر التراكمي يؤخذ آخر متحقق في العام · الفراغ لا يُحسب صفرًا.</div>`);
   }
   // ---------- آخر فترة لكل وحدة ----------
   const items = [];
@@ -4954,8 +4961,8 @@ function dashIndDetailHtml0(kind, series, DC) {
     const low = indBetter(i.rs.direction) === "L", ac = indNumV(i.row.actual), bn = indNumV(bs);
     let dir = `<span style="color:${SUBTLE}">—</span>`; if (ac != null && bn != null) { const d = Math.round((ac - bn) * 100) / 100, good = low ? d < 0 : d > 0; dir = d === 0 ? `<b style="color:${SUBTLE}">= ثبات</b>` : `<b style="color:${good ? GREEN : DANGER}">${good ? "▲ تحسّن" : "▼ تراجع"} ${Math.abs(d)}</b>`; }
     const tags = (i.rs.nature === "تراكمي" ? badgeHtml("تراكمي", "#9a5b1e", "#fdeee0") + " " : "") + (low ? badgeHtml("الأقل أفضل", "#2f5a85", "#e6eef7") : "");
-    return `<tr><td style="font-weight:700">${esc(i.row.name)}${tags ? `<div style="margin-top:3px;">${tags}</div>` : ""}<div class="hint" style="margin:0;">${esc(i.col.label)}</div></td><td>${esc(i.unit.name)}</td><td>${i.progs.length ? i.progs.map((n) => badgeHtml(n, "#5a4a8a", "#efeaf8")).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td>${i.goals.length ? i.goals.map((n) => badgeHtml(n, GREEN, GREEN_BG)).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td style="text-align:center">${bs != null && bs !== "" ? esc(bs) : "—"}</td><td style="text-align:center">${tg !== "" && tg != null ? esc(tg) : "—"}</td><td style="text-align:center"><b>${i.row.actual !== "" && i.row.actual != null ? esc(i.row.actual) : "—"}</b></td><td style="text-align:center">${ratio == null ? "—" : `<b style="color:${i.st.color}">${ratio}٪</b>`}</td><td style="text-align:center">${i.dev != null && i.st.key !== "achieved" ? esc(Math.round(i.dev * 100) / 100) : "—"}</td><td style="text-align:center">${dir}</td><td style="text-align:center">${badgeHtml(i.st.label, i.st.color, i.st.bg)}</td></tr>`; }).join("");
-  return DC("مؤشرات الأداء", "كل المؤشرات في جدول واحد · آخر فترة لكل وحدة · المستهدف الخاص بالوحدة والفترة", controls + `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:900px;"><thead><tr><th>المؤشر</th><th>الوحدة</th><th>البرنامج</th><th>الهدف التشغيلي</th><th style="text-align:center">خط الأساس</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المتحقق</th><th style="text-align:center">نسبة الإنجاز</th><th style="text-align:center">الانحراف</th><th style="text-align:center">الاتجاه عن خط الأساس</th><th style="text-align:center">الحالة</th></tr></thead><tbody>${body}</tbody></table></div>`);
+    return `<tr><td style="font-weight:700">${esc(i.row.name)}${tags ? `<div style="margin-top:3px;">${tags}</div>` : ""}<div class="hint" style="margin:0;">${esc(i.col.label)}</div></td><td>${esc(i.unit.name)}</td><td>${i.progs.length ? i.progs.map((n) => badgeHtml(n, "#5a4a8a", "#efeaf8")).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td>${i.goals.length ? i.goals.map((n) => badgeHtml(n, GREEN, GREEN_BG)).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td style="text-align:center">${bs != null && bs !== "" ? esc(bs) : "—"}</td><td style="text-align:center">${tg !== "" && tg != null ? esc(tg) : "—"}</td><td style="text-align:center"><b>${i.row.actual !== "" && i.row.actual != null ? esc(i.row.actual) : "—"}</b></td><td style="text-align:center">${ratio == null ? "—" : `<b style="color:${i.st.color}">${ratio}٪</b>`}</td><td style="text-align:center">${i.dev != null && i.st.key !== "achieved" ? esc(Math.round(i.dev * 100) / 100) : "—"}</td><td style="text-align:center">${dir}</td><td style="text-align:center">${badgeHtml(i.st.label, i.st.color, i.st.bg)}</td><td>${actOf(i.row, ac, indNumV(tg)) || "—"}</td></tr>`; }).join("");
+  return DC("مؤشرات الأداء", "كل المؤشرات في جدول واحد · آخر فترة لكل وحدة · المستهدف الخاص بالوحدة والفترة", controls + `<div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:900px;"><thead><tr><th>المؤشر</th><th>الوحدة</th><th>البرنامج</th><th>الهدف التشغيلي</th><th style="text-align:center">خط الأساس</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المتحقق</th><th style="text-align:center">نسبة الإنجاز</th><th style="text-align:center">الانحراف</th><th style="text-align:center">الاتجاه عن خط الأساس</th><th style="text-align:center">الحالة</th><th>الانحراف والإجراء</th></tr></thead><tbody>${body}</tbody></table></div>`);
 }
 function dashIndDetailHtml() { return ""; } // دُمج في عرض «جدول» داخل بطاقة مؤشرات الأداء
 function gbCmpAll(series) { return dashSeries(series.units || [], "all"); }
@@ -8111,11 +8118,11 @@ function indVizSvg(groups, mode) {
   const list = groups.map((g) => ({ g, cols: mode === "unit" ? (g.items[0] ? g.items[0].cols : []) : g.items.map((i) => i.cols[0]).filter(Boolean) })).filter((x) => x.cols.length);
   if (!list.length) return "";
   const maxN = Math.max.apply(null, list.map((x) => x.cols.length));
-  const per = maxN > 4 ? 2 : maxN > 3 ? 3 : 4;
+  let per = maxN > 4 ? 2 : maxN > 3 ? 3 : maxN > 2 ? 4 : maxN > 1 ? 5 : 6; per = Math.ceil(list.length / Math.ceil(list.length / per));
   const uidx = {}, uall = []; if (mode === "final") groups.forEach((g) => g.items.forEach((i) => { if (i.unit && uidx[i.unit.id] == null) { uidx[i.unit.id] = uall.length; uall.push(i.unit.name); } }));
   let out = "";
   for (let s = 0; s < list.length; s += per) {
-    const chunk = list.slice(s, s + per), W = 900, H = 400, pl = 40, pr = 8, pt = 34, pb = 150, gw = (W - pl - pr) / Math.max(2, chunk.length);
+    const chunk = list.slice(s, s + per), W = 900, H = 400, pl = 40, pr = 8, pt = 34, pb = 150, gw = (W - pl - pr) / Math.max(3, chunk.length);
     const Y = (p) => pt + (H - pt - pb) * (1 - Math.min(p, 120) / 120);
     let v = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;display:block">`;
     [0, 25, 50, 75, 100].forEach((p) => { v += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" stroke="${p === 100 ? "#2b1a20" : "#ecdfe3"}" stroke-width="${p === 100 ? 1.5 : 1}"${p === 100 ? ' stroke-dasharray="6 4"' : ""}/><text x="${pl - 6}" y="${Y(p) + 4}" font-size="10" text-anchor="end" fill="#8a7279">${p}%</text>`; });
@@ -8149,7 +8156,7 @@ function indVizTable(groups, mode) {
   const K = (s) => (s.key === "achieved" ? "ok" : s.key === "close" ? "wr" : s.key === "noData" ? "na" : "bad");
   const head = mode === "unit"
     ? `<tr><th>م</th><th>المؤشر</th><th>خط الأساس</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الاتجاه</th><th>الانحراف والإجراء</th></tr>`
-    : `<tr><th>م</th><th>المؤشر</th><th style="min-width:80px">الوحدة</th><th>خط الأساس</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الانحراف والإجراء</th></tr>`;
+    : `<tr><th>م</th><th>المؤشر</th><th>الوحدة</th><th>خط الأساس</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الانحراف والإجراء</th></tr>`;
   const tags = (g, r0) => `<div class="ind-tags">${g.goals.map((n) => `<i class="ind-tg">${esc(n)}</i>`).join("")}${g.progs.map((n) => `<i class="ind-tp">${esc(n)}</i>`).join("")}${g.cum ? `<i class="ind-tc">تراكمي</i>` : ""}${g.low ? `<i class="ind-tl">الأقل أفضل</i>` : ""}${!g.goals.length && !g.progs.length ? `<i class="ind-to">أخرى</i>` : ""}</div>`;
   let n = 0, html = "";
   groups.forEach((g) => {
@@ -8168,10 +8175,11 @@ function indVizTable(groups, mode) {
       const base = `<td>${esc(it.bs != null ? it.bs : "—")}</td><td>${esc(c.tg != null ? indFmtV(c.tg) : "—")}</td><td>${esc(r0.actual !== "" && r0.actual != null ? r0.actual : "—")}</td>`;
       const tail = `${rgBar(p, K(c.st))}<td>${esc(c.st.label)}</td>`;
       const act2 = `<td>${dev || act ? dev + (act ? `<div class="kpi-act">${act}</div>` : "") : "—"}</td>`;
-      html += mode === "unit" ? `<tr>${nameTd}${base}${tail}<td>${dir}</td>${act2}</tr>` : `<tr>${nameTd}<td style="min-width:80px;font-weight:600">${esc(it.unit ? it.unit.name : "—")}</td>${base}${tail}${act2}</tr>`;
+      html += mode === "unit" ? `<tr>${nameTd}${base}${tail}<td>${dir}</td>${act2}</tr>` : `<tr>${nameTd}<td style="font-weight:600">${esc(it.unit ? it.unit.name : "—")}</td>${base}${tail}${act2}</tr>`;
     });
   });
-  return `<div class="rg-tw"><table class="rg-rtb">${head}${html}</table></div>`;
+  const cw = mode === "unit" ? [4, 22, 8, 8, 8, 13, 10, 11, 16] : [4, 17, 16, 7, 8, 8, 12, 9, 19];
+  return `<div class="rg-tw"><table class="rg-rtb ind2"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join("")}</colgroup>${head}${html}</table></div>`;
 }
 
 function indOnePageBody(ents, opt) {
@@ -8185,7 +8193,7 @@ function indOnePageBody(ents, opt) {
   const seen = all.map((r) => r.cur.p).filter((v) => v != null).map((v) => Math.min(100, v)), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
   const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
   const legend = indVizSvg(groups, mode);
-  return `<div class="rg-scope"><div class="rg-rh">تحليل مؤشرات الأداء${mode === "final" ? " — كل الوحدات" : ""}</div><div class="rg-rk">${kt(groups.length, "إجمالي المؤشرات", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "قريب من المستهدف", "wr")}${kt(cnt.bad + cnt.na, "يحتاج تدخلاً / بلا بيانات", "bad")}${kt(avg == null ? "—" : avg + "٪", "متوسط الإنجاز", "")}</div>${legend}<div class="rg-rh" style="margin-top:14px">تفاصيل مؤشرات الأداء (${groups.length})</div>${indVizTable(groups, mode)}</div>`;
+  return `<div class="rg-scope"><div class="rg-rh">تحليل مؤشرات الأداء${mode === "final" ? " — كل الوحدات" : ""}</div><div class="rg-rk">${kt(groups.length, "إجمالي المؤشرات", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "قريب من المستهدف", "wr")}${kt(cnt.bad + cnt.na, "يحتاج تدخلاً أو بلا بيانات", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة الإنجاز", "")}</div>${legend}<div class="rg-rh" style="margin-top:14px">تفاصيل مؤشرات الأداء (${groups.length})</div>${indVizTable(groups, mode)}</div>`;
 }
 /* التقرير النهائي بنفس تنسيق تقرير الوحدة: لكل فصل صفحة لكل وحدة (نفس البطاقات والخط والألوان والرسوم) */
 function aggUnitStylePages(data) {
