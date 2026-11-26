@@ -8064,6 +8064,51 @@ function aggGoalsOnePageBody(ents) {
   const tbl = `<div class="rg-tw"><table class="rg-rtb">${head}${trs}</table></div>`;
   return `<div class="rg-scope"><div class="rg-rh">تحليل الأهداف التشغيلية — كل الوحدات</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div>${legend}${svg}<div class="rg-rh" style="margin-top:14px">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}</div>`;
 }
+/* ===== المؤشرات: رسم واحد لكل المؤشرات + جدول واحد تحتها (نفس شكل الأهداف التشغيلية) ===== */
+function indOnePageBody(ents, opt) {
+  opt = opt || {};
+  const rows = [];
+  ents.forEach(({ unit, report }) => ((report && report.sections && report.sections.kpi && report.sections.kpi.data && report.sections.kpi.data.indicators) || []).filter((r) => r && r.name).forEach((row) => {
+    const def = findIndicatorDef(row.name), rv = resolveIndicatorRow(row, def);
+    if ((rv.target === "" || rv.target == null) && row.__t != null) rv.target = row.__t;
+    const st = (def || row.__t != null) ? computeIndicatorStatus(rv) : { key: "noData", label: "لا توجد بيانات", color: SUBTLE, ratio: null };
+    let bs = null; try { const pb = unit ? indicatorPrevBaseline(unit.id, report, row.name) : null; bs = pb ? pb.value : (row.baseline !== "" && row.baseline != null ? row.baseline : null); } catch (e) {}
+    const p = st.ratio == null ? null : Math.round(Math.min(1, Math.max(0, st.ratio)) * 100);
+    rows.push({ unit, report, row, rv, st, bs, p, name: String(row.name).trim() });
+  }));
+  if (!rows.length) return "";
+  const K = (s) => (s.key === "achieved" ? "ok" : s.key === "close" ? "wr" : s.key === "noData" ? "na" : "bad");
+  const cnt = { ok: 0, wr: 0, bad: 0, na: 0 }; rows.forEach((r) => { cnt[K(r.st)]++; });
+  const seen = rows.map((r) => r.p).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
+  const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
+  const multiU = rows.some((r) => r.unit) && new Set(rows.map((r) => r.unit && r.unit.id)).size > 1;
+  const W = Math.max(700, rows.length * 70 + 50), H = 360, pl = 38, pr = 10, pt = 30, pb = 160, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;max-width:${W > 760 ? "100%" : "760px"};display:block;margin:0 auto">`;
+  for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
+  const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
+  rows.forEach((r, i) => {
+    const bw = Math.min(28, gw / 3), t = 100;
+    svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">100%</text>`;
+    if (r.p != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.p)}" width="${bw}" height="${yy(0) - yy(r.p)}" rx="3" style="fill:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.p) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.p}%</text>`;
+    const ls = wrap(r.name, 22), ly = H - pb + 8, LH = 10.5, x0 = cx(i) + ((ls.length + (multiU ? 1 : 0)) * LH) / 2 - 4;
+    ls.forEach((ln, q) => { svg += `<text transform="translate(${x0 - q * LH},${ly}) rotate(90)" font-size="8.5" text-anchor="start" fill="#2b1a20" font-weight="700">${esc(ln)}</text>`; });
+    if (multiU && r.unit) svg += `<text transform="translate(${x0 - ls.length * LH - 2},${ly}) rotate(90)" font-size="7.5" text-anchor="start" fill="#8a7279">${esc(r.unit.name)}</text>`;
+  });
+  const pts = rows.map((r, i) => [cx(i), r.p]).filter((p) => p[1] != null);
+  if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join("");
+  svg += "</svg>";
+  const legend = `<div class="rg-leg"><span><s style="background:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"></s> المستهدف (١٠٠٪)</span><span><s style="background:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"></s> نسبة الإنجاز</span></div>`;
+  const head = `<tr><th>م</th><th>المؤشر</th><th>المستهدف</th><th>خط الأساس</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الانحراف والإجراء</th></tr>`;
+  const trs = rows.map((r, i) => {
+    const r0 = r.row, ln = (t, v) => { v = Array.isArray(v) ? v.join("، ") : v; return v ? `<div><b>${t}:</b> ${esc(String(v))}</div>` : ""; };
+    const act = ln("السبب", r0.deviationReason) + ln("الإجراء", r0.correctiveAction) + ln("المسؤولة", r0.responsiblePerson) + ln("الإغلاق", r0.closureDate) + ln("الدعم", r0.requiredSupport);
+    const ac = indNumV(r0.actual), tg = indNumV(r.rv.target); let dev = "";
+    if (ac != null && tg != null) { const dv = Math.round((ac - tg) * 100) / 100, pc = tg ? Math.round(dv / tg * 100) : null; dev = `<div class="kpi-dev">${dv === 0 ? "لا انحراف" : (dv > 0 ? "+" : "−") + Math.abs(dv) + (pc != null ? " (" + (dv > 0 ? "+" : "−") + Math.abs(pc) + "٪)" : "")}</div>`; }
+    const dt = [["التصنيف", r.rv.category], ["الاتجاه", r.rv.direction], ["الدورية", r.rv.frequency], ["الوحدة", r.rv.unit]].filter((x) => x[1]).map((x) => `<span style="white-space:nowrap;"><b>${x[0]}:</b> ${esc(String(x[1]))}</span>`).join(" · ");
+    return `<tr><td>${i + 1}</td><td style="font-weight:700">${esc(r.name)}${multiU && r.unit ? `<div style="font-size:9px;font-weight:600;color:#8a7279">${esc(r.unit.name)}</div>` : ""}${dt ? `<div style="font-size:9px;font-weight:500;color:#8a7279;line-height:1.7">${dt}</div>` : ""}</td><td>${esc(r.rv.target !== "" && r.rv.target != null ? r.rv.target : "—")}</td><td>${esc(r.bs != null ? r.bs : "—")}</td><td>${esc(r0.actual !== "" && r0.actual != null ? r0.actual : "—")}</td>${rgBar(r.p, K(r.st))}<td>${esc(r.st.label)}</td><td>${dev || act ? dev + (act ? `<div class="kpi-act">${act}</div>` : "") : "—"}</td></tr>`;
+  }).join("");
+  return `<div class="rg-scope"><div class="rg-rh">تحليل مؤشرات الأداء${multiU ? " — كل الوحدات" : ""}</div><div class="rg-rk">${kt(rows.length, "إجمالي المؤشرات", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "قريب من المستهدف", "wr")}${kt(cnt.bad + cnt.na, "يحتاج تدخلاً / بلا بيانات", "bad")}${kt(avg == null ? "—" : avg + "٪", "متوسط الإنجاز", "")}</div>${legend}<div class="rv-chart">${svg}</div><div class="rg-rh" style="margin-top:14px">تفاصيل مؤشرات الأداء (${rows.length})</div><div class="rg-tw"><table class="rg-rtb">${head}${trs}</table></div></div>`;
+}
 /* التقرير النهائي بنفس تنسيق تقرير الوحدة: لكل فصل صفحة لكل وحدة (نفس البطاقات والخط والألوان والرسوم) */
 function aggUnitStylePages(data) {
   let ents = (data.flat || []).filter((e) => e && e.unit && e.report); if (!ents.length) return [];
@@ -8074,6 +8119,11 @@ function aggUnitStylePages(data) {
   const out = [];
   chs.forEach((c) => {
     const secs = c.sections || [c.key], parts = [];
+    if (c.key === "kpi" && !c.group) {
+      const kb = indOnePageBody(ents);
+      if (kb) { const h = rptWithCtx({ ...rptChartCtx(us), hiddenCols: rptHiddenColsForViewer(us), colsShow: us.colsShow, capture: null, unitId: ents[0].unit.id }, () => reportChapterHtml(rptIcon(c.icon), rptChapterTitle(c, us), secs, ents[0].report, "")); const root = document.createElement("div"); root.innerHTML = h; const b = root.querySelector(".rpt-chapter-body"); if (b) { b.innerHTML = kb; out.push(root.innerHTML); } }
+      return;
+    }
     if (c.key === "goals" && !c.group) {
       const gb = aggGoalsOnePageBody(ents);
       if (gb) { const h = rptWithCtx({ ...rptChartCtx(us), hiddenCols: rptHiddenColsForViewer(us), colsShow: us.colsShow, capture: null, unitId: ents[0].unit.id }, () => reportChapterHtml(rptIcon(c.icon), rptChapterTitle(c, us), secs, ents[0].report, "")); const root = document.createElement("div"); root.innerHTML = h; const b = root.querySelector(".rpt-chapter-body"); if (b) { b.innerHTML = gb; out.push(root.innerHTML); } }
@@ -8172,7 +8222,7 @@ function rptFakeFieldValue(f, i) {
 function rptFakeUnitReportBase() {
   const st = (data) => ({ status: "completed", data });
   const defs = (S.indicatorDefinitions || []).filter((d) => d && d.name).slice(0, 3);
-  const inds = defs.length ? defs.map((d, i) => ({ name: d.name, actual: String(Math.round((Number(d.target) || 100) * [0.95, 0.8, 0.5][i])) })) : [{ name: "مؤشر نموذجي ١", actual: "92" }, { name: "مؤشر نموذجي ٢", actual: "75" }];
+  const inds = defs.length ? defs.map((d, i) => ({ name: d.name, actual: String(Math.round((Number(d.target) || 100) * [0.95, 0.8, 0.5][i])) })) : [{ name: "مؤشر نموذجي ١", actual: "92", __t: "100" }, { name: "مؤشر نموذجي ٢", actual: "75", __t: "100" }, { name: "مؤشر نموذجي ٣", actual: "50", __t: "100" }];
   return {
     id: "preview", label: "التقرير الدوري للأداء — نموذج", status: "completed", createdAt: Date.now(), shared: {},
     sections: {
@@ -13155,7 +13205,7 @@ function rgEvidenceChapterHtml(report) {
   } catch (e) { return ""; }
 }
 function rptGoalsAnalysisHtml(report, flat) {
-  const uid = (RPT_CTX && RPT_CTX.unitId) || S.currentUnitId, unit = (S.units || []).find((u) => u.id === uid); if (!unit || !flat.length) return "";
+  const uid = (RPT_CTX && RPT_CTX.unitId) || S.currentUnitId, unit = (S.units || []).find((u) => u.id === uid) || (report && report.id === "preview" ? { id: "preview", name: "وحدة نموذجية" } : null); if (!unit || !flat.length) return "";
   const sa = dashSeries([unit], "all"), cols = sa.cols || [], gs = rgState(), cur = reportTermInfo(report);
   const yrs = [...new Set(cols.map((c) => c.year).filter((y) => y > 0))].sort((a, b) => a - b);
   const keyOpts = cols.map((c) => [c.key, c.label]), yrsMulti = yrs.filter((y) => cols.filter((c) => c.year === y).length > 1), yPick = yrsMulti.indexOf(Number(gs.year)) !== -1 ? Number(gs.year) : (yrsMulti[yrsMulti.length - 1] || 0);
@@ -15480,27 +15530,7 @@ function sectionBodyOnly(section, saved, report) {
     const rows = (d.indicators || []).filter((r) => r.name);
     if (!rows.length) { body = emptyHint("لا توجد مؤشرات مُدخلة."); }
     else {
-      const barData = rows.map((row) => {
-        const def = findIndicatorDef(row.name);
-        const resolved = resolveIndicatorRow(row, def);
-        const status = def ? computeIndicatorStatus(resolved) : { emoji: "⚪", label: "—", color: SUBTLE, ratio: null };
-        return { label: row.name, value: Math.round(Math.min(1, Math.max(0, status.ratio || 0)) * 100), color: status.color, row, def, status };
-      });
-      const v6bars = `<div class="v6-kbars rv-chart">${barData.map((b) => `<div class="v6-kb"><span>${esc(b.label)}</span><b style="color:${b.color}">${arabicDigits(b.value)}٪</b><div class="v6-kbar"><i style="width:${b.value}%;background:${b.color}"></i></div></div>`).join("")}</div>`;
-      body = v6bars + reportTable(["المؤشر", "المستهدف", "خط الأساس", "المتحقق", "الحالة", "الانحراف والإجراء"], barData.map((b) => {
-          let bs = null; try { const pb = indicatorPrevBaseline(reportUnitIdOf(report), report, b.row.name); bs = pb ? pb.value : (b.row.baseline !== "" && b.row.baseline != null ? b.row.baseline : null); } catch (e) {}
-          return [
-          esc(b.row.name) + (() => { const rv = resolveIndicatorRow(b.row, b.def); const dt = [["التصنيف", rv.category], ["الاتجاه", rv.direction], ["الطبيعة", rv.nature], ["الدورية", rv.frequency], ["الوحدة", rv.unit], ["المصدر", rv.dataSource], ["طريقة الحساب", rv.calculationMethod]].filter((x) => x[1]).map((x) => `<span style="white-space:nowrap;"><b>${x[0]}:</b> ${esc(String(x[1]))}</span>`).join(" · "); return (dt ? `<div style="font-size:10px;line-height:1.7;font-weight:400;color:${SUBTLE};margin-top:3px;">${dt}</div>` : "") + indMetaSpan(rv, indExtra(b.row, rv, b.status)); })(),
-          esc(b.def && b.def.target !== "" ? b.def.target : "—"),
-          esc(bs != null ? bs : "—"),
-          esc(b.row.actual !== "" ? b.row.actual : "—"),
-          `<span style="color:${b.status.color};font-weight:800;">${b.status.emoji} ${esc(b.status.label)}</span>`,
-          (() => { const r0 = b.row, ln = (t, v) => { v = Array.isArray(v) ? v.join("، ") : v; return v ? `<div><b>${t}:</b> ${esc(String(v))}</div>` : ""; }; const h = ln("السبب", r0.deviationReason) + ln("النوع", r0.causeType) + ln("الإجراء", r0.correctiveAction) + ln("المسؤولة", r0.responsiblePerson) + ln("الإغلاق", r0.closureDate) + ln("الدعم", r0.requiredSupport);
-            const rv0 = resolveIndicatorRow(r0, b.def), ac = indNumV(r0.actual), tg = indNumV(rv0.target != null && rv0.target !== "" ? rv0.target : (b.def ? b.def.target : null));
-            let dev = ""; if (ac != null && tg != null) { const dv = Math.round((ac - tg) * 100) / 100, pc = tg ? Math.round(dv / tg * 100) : null, good = dv >= 0, col = good ? "#2f6b3f" : b.status.color; dev = `<div class="kpi-dev" style="color:${col};background:${col}1a;border-color:${col}55;">${dv === 0 ? "لا انحراف" : (dv > 0 ? "+" : "−") + Math.abs(dv) + (pc != null ? " (" + (dv > 0 ? "+" : "−") + Math.abs(pc) + "٪)" : "")}</div>`; }
-            return dev || h ? dev + (h ? `<div class="kpi-act">${h}</div>` : "") : "—"; })(),
-        ]; }));
-      body = body.replace('class="prs-table"', 'class="prs-table kpi-t"');
+      body = indOnePageBody([{ unit: null, report }]) || emptyHint("لا توجد مؤشرات مُدخلة.");
     }
 
   } else if (section.id === "goals") {
