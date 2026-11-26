@@ -1676,7 +1676,7 @@ body.sp-body{background:#f7f3f1}
 .rg-scope .rg-rtb.rg-ag td.rg-n,.rg-scope .rg-rtb.rg-ag th.rg-n{min-width:0!important;width:28px!important;padding-inline:2px!important}
 .rg-scope .rg-rtb.rg-ag td.rg-nm,.rg-scope .rg-rtb.rg-ag th.rg-nm{width:38%}
 /* رؤوس جداول الأهداف دائمًا في الوسط (المحاذاة المحفوظة القديمة «يمين» ما تأثر عليها) */
-.rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th{text-align:center!important}
+
 .rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th,.gb-board table.prs-table th{color:var(--rpt-gl-color,#000)!important}
 
 /* بلا تلوين لخلايا الجداول، والنسبة شريط ملوّن */
@@ -1711,3 +1711,13 @@ html body .rpt-x-thcolor table.prs-table:not(#z) th,html body .rpt-x-thcolor tab
 html body .rpt-x-th table.prs-table:not(#z) th,html body .rpt-x-th table.rpt-tbl:not(#z) th{text-align:var(--rpt-th-align)!important}
 html body .rpt-x-td table.prs-table:not(#z) td,html body .rpt-x-td table.rpt-tbl:not(#z) td,html body .rpt-x-td table.prs-table:not(#z) td *{text-align:var(--rpt-td-align)!important}
 html body .rpt-x-fs table.prs-table:not(#z) th,html body .rpt-x-fs table.prs-table:not(#z) td,html body .rpt-x-fs table.rpt-tbl:not(#z) th,html body .rpt-x-fs table.rpt-tbl:not(#z) td{font-size:var(--rpt-table-fs)!important}
+
+/* محاذاة جداول الأهداف تتبع الإعدادات */
+.rg-scope .rg-rtb th,.rg-flat table.prs-table th,.rpt-evx th,html body table.prs-table.kpi-t:not(#z) th{text-align:var(--rpt-th-align,center)!important}
+.rg-scope .rg-rtb td:not(.rg-pb),.rg-flat table.prs-table td,.rpt-evx td,html body table.prs-table.kpi-t:not(#z) td{text-align:var(--rpt-td-align,center)!important}
+/* محاذاة عناوين الفصول والغلاف */
+html body .rpt-x-ch-center .rpt-chapter-head{justify-content:center!important;text-align:center!important}
+html body .rpt-x-ch-center .rpt-chapter-head::after{display:none!important}
+html body .rpt-x-ch-left .rpt-chapter-head{justify-content:flex-end!important;text-align:left!important}
+html body .rpt-x-cv-center .rpt-cover-v4-text,html body .rpt-x-cv-center .rpt-cover-v4-title,html body .rpt-x-cv-center .rpt-cover-v4-sub,html body .rpt-x-cv-center .rpt-cover-title{text-align:center!important;align-items:center!important}
+html body .rpt-x-cv-left .rpt-cover-v4-text,html body .rpt-x-cv-left .rpt-cover-v4-title,html body .rpt-x-cv-left .rpt-cover-v4-sub,html body .rpt-x-cv-left .rpt-cover-title{text-align:left!important;align-items:flex-start!important}

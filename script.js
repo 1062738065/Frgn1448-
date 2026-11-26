@@ -7481,7 +7481,7 @@ const RPT_COMMON_DEFAULTS = {
   showHead: false, headRight: "", headLogo: true, headCenter: "", headLeft: "", showFoot: false, footText: "", pageNum: "none",
   order: [], hidden: {}, titles: {}, hiddenCols: {}, limit: 10, perPage: 0, showEmpty: false,
   charts: {}, thAlign: "center", tdAlign: "center", numCenter: false,
-  thBg: "#f4ece4", thColor: "", gThBg: "", gThColor: "#000000", gTdBg: "#f9f6f7", gTgColor: "", gAcColor: "", gOk: "#1f8a5b", gWr: "#c9831a", gBad: "#c0392b", tableBorders: "rows", zebra: false, tableFs: 12, fontScale: "1",
+  thBg: "#f4ece4", thColor: "", gThBg: "", chAlign: "", cvAlign: "", gThColor: "#000000", gTdBg: "#f9f6f7", gTgColor: "", gAcColor: "", gOk: "#1f8a5b", gWr: "#c9831a", gBad: "#c0392b", tableBorders: "rows", zebra: false, tableFs: 12, fontScale: "1",
   fontBody: "Almarai", fontTitle: "Amiri", fontHeading: "Cairo", mainColor: "#6b2337", chapterBg: "#f3e8dd",
   showCover: true, showCoverMeta: true, assocName: "جمعية فرقان لتحفيظ القرآن الكريم بالطائف", coverTitle: "", coverSub: "", preparedBy: "",
 };
@@ -7489,7 +7489,7 @@ const RPT_FINAL_DEFAULTS = { ...RPT_COMMON_DEFAULTS, coverTitle: "التقرير
 const RPT_UNIT_DEFAULTS = { ...RPT_COMMON_DEFAULTS, fontTitle: "Cairo", pageNum: "paren", spine: true, perPage: 2 };
 const RPT_CUSTOM_DEFAULTS = { ...RPT_COMMON_DEFAULTS, name: "", scopeLevelId: "", periodKind: "all", year: "", coverSub: "", preparedBy: "" };
 // تنسيق مشترك بين كل التقارير (الباقي: الكليشة والخلفية والغلاف… لكل تقرير حسابه)
-const RPT_SHARED_KEYS = ["fontBody", "fontTitle", "fontHeading", "mainColor", "chapterBg", "thBg", "thColor", "gThBg", "gThColor", "gTdBg", "gTgColor", "gAcColor", "gOk", "gWr", "gBad", "thAlign", "tdAlign", "numCenter", "tableBorders", "zebra", "tableFs", "fontScale", "size", "margin", "mt", "mb", "mr", "ml"];
+const RPT_SHARED_KEYS = ["fontBody", "fontTitle", "fontHeading", "mainColor", "chapterBg", "thBg", "thColor", "chAlign", "cvAlign", "gThBg", "gThColor", "gTdBg", "gTgColor", "gAcColor", "gOk", "gWr", "gBad", "thAlign", "tdAlign", "numCenter", "tableBorders", "zebra", "tableFs", "fontScale", "size", "margin", "mt", "mb", "mr", "ml"];
 const RPT_DESIGN_KEYS = ["chartMain", "kpiPal", "orient", "paper", "bgImage", "watermark", "frame", "spine", "showHead", "headRight", "headLogo", "headCenter", "headLeft", "showFoot", "footText", "pageNum"];
 const RPT_NUM_KEYS = ["mt", "mb", "mr", "ml", "limit", "tableFs", "year", "perPage"];
 // خانات الاعتماد (المسمى + الاسم). {المعدة} و{الرئيسة} تُستبدل من بيانات التقرير، و{الإعداد} من حقل «إعداد» بالغلاف
@@ -7741,7 +7741,7 @@ function rptWrap(s, inner, isPreview) {
   const cm = /^#[0-9a-fA-F]{6}$/.test(s.chartMain) ? s.chartMain : "";
   if (cm) { vars += `--chart-main:${cm};`; inner = String(inner).replace(/#9a3f4e/gi, cm).replace(/#b5606c/gi, mixHex(cm, "#ffffff", 0.3)).replace(/#7a2145/gi, cm); }
   if (s.kpiPal && /^[a-z]+$/.test(s.kpiPal)) inner = String(inner).replace(/prs-table kpi-t/g, "prs-table kpi-t kpi-pal-" + s.kpiPal); if (s.kpiPal && /^[a-z]+$/.test(s.kpiPal)) inner = String(inner).replace(/class="(prs-table|rpt-gtable)(?! kpi-t)/g, (m) => m + " kpi-pal-" + s.kpiPal);
-  const xc = (s.thBg && s.thBg !== "#f4ece4" ? " rpt-x-thbg" : "") + (s.thColor ? " rpt-x-thcolor" : "") + (s.tdAlign && s.tdAlign !== "center" ? " rpt-x-td" : "") + (s.thAlign && s.thAlign !== "center" ? " rpt-x-th" : "") + (Number(s.tableFs) && Number(s.tableFs) !== 12 ? " rpt-x-fs" : "");
+  const xc = (s.thBg && s.thBg !== "#f4ece4" ? " rpt-x-thbg" : "") + (s.thColor ? " rpt-x-thcolor" : "") + (s.tdAlign && s.tdAlign !== "center" ? " rpt-x-td" : "") + (s.thAlign && s.thAlign !== "center" ? " rpt-x-th" : "") + (Number(s.tableFs) && Number(s.tableFs) !== 12 ? " rpt-x-fs" : "") + (["center", "left"].includes(s.chAlign) ? " rpt-x-ch-" + s.chAlign : "") + (["center", "left"].includes(s.cvAlign) ? " rpt-x-cv-" + s.cvAlign : "");
   return `${pageCss}<div class="${cls}${cm ? " has-chartmain" : ""}${xc}" style="${vars}">${inner}</div>`;
 }
 function rptPageNumText(s, n, total) {
@@ -8498,7 +8498,7 @@ function rmPanelHtml0(st) {
       rmFieldHtml("لون جدول المؤشرات", `<div class="rm-row" style="gap:6px;flex-wrap:wrap;">${[["", "وردي", "#c98494"], ["gold", "ذهبي رملي", "#e3c27d"], ["sage", "أخضر مريمية", "#8fbfa5"], ["blue", "أزرق هادئ", "#8fb4d6"], ["plum", "بنفسجي ناعم", "#b79bd0"]].map(([v, l, c]) => `<button type="button" class="flt-chip${(d.kpiPal || "") === v ? " on" : ""}" data-action="rm-kpipal" data-v="${v}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};margin-left:6px;vertical-align:middle"></span>${l}</button>`).join("")}</div>`, "لون عنوان جدول المؤشرات وصفوفه المتبادلة في التقرير (بتدرّج فاتح).") +
       rmFieldHtml("لون الرسوم", `<div class="rm-row">${rmColor("chartMain", d.chartMain || d.mainColor)}<button type="button" class="rm-link" data-action="rm-chartmain-clear">الافتراضي (لون التقرير)</button></div>${["#6b2337", "#2f6b3f", "#1f5f8b", "#a9842f", "#5b4b8a", "#444444"].map((c) => `<button type="button" class="rm-sw" data-action="rm-chartmain" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("")}`, "يطبَّق على أشكال المكتبة ورسوم المؤشرات في التقرير. الحالات (متحقق/متعثر) تبقى بألوانها.");
     return chartsPageUi + svSettingsHtml(d) + `<div class="rm-label">الرسوم البيانية — لكل رسم إعداده</div><div class="rm-hint">تظهر لكل رسم الأنواع المناسبة لبياناته فقط (التوزيع: دائري/أعمدة، والأرقام والنسب: أعمدة/خطي).</div>${chartsAll}` +
-      `<div class="rm-group">أ) الجداول — عامة لكل التقرير</div>` +
+      `<div class="rm-group">أ) المحاذاة والجداول</div>` + rmFieldHtml("محاذاة عنوان التقرير (الغلاف)", rmPills("cvAlign", d.cvAlign || "", [["", "تلقائي"], ["center", "وسط"], ["left", "يسار"]])) + rmFieldHtml("محاذاة عناوين الفصول", rmPills("chAlign", d.chAlign || "", [["", "تلقائي"], ["center", "وسط"], ["left", "يسار"]])) +
       rmFieldHtml("محاذاة رأس الجدول", rmPills("thAlign", d.thAlign, [["right", "يمين"], ["center", "وسط"], ["left", "يسار"]])) +
       rmFieldHtml("محاذاة الكلام داخل الجدول", rmPills("tdAlign", d.tdAlign, [["right", "يمين"], ["center", "وسط"], ["left", "يسار"]])) +
       rmFieldHtml("", rmToggle("numCenter", "توسيط الأرقام والنسب تلقائيًا", d.numCenter)) +
@@ -8506,7 +8506,7 @@ function rmPanelHtml0(st) {
       rmFieldHtml("ألوان رأس الجدول", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("thBg", d.thBg)}</label><label class="rm-mini">النص${rmColor("thColor", d.thColor || d.mainColor)}</label></div>`) +
       rmFieldHtml("حدود الخلايا", rmPills("tableBorders", d.tableBorders, [["rows", "خطوط بين الصفوف"], ["grid", "شبكة كاملة"], ["none", "بدون"]])) +
       rmFieldHtml("", rmToggle("zebra", "تلوين الصفوف بالتناوب", d.zebra))
-    + `<div class="rm-group">ب) الأهداف التشغيلية (التحليل والجداول)</div>` + rmFieldHtml("رأس الجدول والخلايا", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("gThBg", d.gThBg || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">الخط${rmColor("gThColor", d.gThColor || "#000000")}</label><label class="rm-mini">خلفية الخلايا${rmColor("gTdBg", d.gTdBg || "#f9f6f7")}</label></div>`, "المحاذاة وحجم الخط من قسم (أ) تنطبق عليها أيضًا. الافتراضي: رأس وردي فاتح وخط أسود وخلايا رمادية فاتحة.")
+    + `<div class="rm-group">ب) الأهداف التشغيلية (التحليل والجداول)</div>` + rmFieldHtml("رأس الجدول والخلايا", `<div class="rm-row"><label class="rm-mini">الخلفية${rmColor("gThBg", d.gThBg || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">الخط${rmColor("gThColor", d.gThColor || "#000000")}</label><label class="rm-mini">خلفية الخلايا${rmColor("gTdBg", d.gTdBg || "#f9f6f7")}</label></div>`, "المحاذاة وحجم الخط من قسم (أ) تنطبق عليها أيضًا.")
     + rmFieldHtml("ألوان الرسم", `<div class="rm-row"><label class="rm-mini">المستهدف${rmColor("gTgColor", d.gTgColor || mixHex(d.mainColor || "#6b2337", "#ffffff", 0.7))}</label><label class="rm-mini">المتحقق${rmColor("gAcColor", d.gAcColor || d.mainColor || "#6b2337")}</label></div>`)
     + rmFieldHtml("ألوان شريط النسبة", `<div class="rm-row"><label class="rm-mini">متحقق${rmColor("gOk", d.gOk || "#1f8a5b")}</label><label class="rm-mini">جزئي${rmColor("gWr", d.gWr || "#c9831a")}</label><label class="rm-mini">غير متحقق${rmColor("gBad", d.gBad || "#c0392b")}</label></div>`);
   }
