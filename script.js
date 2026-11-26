@@ -7805,7 +7805,7 @@ let RPT_CTX = null;
 function rptWithCtx(ctx, fn) { const prev = RPT_CTX; RPT_CTX = ctx; try { return fn(); } finally { RPT_CTX = prev; } }
 function rptChartCtx(s) {
   // s.chartType/chartColors/chartSize = إعدادات عامة قديمة (قبل إعداد كل رسم) — تبقى قيمة افتراضية لما لم يُضبط
-  return { charts: s.charts || {}, legacy: { type: s.chartType === "hide" ? "hide" : "auto", colors: s.chartColors === "main" ? "main" : "status", size: s.chartSize || "md" }, main: s.mainColor,
+  return { orient: s.orient, charts: s.charts || {}, legacy: { type: s.chartType === "hide" ? "hide" : "auto", colors: s.chartColors === "main" ? "main" : "status", size: s.chartSize || "md" }, main: s.mainColor,
     numCenter: !!s.numCenter, customCharts: s.customCharts || [], sv: { style: s.svStyle, type: s.svType, x: s.svx } };
 }
 function rptChartCfg(id) {
@@ -8124,10 +8124,11 @@ function indVizGroups(ents, mode) {
 function indDrawGroups(gs, per) {
   const col = (p) => (p == null ? "#8a7279" : p >= 100 ? "#1f8a5b" : p >= 90 ? "#c9831a" : p >= 70 ? "#e08a3c" : "#c0392b");
   const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
+  const land = (RPT_CTX || {}).orient === "landscape"; if (land) per = Math.max(per, 6);
   const nrow = Math.ceil(gs.length / per); per = Math.ceil(gs.length / nrow);
   let out = "";
   for (let s = 0; s < gs.length; s += per) {
-    const chunk = gs.slice(s, s + per), W = 900, H = 400, pl = 40, pr = 8, pt = 34, pb = 160, gw = (W - pl - pr) / Math.max(2, chunk.length);
+    const chunk = gs.slice(s, s + per), W = land ? 1260 : 900, H = 370, pl = 40, pr = 8, pt = 34, pb = 150, gw = (W - pl - pr) / Math.max(2, chunk.length);
     const Y = (p) => pt + (H - pt - pb) * (1 - Math.min(p, 120) / 120);
     let v = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;display:block">`;
     [0, 25, 50, 75, 100].forEach((p) => { v += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" stroke="${p === 100 ? "#2b1a20" : "#ecdfe3"}" stroke-width="${p === 100 ? 1.5 : 1}"${p === 100 ? ' stroke-dasharray="6 4"' : ""}/><text x="${pl - 6}" y="${Y(p) + 4}" font-size="10" text-anchor="end" fill="#8a7279">${p}%</text>`; });
@@ -8160,14 +8161,18 @@ function indVizSvg(groups, mode) {
     html = `<div class="rv-chart">${indDrawGroups(gs, 4)}</div>`;
     lg = `<span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> أقدم فترة</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الأحدث</span><span>┄ خط المستهدف ١٠٠٪</span><span>+/− الانحراف عن المستهدف</span>`;
   } else {
-    // التقرير النهائي: لكل مؤشر رسم واحد، لكل وحدة مجموعة أعمدتها حسب اختيارها
+    // التقرير النهائي: المؤشر المشترك بين وحدتين فأكثر له رسم خاص (لكل وحدة مجموعتها)، والمؤشرات ذات الوحدة الواحدة تُجمع كلها في رسم واحد حتى لا يطول التقرير
+    const pool = [];
     groups.forEach((g) => {
-      const modes = new Set(g.items.map((i) => i.mode)), mixed = modes.size > 1;
-      const gs = g.items.filter((i) => i.cols.length).map((i) => ({ title: i.unit ? i.unit.name : "", cols: i.cols, low: g.low, tags: mixed ? [[IND_CMP_LBL[i.mode], "#5a4a8a"]] : [] }));
-      if (!gs.length) return;
+      const its = g.items.filter((i) => i.cols.length);
+      if (!its.length) return;
+      if (its.length === 1) { const i = its[0]; pool.push({ title: g.name, cols: i.cols, low: g.low, tags: [[i.unit ? i.unit.name : "", "#6b2337"]].concat(i.mode !== "cur" ? [[IND_CMP_LBL[i.mode], "#5a4a8a"]] : []).concat(g.low ? [["الأقل أفضل", "#2f5a85"]] : []) }); return; }
+      const modes = new Set(its.map((i) => i.mode)), mixed = modes.size > 1;
+      const gs = its.map((i) => ({ title: i.unit ? i.unit.name : "", cols: i.cols, low: g.low, tags: mixed ? [[IND_CMP_LBL[i.mode], "#5a4a8a"]] : [] }));
       const tags = `<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px">${g.goals.map((n) => `<i class="ind-tg">${esc(n)}</i>`).join("")}${g.progs.map((n) => `<i class="ind-tp">${esc(n)}</i>`).join("")}${g.cum ? `<i class="ind-tc">تراكمي</i>` : ""}${g.low ? `<i class="ind-tl">الأقل أفضل</i>` : ""}${!mixed ? `<i class="ind-to">${IND_CMP_LBL[[...modes][0]]}</i>` : ""}</span>`;
       html += `<div class="ind-blk"><div class="ind-bh">${esc(g.name)}${tags}</div><div class="rv-chart">${indDrawGroups(gs, 4)}</div></div>`;
     });
+    if (pool.length) html += `<div class="ind-blk"><div class="ind-bh">مؤشرات الوحدات (${pool.length})<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px"><i class="ind-to">كل مؤشر تحته اسم وحدته</i></span></div><div class="rv-chart">${indDrawGroups(pool, 4)}</div></div>`;
     if (!html) return "";
     lg = `<span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> الأقدم</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الأحدث</span><span>┄ خط المستهدف ١٠٠٪</span><span>+/− الانحراف عن المستهدف</span>`;
   }
