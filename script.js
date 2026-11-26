@@ -4028,7 +4028,8 @@ function dashFieldHint(sid, oldHtml) {
   return `<div class="hint no-print" style="margin-bottom:6px;">الشكل المختار («${esc(SHAPES_LIB[v.slice(6)].name)}») لا يناسب بيانات هذا القسم (نصوص بلا أرقام كافية)، فظهر العرض المعتاد.</div>` + oldHtml;
 }
 function dashKpiDevHtml(kind, units) { const h = dashFieldBlockHtml(kind, "kpiDeviation", units); if (!h) return ""; const vm = dashViewOf(kind, "fld_kpiDeviation"); return vm ? tvOnly(tvApply(h, kind + ":fld_kpiDeviation", vm)) : h; }
-function dashFieldBlocksHtml0(kind, units) { return dashB(kind, "indBoard", dashKpiShapeHtml(units) || dashIndBoardHtml(kind, units)) + dashB(kind, "sharedInd", dashSharedIndHtml(kind, units)) + dashB(kind, "routed", dashRoutedHtml(kind, units)) + dashFieldSecIds().map((id) => (id === "kpiDeviation" || dashMergedSecs(kind).indexOf(id) !== -1 || dashHidden(kind, "fld_" + id)) ? "" : dashB(kind, "fld_" + id, (id === "analysisComparisons" ? dashAnalysisHeadHtml(units) : "") + (dashFieldShapeHtml(kind, id, units) || dashFieldHint(id, dashFieldBlockHtml(kind, id, units))))).join("") + dashMergesHtml(kind, units); }
+function dashIndMergedFor(kind, units) { if (kind === "admin") return ""; try { return dashIndDetailHtml(kind, dashSeries(units)); } catch (e) { console.warn("ind merged", e); return ""; } }
+function dashFieldBlocksHtml0(kind, units) { return dashB(kind, "indBoard", dashKpiShapeHtml(units) || dashIndMergedFor(kind, units)) + dashB(kind, "sharedInd", dashSharedIndHtml(kind, units)) + dashB(kind, "routed", dashRoutedHtml(kind, units)) + dashFieldSecIds().map((id) => (id === "kpiDeviation" || dashMergedSecs(kind).indexOf(id) !== -1 || dashHidden(kind, "fld_" + id)) ? "" : dashB(kind, "fld_" + id, (id === "analysisComparisons" ? dashAnalysisHeadHtml(units) : "") + (dashFieldShapeHtml(kind, id, units) || dashFieldHint(id, dashFieldBlockHtml(kind, id, units))))).join("") + dashMergesHtml(kind, units); }
 
 
 /* ===== الرسم المقترح لكل قسم: يُحسب من نوع حقوله (أرقام، تواريخ، حالات، نص) ===== */
@@ -4929,8 +4930,8 @@ function dashIndDetailHtml(kind, series) {
   const num = (v) => { const n = Number(v); return v === "" || v == null || isNaN(n) ? null : n; };
   // ---------- المقارنة ----------
   if (pm !== "none") {
-    if (cc.reason) return dashCard("مؤشرات الأداء (تفصيلي)", "", controls + none(cc.reason));
-    if (cc.cols.length < 2) return dashCard("مؤشرات الأداء (تفصيلي)", "", controls + none("لا تتوفر فترات كافية لهذه المقارنة."));
+    if (cc.reason) return dashCard("مؤشرات الأداء", "", controls + none(cc.reason));
+    if (cc.cols.length < 2) return dashCard("مؤشرات الأداء", "", controls + none("لا تتوفر فترات كافية لهذه المقارنة."));
     const map = {};
     units.forEach((u) => cc.cols.forEach((c, ci) => {
       const per = {}; c.keys.forEach((k) => { const rp = (sa.byUnit[u.id] || {})[k]; if (rp) dashIndRows(rp).forEach((r) => { const it = ibItem(u, rp, r), id = String(r.name).trim(); (per[id] || (per[id] = [])).push(it); }); });
@@ -4943,23 +4944,27 @@ function dashIndDetailHtml(kind, series) {
     }));
     const rows = Object.values(map).filter((e) => e.cells.filter((c) => c && c.actual != null).length);
     const live = cc.cols.map((c, ci) => ({ c, ci })).filter((x) => rows.some((e) => e.cells[x.ci] && e.cells[x.ci].actual != null));
-    if (live.length < 2) return dashCard("مؤشرات الأداء (تفصيلي)", "", controls + none("لا تتوفر بيانات متحقق كافية للمقارنة في الفترات المختارة."));
+    if (live.length < 2) return dashCard("مؤشرات الأداء", "", controls + none("لا تتوفر بيانات متحقق كافية للمقارنة في الفترات المختارة."));
     const cnt = { up: 0, down: 0, same: 0, none: 0 };
     const body = rows.map((e) => { const rs_ = live.map((x) => e.cells[x.ci]), have = rs_.filter((c) => c && c.ratio != null && isFinite(c.ratio)); let d = "none"; if (have.length >= 2) { const f = have[0].ratio, l = have[have.length - 1].ratio; d = l > f + 1e-9 ? "up" : l < f - 1e-9 ? "down" : "same"; } cnt[d]++;
       const DL = { up: ["▲ تحسّن", GREEN], down: ["▼ تراجع", DANGER], same: ["= ثبات", SUBTLE], none: ["بيانات غير كافية", SUBTLE] };
       const lastC = [...rs_].reverse().find((c) => c && c.actual != null);
-      return `<tr><td style="font-weight:700">${esc(e.name)}</td><td>${esc(e.unit.name)}</td>${rs_.map((c) => `<td style="text-align:center">${c && c.actual != null ? `<span style="color:${SUBTLE};font-size:11.5px;">${c.target != null ? c.target : "بلا مستهدف"}</span> · <b>${c.actual}</b>` : "—"}</td>`).join("")}<td style="text-align:center">${lastC && lastC.ratio != null && isFinite(lastC.ratio) ? Math.round(lastC.ratio * 100) + "٪" : "—"}</td><td style="text-align:center"><b style="color:${DL[d][1]};font-size:11.5px;">${DL[d][0]}</b></td></tr>`; }).join("");
+      return `<tr><td style="font-weight:700">${esc(e.name)}${e.cum ? `<div style="margin-top:3px;">${badgeHtml("تراكمي", "#9a5b1e", "#fdeee0")}</div>` : ""}</td><td>${esc(e.unit.name)}</td>${rs_.map((c) => `<td style="text-align:center">${c && c.actual != null ? `<span style="color:${SUBTLE};font-size:11.5px;">${c.target != null ? c.target : "بلا مستهدف"}</span> · <b>${c.actual}</b>` : "—"}</td>`).join("")}<td style="text-align:center">${lastC && lastC.ratio != null && isFinite(lastC.ratio) ? Math.round(lastC.ratio * 100) + "٪" : "—"}</td><td style="text-align:center"><b style="color:${DL[d][1]};font-size:11.5px;">${DL[d][0]}</b></td></tr>`; }).join("");
     const stat = (n, l, c) => `<div style="flex:1;min-width:100px;background:#faf5f3;border-radius:14px;padding:10px 12px;"><div style="font-size:22px;font-weight:800;color:${c || ROSE};line-height:1.2;">${n}</div><div style="font-size:11.5px;color:${SUBTLE};margin-top:2px;">${l}</div></div>`;
-    return dashCard("مؤشرات الأداء (تفصيلي)", "مقارنة المستهدف والمتحقق لكل مؤشر في كل فترة · مستهدف كل فترة بجانب المتحقق", controls + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${stat(rows.length, "مؤشر")}${stat(cnt.up, "تحسّن", GREEN)}${stat(cnt.down, "تراجع", DANGER)}${stat(cnt.same, "ثبات", SUBTLE)}${cnt.none ? stat(cnt.none, "بيانات غير كافية", SUBTLE) : ""}</div><div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:620px;"><thead><tr><th>المؤشر</th><th>الوحدة</th>${live.map((x) => `<th style="text-align:center">${esc(x.c.label)}<div class="hint" style="margin:0;color:inherit;opacity:.85;">المستهدف · المتحقق</div></th>`).join("")}<th style="text-align:center">نسبة الإنجاز (آخر فترة)</th><th style="text-align:center">الاتجاه</th></tr></thead><tbody>${body}</tbody></table></div><div class="hint" style="margin-top:6px;">الاتجاه يراعي اتجاه المؤشر (تصاعدي/تنازلي) · المؤشر التراكمي يؤخذ آخر متحقق في العام · الفراغ لا يُحسب صفرًا.</div>`);
+    return dashCard("مؤشرات الأداء", "مقارنة المستهدف والمتحقق لكل مؤشر في كل فترة · مستهدف كل فترة بجانب المتحقق", controls + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${stat(rows.length, "مؤشر")}${stat(cnt.up, "تحسّن", GREEN)}${stat(cnt.down, "تراجع", DANGER)}${stat(cnt.same, "ثبات", SUBTLE)}${cnt.none ? stat(cnt.none, "بيانات غير كافية", SUBTLE) : ""}</div><div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:620px;"><thead><tr><th>المؤشر</th><th>الوحدة</th>${live.map((x) => `<th style="text-align:center">${esc(x.c.label)}<div class="hint" style="margin:0;color:inherit;opacity:.85;">المستهدف · المتحقق</div></th>`).join("")}<th style="text-align:center">نسبة الإنجاز (آخر فترة)</th><th style="text-align:center">الاتجاه</th></tr></thead><tbody>${body}</tbody></table></div><div class="hint" style="margin-top:6px;">الاتجاه يراعي اتجاه المؤشر (تصاعدي/تنازلي) · المؤشر التراكمي يؤخذ آخر متحقق في العام · الفراغ لا يُحسب صفرًا.</div>`);
   }
   // ---------- آخر فترة لكل وحدة ----------
   const items = [];
   units.forEach((u) => { const l = dashUnitLatest(series, u.id); if (l) dashIndRows(l.report).forEach((r) => items.push({ ...ibItem(u, l.report, r), col: l.col })); });
-  if (!items.length) return dashCard("مؤشرات الأداء (تفصيلي)", "", controls + none("لا توجد مؤشرات مُدخلة في التقارير المختارة."));
+  if (!items.length) return dashCard("مؤشرات الأداء", "", controls + none("لا توجد مؤشرات مُدخلة في التقارير المختارة."));
   const cnt = {}; items.forEach((i) => { cnt[i.st.key] = (cnt[i.st.key] || 0) + 1; });
   const body = items.map((i) => { const ratio = i.st.ratio != null && isFinite(i.st.ratio) ? Math.round(i.st.ratio * 100) : null, tg = i.rs.target;
-    return `<tr><td style="font-weight:700">${esc(i.row.name)}<div class="hint" style="margin:0;">${esc(i.col.label)}</div></td><td>${esc(i.unit.name)}</td><td>${i.progs.length ? i.progs.map((n) => badgeHtml(n, "#5a4a8a", "#efeaf8")).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td>${i.goals.length ? i.goals.map((n) => badgeHtml(n, GREEN, GREEN_BG)).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td style="text-align:center">${tg !== "" && tg != null ? esc(tg) : "—"}</td><td style="text-align:center"><b>${i.row.actual !== "" && i.row.actual != null ? esc(i.row.actual) : "—"}</b></td><td style="text-align:center">${ratio == null ? "—" : `<b style="color:${i.st.color}">${ratio}٪</b>`}</td><td style="text-align:center">${i.dev != null && i.st.key !== "achieved" ? esc(Math.round(i.dev * 100) / 100) : "—"}</td><td style="text-align:center">${badgeHtml(i.st.label, i.st.color, i.st.bg)}</td></tr>`; }).join("");
-  return dashCard("مؤشرات الأداء (تفصيلي)", "آخر فترة لكل وحدة · المستهدف الخاص بالوحدة والفترة", controls + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${["achieved", "close", "needsAction", "struggling", "noData"].filter((k) => cnt[k]).map((k) => `<span style="font-size:12px;">${computeIndicatorStatus(k === "noData" ? {} : { target: 1, actual: k === "achieved" ? 1 : k === "close" ? 0.95 : k === "needsAction" ? 0.8 : 0.2 }).emoji} ${({ achieved: "متحقق", close: "قريب", needsAction: "يحتاج تدخلاً", struggling: "متعثر", noData: "بلا بيانات" })[k]}: <b>${cnt[k]}</b></span>`).join("")}</div><div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:760px;"><thead><tr><th>المؤشر</th><th>الوحدة</th><th>البرنامج</th><th>الهدف التشغيلي</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المتحقق</th><th style="text-align:center">نسبة الإنجاز</th><th style="text-align:center">الانحراف</th><th style="text-align:center">الحالة</th></tr></thead><tbody>${body}</tbody></table></div>`);
+    let bs = null; try { const pb = indicatorPrevBaseline(i.unit.id, i.report, String(i.row.name).trim()); bs = pb ? pb.value : (i.row.baseline !== "" && i.row.baseline != null ? i.row.baseline : null); } catch (e) {}
+    const low = indBetter(i.rs.direction) === "L", ac = indNumV(i.row.actual), bn = indNumV(bs);
+    let dir = `<span style="color:${SUBTLE}">—</span>`; if (ac != null && bn != null) { const d = Math.round((ac - bn) * 100) / 100, good = low ? d < 0 : d > 0; dir = d === 0 ? `<b style="color:${SUBTLE}">= ثبات</b>` : `<b style="color:${good ? GREEN : DANGER}">${good ? "▲ تحسّن" : "▼ تراجع"} ${Math.abs(d)}</b>`; }
+    const tags = (i.rs.nature === "تراكمي" ? badgeHtml("تراكمي", "#9a5b1e", "#fdeee0") + " " : "") + (low ? badgeHtml("الأقل أفضل", "#2f5a85", "#e6eef7") : "");
+    return `<tr><td style="font-weight:700">${esc(i.row.name)}${tags ? `<div style="margin-top:3px;">${tags}</div>` : ""}<div class="hint" style="margin:0;">${esc(i.col.label)}</div></td><td>${esc(i.unit.name)}</td><td>${i.progs.length ? i.progs.map((n) => badgeHtml(n, "#5a4a8a", "#efeaf8")).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td>${i.goals.length ? i.goals.map((n) => badgeHtml(n, GREEN, GREEN_BG)).join(" ") : `<span style="color:${SUBTLE}">—</span>`}</td><td style="text-align:center">${bs != null && bs !== "" ? esc(bs) : "—"}</td><td style="text-align:center">${tg !== "" && tg != null ? esc(tg) : "—"}</td><td style="text-align:center"><b>${i.row.actual !== "" && i.row.actual != null ? esc(i.row.actual) : "—"}</b></td><td style="text-align:center">${ratio == null ? "—" : `<b style="color:${i.st.color}">${ratio}٪</b>`}</td><td style="text-align:center">${i.dev != null && i.st.key !== "achieved" ? esc(Math.round(i.dev * 100) / 100) : "—"}</td><td style="text-align:center">${dir}</td><td style="text-align:center">${badgeHtml(i.st.label, i.st.color, i.st.bg)}</td></tr>`; }).join("");
+  return dashCard("مؤشرات الأداء", "كل المؤشرات في جدول واحد · آخر فترة لكل وحدة · المستهدف الخاص بالوحدة والفترة", controls + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${["achieved", "close", "needsAction", "struggling", "noData"].filter((k) => cnt[k]).map((k) => `<span style="font-size:12px;">${computeIndicatorStatus(k === "noData" ? {} : { target: 1, actual: k === "achieved" ? 1 : k === "close" ? 0.95 : k === "needsAction" ? 0.8 : 0.2 }).emoji} ${({ achieved: "متحقق", close: "قريب", needsAction: "يحتاج تدخلاً", struggling: "متعثر", noData: "بلا بيانات" })[k]}: <b>${cnt[k]}</b></span>`).join("")}</div><div class="table-wrap" style="overflow-x:auto;"><table class="prs-table" style="min-width:900px;"><thead><tr><th>المؤشر</th><th>الوحدة</th><th>البرنامج</th><th>الهدف التشغيلي</th><th style="text-align:center">خط الأساس</th><th style="text-align:center">المستهدف</th><th style="text-align:center">المتحقق</th><th style="text-align:center">نسبة الإنجاز</th><th style="text-align:center">الانحراف</th><th style="text-align:center">الاتجاه عن خط الأساس</th><th style="text-align:center">الحالة</th></tr></thead><tbody>${body}</tbody></table></div>`);
 }
 function gbCmpAll(series) { return dashSeries(series.units || [], "all"); }
 function gbCmpHtml(series, rows) { const b = gbCmpBuild(series, rows, () => ""); return b.controls + b.html; }
@@ -8065,49 +8070,130 @@ function aggGoalsOnePageBody(ents) {
   return `<div class="rg-scope"><div class="rg-rh">تحليل الأهداف التشغيلية — كل الوحدات</div><div class="rg-rk">${kt(rows.length, "إجمالي الأهداف", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "متحقق جزئيًا", "wr")}${kt(cnt.bad + cnt.na, "غير متحقق", "bad")}${kt(avg == null ? "—" : avg + "٪", "نسبة التحقق", "")}</div>${legend}${svg}<div class="rg-rh" style="margin-top:14px">تفاصيل الأهداف التشغيلية (${rows.length})</div>${tbl}</div>`;
 }
 /* ===== المؤشرات: رسم واحد لكل المؤشرات + جدول واحد تحتها (نفس شكل الأهداف التشغيلية) ===== */
+/* ===== مؤشرات الأداء في التقارير: رسم طولي مفصّل + جدول واحد =====
+   تقرير الوحدة: أعمدة لكل فترة (آخر ٣ فترات للوحدة نفسها). التقرير الإداري النهائي: أعمدة لكل وحدة. */
+function indVizGroups(ents, mode) {
+  const groups = [], byName = {};
+  const termsOf = (unit, report) => {
+    if (!unit) return [];
+    let list = []; try { list = ensureUnitReportsLoaded(unit.id) || []; } catch (e) {}
+    let pt = null, cur = null; try { pt = reportPeriodType(report); cur = reportTermInfo(report); } catch (e) {}
+    const m = {};
+    list.forEach((r) => { try { if (!reportHasContent(r) || reportPeriodType(r) !== pt) return; const t = reportTermInfo(r); if (cur && t.ord > cur.ord) return; const o = m[t.key]; if (!o || (r.createdAt || 0) > (o.r.createdAt || 0)) m[t.key] = { r, t }; } catch (e) {} });
+    return Object.values(m).sort((a, b) => a.t.ord - b.t.ord).slice(-3);
+  };
+  const mk = (row, report, label, def) => {
+    const rv = resolveIndicatorRow(row, def);
+    if ((rv.target === "" || rv.target == null) && (row.__t != null || (row.target !== "" && row.target != null))) rv.target = row.__t != null ? row.__t : row.target;
+    const st = computeIndicatorStatus(rv), ac = indNumV(row.actual), tg = indNumV(rv.target);
+    return { label, rv, st, ac, tg, p: st.ratio == null || !isFinite(st.ratio) ? null : Math.round(st.ratio * 100) };
+  };
+  ents.forEach(({ unit, report }) => {
+    const rows = ((report && report.sections && report.sections.kpi && report.sections.kpi.data && report.sections.kpi.data.indicators) || []).filter((r) => r && r.name && String(r.name).trim());
+    const hist = mode === "unit" ? termsOf(unit || ((report && report.unitId) ? (S.units || []).find((u) => u.id === report.unitId) : null), report) : [];
+    rows.forEach((row) => {
+      const name = String(row.name).trim(), def = findIndicatorDef(name);
+      let g = byName[name];
+      if (!g) { g = byName[name] = { name, def, items: [], goals: [], progs: [], low: false, cum: false, row0: row }; groups.push(g); }
+      const rv0 = resolveIndicatorRow(row, def);
+      g.low = indBetter(rv0.direction) === "L"; g.cum = rv0.nature === "تراكمي";
+      try { indLinkedGoalDefs(row).forEach((x) => { if (g.goals.indexOf(x.name) === -1) g.goals.push(x.name); }); } catch (e) {}
+      try { indLinkedPrograms(rptProgramList(report), row).forEach((p) => { const n = String(p.name).trim(); if (g.progs.indexOf(n) === -1) g.progs.push(n); }); } catch (e) {}
+      let bs = null; try { const pb = unit ? indicatorPrevBaseline(unit.id, report, name) : null; bs = pb ? pb.value : (row.baseline !== "" && row.baseline != null ? row.baseline : null); } catch (e) {}
+      const it = { unit, report, row, rv: rv0, bs, cur: mk(row, report, "", def), cols: [] };
+      if (mode === "unit") {
+        hist.forEach((h) => { const hr = (((h.r.sections || {}).kpi || {}).data || {}).indicators || []; const f = hr.find((x) => x && String(x.name).trim() === name); if (f) { const c = mk(f, h.r, h.t.label || "", def); if (c.ac != null) it.cols.push(c); } });
+        if (!it.cols.length || it.cols[it.cols.length - 1].label === "" ) { /* لا فترات سابقة */ }
+        if (report && report.id === "preview") { const a = it.cur.ac, t = it.cur.tg; if (a != null) { const fk = (f, l) => { const x = Math.round(a * f * 10) / 10; return { label: l, ac: x, tg: t, p: t ? Math.round((g.low ? t / x : x / t) * 100) : null, st: it.cur.st, rv: it.cur.rv }; }; it.cols = [fk(0.7, "الفترة ١"), fk(0.85, "الفترة ٢"), Object.assign({}, it.cur, { label: "الفترة ٣" })]; } }
+        if (!it.cols.length && it.cur.ac != null) it.cols = [Object.assign({}, it.cur, { label: "الحالية" })];
+      } else if (it.cur.ac != null) it.cols = [Object.assign({}, it.cur, { label: unit ? unit.name : "", unit })];
+      g.items.push(it);
+    });
+  });
+  return groups;
+}
+function indVizSvg(groups, mode) {
+  const col = (p) => (p == null ? "#8a7279" : p >= 100 ? "#1f8a5b" : p >= 90 ? "#c9831a" : p >= 70 ? "#e08a3c" : "#c0392b");
+  const shade = (j, n) => `hsl(340,${Math.round(32 + 40 * j / Math.max(1, n - 1))}%,${Math.round(78 - 40 * j / Math.max(1, n - 1))}%)`;
+  const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
+  const list = groups.map((g) => ({ g, cols: mode === "unit" ? (g.items[0] ? g.items[0].cols : []) : g.items.map((i) => i.cols[0]).filter(Boolean) })).filter((x) => x.cols.length);
+  if (!list.length) return "";
+  const maxN = Math.max.apply(null, list.map((x) => x.cols.length));
+  const per = maxN > 4 ? 2 : maxN > 3 ? 3 : 4;
+  const uidx = {}, uall = []; if (mode === "final") groups.forEach((g) => g.items.forEach((i) => { if (i.unit && uidx[i.unit.id] == null) { uidx[i.unit.id] = uall.length; uall.push(i.unit.name); } }));
+  let out = "";
+  for (let s = 0; s < list.length; s += per) {
+    const chunk = list.slice(s, s + per), W = 900, H = 400, pl = 40, pr = 8, pt = 34, pb = 150, gw = (W - pl - pr) / Math.max(2, chunk.length);
+    const Y = (p) => pt + (H - pt - pb) * (1 - Math.min(p, 120) / 120);
+    let v = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;display:block">`;
+    [0, 25, 50, 75, 100].forEach((p) => { v += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" stroke="${p === 100 ? "#2b1a20" : "#ecdfe3"}" stroke-width="${p === 100 ? 1.5 : 1}"${p === 100 ? ' stroke-dasharray="6 4"' : ""}/><text x="${pl - 6}" y="${Y(p) + 4}" font-size="10" text-anchor="end" fill="#8a7279">${p}%</text>`; });
+    v += `<text x="${W - pr - 2}" y="${Y(100) - 6}" font-size="10.5" text-anchor="end" font-weight="800" fill="#2b1a20">المستهدف</text>`;
+    chunk.forEach((x, i) => {
+      const cx = pl + gw * (i + 0.5), n = x.cols.length, bw = Math.min(38, (gw - 24) / n - 6), tot = n * bw + (n - 1) * 6;
+      x.cols.forEach((c, j) => {
+        const bx = cx - tot / 2 + j * (bw + 6), p = c.p == null ? 0 : c.p, fill = mode === "unit" ? (j === n - 1 ? "var(--rpt-g-ac,#7a1f3d)" : j === 0 && n > 2 ? "var(--rpt-g-tg,#e3b6c5)" : "#c9708f") : shade(c.unit && uidx[c.unit.id] != null ? uidx[c.unit.id] : j, Math.max(uall.length, 2));
+        if (c.p != null) v += `<rect x="${bx}" y="${Y(p)}" width="${bw}" height="${Math.max(0, Y(0) - Y(p))}" rx="4" style="fill:${fill}"/>`;
+        v += `<text x="${bx + bw / 2}" y="${Y(p) - 17}" font-size="10.5" font-weight="800" text-anchor="middle" fill="#2b1a20">${esc(indFmtV(c.ac))}</text><text x="${bx + bw / 2}" y="${Y(p) - 5}" font-size="9.5" font-weight="700" text-anchor="middle" fill="${col(c.p)}">${c.p == null ? "—" : c.p + "٪"}</text>`;
+        const lb = wrap(c.label || "", 9).slice(0, 2); lb.forEach((ln, q) => { v += `<text x="${bx + bw / 2}" y="${Y(0) + 12 + q * 10}" font-size="8.5" text-anchor="middle" fill="#8a7279">${esc(ln)}</text>`; });
+        if (c.ac != null && c.tg != null) { const d = Math.round((c.ac - c.tg) * 100) / 100, good = g_low(x.g) ? d <= 0 : d >= 0; v += `<text x="${bx + bw / 2}" y="${Y(0) + 36}" font-size="10" font-weight="800" text-anchor="middle" fill="${good ? "#1f8a5b" : "#c0392b"}">${d === 0 ? "=" : (d > 0 ? "+" : "−") + Math.abs(d)}</text>`; }
+      });
+      let yy = Y(0) + 48;
+      if (mode === "unit") { const ps = x.cols.map((c) => c.p).filter((p) => p != null); if (ps.length >= 2) { const ch = ps[ps.length - 1] - ps[0], cc = ch > 0 ? "#1f8a5b" : ch < 0 ? "#c0392b" : "#8a7279"; v += `<rect x="${cx - 62}" y="${yy}" width="124" height="20" rx="10" fill="${cc}" fill-opacity=".13"/><text x="${cx}" y="${yy + 14}" font-size="10" font-weight="800" text-anchor="middle" fill="${cc}">${ch > 0 ? "▲ تحسّن " + ch : ch < 0 ? "▼ تراجع " + Math.abs(ch) : "= ثبات"}${ch ? " نقطة" : ""}</text>`; } yy += 26; }
+      wrap(x.g.name, 20).slice(0, 3).forEach((ln, q) => { v += `<text x="${cx}" y="${yy + 10 + q * 12}" font-size="10.5" font-weight="800" text-anchor="middle" fill="#2b1a20">${esc(ln)}</text>`; });
+      const nl = Math.min(3, wrap(x.g.name, 20).length); let ty = yy + 10 + nl * 12;
+      if (x.g.low) { v += `<text x="${cx}" y="${ty}" font-size="9" text-anchor="middle" fill="#2f5a85" font-weight="700">الأقل أفضل</text>`; ty += 11; }
+      if (x.g.cum) v += `<text x="${cx}" y="${ty}" font-size="9" text-anchor="middle" fill="#9a5b1e" font-weight="700">تراكمي</text>`;
+    });
+    v += "</svg>";
+    out += v;
+  }
+  let lg = "";
+  if (mode === "unit") lg = `<span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> أقدم فترة</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الفترة الحالية</span><span>┄ خط المستهدف ١٠٠٪</span><span>+/− الانحراف عن المستهدف</span>`;
+  else { const names = []; groups.forEach((g) => g.items.forEach((i) => { if (i.unit && names.indexOf(i.unit.name) === -1) names.push(i.unit.name); })); lg = names.map((n, j) => `<span><s style="background:${shade(j, Math.max(names.length, 2))}"></s> ${esc(n)}</span>`).join("") + `<span>┄ خط المستهدف ١٠٠٪</span>`; }
+  return `<div class="rv-chart">${out}</div><div class="rg-leg">${lg}</div>`;
+}
+function g_low(g) { return !!(g && g.low); }
+function indVizTable(groups, mode) {
+  const K = (s) => (s.key === "achieved" ? "ok" : s.key === "close" ? "wr" : s.key === "noData" ? "na" : "bad");
+  const head = mode === "unit"
+    ? `<tr><th>م</th><th>المؤشر</th><th>خط الأساس</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الاتجاه</th><th>الانحراف والإجراء</th></tr>`
+    : `<tr><th>م</th><th>المؤشر</th><th style="min-width:80px">الوحدة</th><th>خط الأساس</th><th>المستهدف</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الانحراف والإجراء</th></tr>`;
+  const tags = (g, r0) => `<div class="ind-tags">${g.goals.map((n) => `<i class="ind-tg">${esc(n)}</i>`).join("")}${g.progs.map((n) => `<i class="ind-tp">${esc(n)}</i>`).join("")}${g.cum ? `<i class="ind-tc">تراكمي</i>` : ""}${g.low ? `<i class="ind-tl">الأقل أفضل</i>` : ""}${!g.goals.length && !g.progs.length ? `<i class="ind-to">أخرى</i>` : ""}</div>`;
+  let n = 0, html = "";
+  groups.forEach((g) => {
+    const its = g.items, span = its.length;
+    its.forEach((it, k) => {
+      const c = it.cur, r0 = it.row, ln = (t, v) => { v = Array.isArray(v) ? v.join("، ") : v; return v ? `<div><b>${t}:</b> ${esc(String(v))}</div>` : ""; };
+      const act = ln("السبب", r0.deviationReason) + ln("الإجراء", r0.correctiveAction) + ln("المسؤولة", r0.responsiblePerson) + ln("الإغلاق", r0.closureDate) + ln("الدعم", r0.requiredSupport);
+      let dev = ""; if (c.ac != null && c.tg != null) { const dv = Math.round((c.ac - c.tg) * 100) / 100, pc = c.tg ? Math.round(dv / c.tg * 100) : null; dev = `<div class="kpi-dev">${dv === 0 ? "لا انحراف" : (dv > 0 ? "+" : "−") + Math.abs(dv) + (pc != null ? " (" + (dv > 0 ? "+" : "−") + Math.abs(pc) + "٪)" : "")}</div>`; }
+      const p = c.p == null ? null : Math.round(Math.min(1, Math.max(0, c.st.ratio)) * 100);
+      const first = k === 0;
+      let nameTd = "";
+      if (first) { n++; nameTd = `<td rowspan="${mode === "final" ? span : 1}">${n}</td><td rowspan="${mode === "final" ? span : 1}" style="font-weight:700">${esc(g.name)}${tags(g, r0)}</td>`; }
+      else if (mode === "unit") { n++; nameTd = `<td>${n}</td><td style="font-weight:700">${esc(g.name)}${tags(g, r0)}</td>`; }
+      let dir = "—";
+      if (mode === "unit") { const ps = it.cols.map((x) => x.p).filter((q) => q != null); if (ps.length >= 2) { const ch = ps[ps.length - 1] - ps[0]; dir = `<b style="color:${ch > 0 ? "#1f8a5b" : ch < 0 ? "#c0392b" : "#8a7279"}">${ch > 0 ? "▲ تحسّن " + ch : ch < 0 ? "▼ تراجع " + Math.abs(ch) : "= ثبات"}</b>`; } }
+      const base = `<td>${esc(it.bs != null ? it.bs : "—")}</td><td>${esc(c.tg != null ? indFmtV(c.tg) : "—")}</td><td>${esc(r0.actual !== "" && r0.actual != null ? r0.actual : "—")}</td>`;
+      const tail = `${rgBar(p, K(c.st))}<td>${esc(c.st.label)}</td>`;
+      const act2 = `<td>${dev || act ? dev + (act ? `<div class="kpi-act">${act}</div>` : "") : "—"}</td>`;
+      html += mode === "unit" ? `<tr>${nameTd}${base}${tail}<td>${dir}</td>${act2}</tr>` : `<tr>${nameTd}<td style="min-width:80px;font-weight:600">${esc(it.unit ? it.unit.name : "—")}</td>${base}${tail}${act2}</tr>`;
+    });
+  });
+  return `<div class="rg-tw"><table class="rg-rtb">${head}${html}</table></div>`;
+}
+
 function indOnePageBody(ents, opt) {
   opt = opt || {};
-  const rows = [];
-  ents.forEach(({ unit, report }) => ((report && report.sections && report.sections.kpi && report.sections.kpi.data && report.sections.kpi.data.indicators) || []).filter((r) => r && r.name).forEach((row) => {
-    const def = findIndicatorDef(row.name), rv = resolveIndicatorRow(row, def);
-    if ((rv.target === "" || rv.target == null) && row.__t != null) rv.target = row.__t;
-    const st = (def || row.__t != null) ? computeIndicatorStatus(rv) : { key: "noData", label: "لا توجد بيانات", color: SUBTLE, ratio: null };
-    let bs = null; try { const pb = unit ? indicatorPrevBaseline(unit.id, report, row.name) : null; bs = pb ? pb.value : (row.baseline !== "" && row.baseline != null ? row.baseline : null); } catch (e) {}
-    const p = st.ratio == null ? null : Math.round(Math.min(1, Math.max(0, st.ratio)) * 100);
-    rows.push({ unit, report, row, rv, st, bs, p, name: String(row.name).trim() });
-  }));
-  if (!rows.length) return "";
+  const multiU = new Set(ents.map((e) => e.unit && e.unit.id).filter(Boolean)).size > 1, mode = opt.mode || (multiU ? "final" : "unit");
+  const groups = indVizGroups(ents, mode);
+  if (!groups.length) return "";
+  const all = []; groups.forEach((g) => g.items.forEach((i) => all.push(i)));
   const K = (s) => (s.key === "achieved" ? "ok" : s.key === "close" ? "wr" : s.key === "noData" ? "na" : "bad");
-  const cnt = { ok: 0, wr: 0, bad: 0, na: 0 }; rows.forEach((r) => { cnt[K(r.st)]++; });
-  const seen = rows.map((r) => r.p).filter((v) => v != null), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
+  const cnt = { ok: 0, wr: 0, bad: 0, na: 0 }; all.forEach((r) => { cnt[K(r.cur.st)]++; });
+  const seen = all.map((r) => r.cur.p).filter((v) => v != null).map((v) => Math.min(100, v)), avg = seen.length ? Math.round(seen.reduce((a, b) => a + b, 0) / seen.length) : null;
   const kt = (n, l, c) => `<div class="${c}"><span>${l}</span><b>${n}</b></div>`;
-  const multiU = rows.some((r) => r.unit) && new Set(rows.map((r) => r.unit && r.unit.id)).size > 1;
-  const W = Math.max(700, rows.length * 70 + 50), H = 360, pl = 38, pr = 10, pt = 30, pb = 160, gw = (W - pl - pr) / rows.length, yy = (v) => pt + (H - pt - pb) * (1 - v / 100), cx = (i) => pl + gw * (i + 0.5);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;max-width:${W > 760 ? "100%" : "760px"};display:block;margin:0 auto">`;
-  for (let v = 0; v <= 100; v += 25) svg += `<line x1="${pl}" x2="${W - pr}" y1="${yy(v)}" y2="${yy(v)}" style="stroke:var(--rpt-line,#ecdfe3)"/><text x="${pl - 6}" y="${yy(v) + 4}" font-size="8" text-anchor="end" fill="#8a7279">${v}%</text>`;
-  const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
-  rows.forEach((r, i) => {
-    const bw = Math.min(28, gw / 3), t = 100;
-    svg += `<rect x="${cx(i) - bw - 2}" y="${yy(t)}" width="${bw}" height="${yy(0) - yy(t)}" rx="3" style="fill:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"/><text x="${cx(i) - bw / 2 - 2}" y="${yy(t) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">100%</text>`;
-    if (r.p != null) svg += `<rect x="${cx(i) + 2}" y="${yy(r.p)}" width="${bw}" height="${yy(0) - yy(r.p)}" rx="3" style="fill:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"/><text x="${cx(i) + bw / 2 + 2}" y="${yy(r.p) - 4}" font-size="8" text-anchor="middle" fill="#2b1a20">${r.p}%</text>`;
-    const ls = wrap(r.name, 22), ly = H - pb + 8, LH = 10.5, x0 = cx(i) + ((ls.length + (multiU ? 1 : 0)) * LH) / 2 - 4;
-    ls.forEach((ln, q) => { svg += `<text transform="translate(${x0 - q * LH},${ly}) rotate(90)" font-size="8.5" text-anchor="start" fill="#2b1a20" font-weight="700">${esc(ln)}</text>`; });
-    if (multiU && r.unit) svg += `<text transform="translate(${x0 - ls.length * LH - 2},${ly}) rotate(90)" font-size="7.5" text-anchor="start" fill="#8a7279">${esc(r.unit.name)}</text>`;
-  });
-  const pts = rows.map((r, i) => [cx(i), r.p]).filter((p) => p[1] != null);
-  if (pts.length) svg += `<polyline fill="none" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2" points="${pts.map((p) => p[0] + "," + yy(p[1])).join(" ")}"/>` + pts.map((p) => `<circle cx="${p[0]}" cy="${yy(p[1])}" r="4" fill="#fff" style="stroke:var(--rpt-c3,#a73a5c)" stroke-width="2"/>`).join("");
-  svg += "</svg>";
-  const legend = `<div class="rg-leg"><span><s style="background:var(--rpt-g-tg,var(--rpt-c1,#e3b6c5))"></s> المستهدف (١٠٠٪)</span><span><s style="background:var(--rpt-g-ac,var(--rpt-burgundy,#7a1f3d))"></s> نسبة الإنجاز</span></div>`;
-  const head = `<tr><th>م</th><th>المؤشر</th><th>المستهدف</th><th>خط الأساس</th><th>المتحقق</th><th>النسبة</th><th>الحالة</th><th>الانحراف والإجراء</th></tr>`;
-  const trs = rows.map((r, i) => {
-    const r0 = r.row, ln = (t, v) => { v = Array.isArray(v) ? v.join("، ") : v; return v ? `<div><b>${t}:</b> ${esc(String(v))}</div>` : ""; };
-    const act = ln("السبب", r0.deviationReason) + ln("الإجراء", r0.correctiveAction) + ln("المسؤولة", r0.responsiblePerson) + ln("الإغلاق", r0.closureDate) + ln("الدعم", r0.requiredSupport);
-    const ac = indNumV(r0.actual), tg = indNumV(r.rv.target); let dev = "";
-    if (ac != null && tg != null) { const dv = Math.round((ac - tg) * 100) / 100, pc = tg ? Math.round(dv / tg * 100) : null; dev = `<div class="kpi-dev">${dv === 0 ? "لا انحراف" : (dv > 0 ? "+" : "−") + Math.abs(dv) + (pc != null ? " (" + (dv > 0 ? "+" : "−") + Math.abs(pc) + "٪)" : "")}</div>`; }
-    const dt = [["التصنيف", r.rv.category], ["الاتجاه", r.rv.direction], ["الدورية", r.rv.frequency], ["الوحدة", r.rv.unit]].filter((x) => x[1]).map((x) => `<span style="white-space:nowrap;"><b>${x[0]}:</b> ${esc(String(x[1]))}</span>`).join(" · ");
-    return `<tr><td>${i + 1}</td><td style="font-weight:700">${esc(r.name)}${multiU && r.unit ? `<div style="font-size:9px;font-weight:600;color:#8a7279">${esc(r.unit.name)}</div>` : ""}${dt ? `<div style="font-size:9px;font-weight:500;color:#8a7279;line-height:1.7">${dt}</div>` : ""}</td><td>${esc(r.rv.target !== "" && r.rv.target != null ? r.rv.target : "—")}</td><td>${esc(r.bs != null ? r.bs : "—")}</td><td>${esc(r0.actual !== "" && r0.actual != null ? r0.actual : "—")}</td>${rgBar(r.p, K(r.st))}<td>${esc(r.st.label)}</td><td>${dev || act ? dev + (act ? `<div class="kpi-act">${act}</div>` : "") : "—"}</td></tr>`;
-  }).join("");
-  return `<div class="rg-scope"><div class="rg-rh">تحليل مؤشرات الأداء${multiU ? " — كل الوحدات" : ""}</div><div class="rg-rk">${kt(rows.length, "إجمالي المؤشرات", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "قريب من المستهدف", "wr")}${kt(cnt.bad + cnt.na, "يحتاج تدخلاً / بلا بيانات", "bad")}${kt(avg == null ? "—" : avg + "٪", "متوسط الإنجاز", "")}</div>${legend}<div class="rv-chart">${svg}</div><div class="rg-rh" style="margin-top:14px">تفاصيل مؤشرات الأداء (${rows.length})</div><div class="rg-tw"><table class="rg-rtb">${head}${trs}</table></div></div>`;
+  const legend = indVizSvg(groups, mode);
+  return `<div class="rg-scope"><div class="rg-rh">تحليل مؤشرات الأداء${mode === "final" ? " — كل الوحدات" : ""}</div><div class="rg-rk">${kt(groups.length, "إجمالي المؤشرات", "")}${kt(cnt.ok, "متحقق", "ok")}${kt(cnt.wr, "قريب من المستهدف", "wr")}${kt(cnt.bad + cnt.na, "يحتاج تدخلاً / بلا بيانات", "bad")}${kt(avg == null ? "—" : avg + "٪", "متوسط الإنجاز", "")}</div>${legend}<div class="rg-rh" style="margin-top:14px">تفاصيل مؤشرات الأداء (${groups.length})</div>${indVizTable(groups, mode)}</div>`;
 }
 /* التقرير النهائي بنفس تنسيق تقرير الوحدة: لكل فصل صفحة لكل وحدة (نفس البطاقات والخط والألوان والرسوم) */
 function aggUnitStylePages(data) {

@@ -1747,3 +1747,9 @@ html body .rpt-x-cv-left .rpt-cover-v4-text,html body .rpt-x-cv-left .rpt-cover-
 /* كل جداول التقرير بنفس شكل جدول الأهداف: رأس موحّد وتوسيط الأرقام والكلام */
 html body :where(.a4-page) table.prs-table:not(#z) th{background:var(--rpt-gl-bg,#d3bdc3)!important;background-image:none!important;color:var(--rpt-gl-color,#000)!important;text-shadow:none!important;text-align:var(--rpt-th-align,center)!important;vertical-align:middle;border:1px solid #fff!important}
 html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt-g-td,#f9f6f7)!important;background-image:none!important;text-align:var(--rpt-td-align,center)!important;vertical-align:middle;border:1px solid var(--rpt-line,#ecdfe3)!important}
+/* وسوم المؤشرات في التقارير */
+.ind-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.ind-tags i{font-style:normal;font-size:8.5px;font-weight:700;border-radius:99px;padding:1px 7px;line-height:1.5}
+.ind-tg{background:#e5f3ec;color:#1f6b4a}.ind-tp{background:#efeaf8;color:#5a4a8a}.ind-tc{background:#fdeee0;color:#9a5b1e}.ind-tl{background:#e6eef7;color:#2f5a85}.ind-to{background:#f1ecee;color:#8a7279}
+.rg-scope .rg-leg{flex-wrap:wrap}
+.rg-leg s{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:4px}
