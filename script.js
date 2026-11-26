@@ -5723,6 +5723,7 @@ function usPageCardHtml(unit) {
     ${row("الهوامش", "margin", [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]])}
     ${cur.margin === "custom" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px;">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label style="font-size:12px;">${l}<input type="number" class="input" data-us-m="${k}" min="0" max="50" inputmode="numeric" value="${Number(cur[k]) || 0}" style="width:78px;" /></label>`).join("")}</div>` : ""}
     ${row("ترقيم الصفحات", "pageNum", [["none", "بدون"], ["paren", "(٢)"], ["num", "٢"], ["of", "٢ من ٨"]])}
+    ${row("مقارنة المؤشرات في التقرير", "indCmp", [["cur", "العام الحالي فقط"], ["terms", "فصول العام"], ["years", "الأعوام (٣ أعوام)"]])}
   </div>`;
 }
 function usLetterheadCardHtml(unit) {
@@ -8071,87 +8072,107 @@ function aggGoalsOnePageBody(ents) {
 /* ===== المؤشرات: رسم واحد لكل المؤشرات + جدول واحد تحتها (نفس شكل الأهداف التشغيلية) ===== */
 /* ===== مؤشرات الأداء في التقارير: رسم طولي مفصّل + جدول واحد =====
    تقرير الوحدة: أعمدة لكل فترة (آخر ٣ فترات للوحدة نفسها). التقرير الإداري النهائي: أعمدة لكل وحدة. */
+const IND_CMP_LBL = { cur: "العام الحالي", terms: "الفصول", years: "الأعوام" };
+function indCmpOf(unit) { const v = ((((S.siteSettings || {}).theme || {}).unitLetterheads) || {})[unit && unit.id]; const m = v && v.indCmp; return m === "terms" || m === "years" ? m : "cur"; }
 function indVizGroups(ents, mode) {
   const groups = [], byName = {};
-  const termsOf = (unit, report) => {
-    if (!unit) return [];
-    let list = []; try { list = ensureUnitReportsLoaded(unit.id) || []; } catch (e) {}
-    let pt = null, cur = null; try { pt = reportPeriodType(report); cur = reportTermInfo(report); } catch (e) {}
-    const m = {};
-    list.forEach((r) => { try { if (!reportHasContent(r) || reportPeriodType(r) !== pt) return; const t = reportTermInfo(r); if (cur && t.ord > cur.ord) return; const o = m[t.key]; if (!o || (r.createdAt || 0) > (o.r.createdAt || 0)) m[t.key] = { r, t }; } catch (e) {} });
-    return Object.values(m).sort((a, b) => a.t.ord - b.t.ord).slice(-3);
-  };
-  const mk = (row, report, label, def) => {
+  const mk = (row, label, def) => {
     const rv = resolveIndicatorRow(row, def);
     if ((rv.target === "" || rv.target == null) && (row.__t != null || (row.target !== "" && row.target != null))) rv.target = row.__t != null ? row.__t : row.target;
     const st = computeIndicatorStatus(rv), ac = indNumV(row.actual), tg = indNumV(rv.target);
     return { label, rv, st, ac, tg, p: st.ratio == null || !isFinite(st.ratio) ? null : Math.round(st.ratio * 100) };
   };
+  const findRow = (rep, name) => { const l = (((rep.sections || {}).kpi || {}).data || {}).indicators || []; return l.find((x) => x && String(x.name).trim() === name); };
+  // أعمدة المقارنة حسب اختيار الوحدة: العام الحالي / فصول العام / الأعوام (آخر فترة في كل عام)
+  const colsFor = (unit, report, name, def, cmp) => {
+    let cur = null; try { cur = reportTermInfo(report); } catch (e) {}
+    const row0 = findRow(report, name), me = row0 ? mk(row0, cur ? cur.label : "", def) : null;
+    if (cmp === "cur" || !unit || !cur) return me && me.ac != null ? [me] : [];
+    let list = []; try { list = ensureUnitReportsLoaded(unit.id) || []; } catch (e) {}
+    let pt = ""; try { pt = reportPeriodType(report); } catch (e) {}
+    const m = {};
+    list.forEach((r) => { try { if (!reportHasContent(r) || reportPeriodType(r) !== pt) return; const t = reportTermInfo(r); if (t.ord > cur.ord) return; const o = m[t.key]; if (!o || (r.createdAt || 0) > (o.r.createdAt || 0)) m[t.key] = { r, t }; } catch (e) {} });
+    let ts = Object.values(m).sort((x, y) => x.t.ord - y.t.ord);
+    let pick;
+    if (cmp === "terms") pick = ts.filter((x) => String(x.t.year) === String(cur.year)).slice(-3).map((x) => ({ r: x.r, label: x.t.label }));
+    else { const by = {}; ts.forEach((x) => { by[x.t.year] = x; }); pick = Object.keys(by).sort().slice(-3).map((y) => ({ r: by[y].r, label: y + "هـ" })); }
+    const out = []; pick.forEach((p) => { const f = findRow(p.r, name); if (f) { const c = mk(f, p.label, def); if (c.ac != null) out.push(c); } });
+    return out.length ? out : (me && me.ac != null ? [me] : []);
+  };
   ents.forEach(({ unit, report }) => {
     const rows = ((report && report.sections && report.sections.kpi && report.sections.kpi.data && report.sections.kpi.data.indicators) || []).filter((r) => r && r.name && String(r.name).trim());
-    const hist = mode === "unit" ? termsOf(unit || ((report && report.unitId) ? (S.units || []).find((u) => u.id === report.unitId) : null), report) : [];
+    const u = unit || ((report && report.unitId) ? (S.units || []).find((x) => x.id === report.unitId) : null), cmp = indCmpOf(u);
     rows.forEach((row) => {
       const name = String(row.name).trim(), def = findIndicatorDef(name);
       let g = byName[name];
-      if (!g) { g = byName[name] = { name, def, items: [], goals: [], progs: [], low: false, cum: false, row0: row }; groups.push(g); }
+      if (!g) { g = byName[name] = { name, def, items: [], goals: [], progs: [], low: false, cum: false }; groups.push(g); }
       const rv0 = resolveIndicatorRow(row, def);
       g.low = indBetter(rv0.direction) === "L"; g.cum = rv0.nature === "تراكمي";
       try { indLinkedGoalDefs(row).forEach((x) => { if (g.goals.indexOf(x.name) === -1) g.goals.push(x.name); }); } catch (e) {}
       try { indLinkedPrograms(rptProgramList(report), row).forEach((p) => { const n = String(p.name).trim(); if (g.progs.indexOf(n) === -1) g.progs.push(n); }); } catch (e) {}
       let bs = null; try { const pb = unit ? indicatorPrevBaseline(unit.id, report, name) : null; bs = pb ? pb.value : (row.baseline !== "" && row.baseline != null ? row.baseline : null); } catch (e) {}
-      const it = { unit, report, row, rv: rv0, bs, cur: mk(row, report, "", def), cols: [] };
-      if (mode === "unit") {
-        hist.forEach((h) => { const hr = (((h.r.sections || {}).kpi || {}).data || {}).indicators || []; const f = hr.find((x) => x && String(x.name).trim() === name); if (f) { const c = mk(f, h.r, h.t.label || "", def); if (c.ac != null) it.cols.push(c); } });
-        if (!it.cols.length || it.cols[it.cols.length - 1].label === "" ) { /* لا فترات سابقة */ }
-        if (report && report.id === "preview") { const a = it.cur.ac, t = it.cur.tg; if (a != null) { const fk = (f, l) => { const x = Math.round(a * f * 10) / 10; return { label: l, ac: x, tg: t, p: t ? Math.round((g.low ? t / x : x / t) * 100) : null, st: it.cur.st, rv: it.cur.rv }; }; it.cols = [fk(0.7, "الفترة ١"), fk(0.85, "الفترة ٢"), Object.assign({}, it.cur, { label: "الفترة ٣" })]; } }
-        if (!it.cols.length && it.cur.ac != null) it.cols = [Object.assign({}, it.cur, { label: "الحالية" })];
-      } else if (it.cur.ac != null) it.cols = [Object.assign({}, it.cur, { label: unit ? unit.name : "", unit })];
+      const it = { unit, report, row, rv: rv0, bs, cur: mk(row, "", def), cols: [], mode: cmp };
+      it.cols = colsFor(u, report, name, def, cmp);
+      if (report && report.id === "preview") { const a = it.cur.ac, t = it.cur.tg; if (a != null) { const fk = (f, l) => { const x = Math.round(a * f * 10) / 10; return { label: l, ac: x, tg: t, p: t ? Math.round((g.low ? t / x : x / t) * 100) : null, st: it.cur.st, rv: it.cur.rv }; }; it.cols = [fk(0.7, "الفترة ١"), fk(0.85, "الفترة ٢"), Object.assign({}, it.cur, { label: "الفترة ٣" })]; } }
+      if (!it.cols.length && it.cur.ac != null) it.cols = [Object.assign({}, it.cur, { label: "الحالية" })];
       g.items.push(it);
     });
   });
   return groups;
 }
-function indVizSvg(groups, mode) {
+// رسم مجموعات أعمدة (كل مجموعة = مؤشر أو وحدة) بمحور واحد وخط مستهدف واحد؛ ٤ مجموعات في السطر ليناسب الصفحة الطولية
+function indDrawGroups(gs, per) {
   const col = (p) => (p == null ? "#8a7279" : p >= 100 ? "#1f8a5b" : p >= 90 ? "#c9831a" : p >= 70 ? "#e08a3c" : "#c0392b");
-  const shade = (j, n) => `hsl(340,${Math.round(32 + 40 * j / Math.max(1, n - 1))}%,${Math.round(78 - 40 * j / Math.max(1, n - 1))}%)`;
   const wrap = (t, n) => { const out = []; let cur = ""; String(t).split(" ").forEach((w) => { if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) out.push(cur); return out; };
-  const list = groups.map((g) => ({ g, cols: mode === "unit" ? (g.items[0] ? g.items[0].cols : []) : g.items.map((i) => i.cols[0]).filter(Boolean) })).filter((x) => x.cols.length);
-  if (!list.length) return "";
-  const maxN = Math.max.apply(null, list.map((x) => x.cols.length));
-  let per = maxN > 4 ? 2 : maxN > 3 ? 3 : maxN > 2 ? 4 : maxN > 1 ? 5 : 6; per = Math.ceil(list.length / Math.ceil(list.length / per));
-  const uidx = {}, uall = []; if (mode === "final") groups.forEach((g) => g.items.forEach((i) => { if (i.unit && uidx[i.unit.id] == null) { uidx[i.unit.id] = uall.length; uall.push(i.unit.name); } }));
+  const nrow = Math.ceil(gs.length / per); per = Math.ceil(gs.length / nrow);
   let out = "";
-  for (let s = 0; s < list.length; s += per) {
-    const chunk = list.slice(s, s + per), W = 900, H = 400, pl = 40, pr = 8, pt = 34, pb = 150, gw = (W - pl - pr) / Math.max(3, chunk.length);
+  for (let s = 0; s < gs.length; s += per) {
+    const chunk = gs.slice(s, s + per), W = 900, H = 400, pl = 40, pr = 8, pt = 34, pb = 160, gw = (W - pl - pr) / Math.max(2, chunk.length);
     const Y = (p) => pt + (H - pt - pb) * (1 - Math.min(p, 120) / 120);
     let v = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;display:block">`;
     [0, 25, 50, 75, 100].forEach((p) => { v += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" stroke="${p === 100 ? "#2b1a20" : "#ecdfe3"}" stroke-width="${p === 100 ? 1.5 : 1}"${p === 100 ? ' stroke-dasharray="6 4"' : ""}/><text x="${pl - 6}" y="${Y(p) + 4}" font-size="10" text-anchor="end" fill="#8a7279">${p}%</text>`; });
-    v += `<text x="${W - pr - 2}" y="${Y(100) - 6}" font-size="10.5" text-anchor="end" font-weight="800" fill="#2b1a20">المستهدف</text>`;
     chunk.forEach((x, i) => {
-      const cx = pl + gw * (i + 0.5), n = x.cols.length, bw = Math.min(38, (gw - 24) / n - 6), tot = n * bw + (n - 1) * 6;
+      const cx = pl + gw * (i + 0.5), n = x.cols.length, bw = Math.min(38, (gw - 20) / Math.max(n, 1) - 6), tot = n * bw + (n - 1) * 6;
       x.cols.forEach((c, j) => {
-        const bx = cx - tot / 2 + j * (bw + 6), p = c.p == null ? 0 : c.p, fill = mode === "unit" ? (j === n - 1 ? "var(--rpt-g-ac,#7a1f3d)" : j === 0 && n > 2 ? "var(--rpt-g-tg,#e3b6c5)" : "#c9708f") : shade(c.unit && uidx[c.unit.id] != null ? uidx[c.unit.id] : j, Math.max(uall.length, 2));
+        const bx = cx - tot / 2 + j * (bw + 6), p = c.p == null ? 0 : c.p, fill = n === 1 ? "var(--rpt-g-ac,#7a1f3d)" : j === n - 1 ? "var(--rpt-g-ac,#7a1f3d)" : j === 0 && n > 2 ? "var(--rpt-g-tg,#e3b6c5)" : "#c9708f";
         if (c.p != null) v += `<rect x="${bx}" y="${Y(p)}" width="${bw}" height="${Math.max(0, Y(0) - Y(p))}" rx="4" style="fill:${fill}"/>`;
         v += `<text x="${bx + bw / 2}" y="${Y(p) - 17}" font-size="10.5" font-weight="800" text-anchor="middle" fill="#2b1a20">${esc(indFmtV(c.ac))}</text><text x="${bx + bw / 2}" y="${Y(p) - 5}" font-size="9.5" font-weight="700" text-anchor="middle" fill="${col(c.p)}">${c.p == null ? "—" : c.p + "٪"}</text>`;
-        const lb = wrap(c.label || "", 9).slice(0, 2); lb.forEach((ln, q) => { v += `<text x="${bx + bw / 2}" y="${Y(0) + 12 + q * 10}" font-size="8.5" text-anchor="middle" fill="#8a7279">${esc(ln)}</text>`; });
-        if (c.ac != null && c.tg != null) { const d = Math.round((c.ac - c.tg) * 100) / 100, good = g_low(x.g) ? d <= 0 : d >= 0; v += `<text x="${bx + bw / 2}" y="${Y(0) + 36}" font-size="10" font-weight="800" text-anchor="middle" fill="${good ? "#1f8a5b" : "#c0392b"}">${d === 0 ? "=" : (d > 0 ? "+" : "−") + Math.abs(d)}</text>`; }
+        wrap(c.label || "", 9).slice(0, 2).forEach((ln, q) => { v += `<text x="${bx + bw / 2}" y="${Y(0) + 12 + q * 10}" font-size="8.5" text-anchor="middle" fill="#8a7279">${esc(ln)}</text>`; });
+        if (c.ac != null && c.tg != null) { const d = Math.round((c.ac - c.tg) * 100) / 100, good = x.low ? d <= 0 : d >= 0; v += `<text x="${bx + bw / 2}" y="${Y(0) + 36}" font-size="10" font-weight="800" text-anchor="middle" fill="${good ? "#1f8a5b" : "#c0392b"}">${d === 0 ? "=" : (d > 0 ? "+" : "−") + Math.abs(d)}</text>`; }
       });
       let yy = Y(0) + 48;
-      if (mode === "unit") { const ps = x.cols.map((c) => c.p).filter((p) => p != null); if (ps.length >= 2) { const ch = ps[ps.length - 1] - ps[0], cc = ch > 0 ? "#1f8a5b" : ch < 0 ? "#c0392b" : "#8a7279"; v += `<rect x="${cx - 62}" y="${yy}" width="124" height="20" rx="10" fill="${cc}" fill-opacity=".13"/><text x="${cx}" y="${yy + 14}" font-size="10" font-weight="800" text-anchor="middle" fill="${cc}">${ch > 0 ? "▲ تحسّن " + ch : ch < 0 ? "▼ تراجع " + Math.abs(ch) : "= ثبات"}${ch ? " نقطة" : ""}</text>`; } yy += 26; }
-      wrap(x.g.name, 20).slice(0, 3).forEach((ln, q) => { v += `<text x="${cx}" y="${yy + 10 + q * 12}" font-size="10.5" font-weight="800" text-anchor="middle" fill="#2b1a20">${esc(ln)}</text>`; });
-      const nl = Math.min(3, wrap(x.g.name, 20).length); let ty = yy + 10 + nl * 12;
-      if (x.g.low) { v += `<text x="${cx}" y="${ty}" font-size="9" text-anchor="middle" fill="#2f5a85" font-weight="700">الأقل أفضل</text>`; ty += 11; }
-      if (x.g.cum) v += `<text x="${cx}" y="${ty}" font-size="9" text-anchor="middle" fill="#9a5b1e" font-weight="700">تراكمي</text>`;
+      const ps = x.cols.map((c) => c.p).filter((p) => p != null);
+      if (ps.length >= 2) { const ch = ps[ps.length - 1] - ps[0], cc = ch > 0 ? "#1f8a5b" : ch < 0 ? "#c0392b" : "#8a7279"; v += `<rect x="${cx - 62}" y="${yy}" width="124" height="20" rx="10" fill="${cc}" fill-opacity=".13"/><text x="${cx}" y="${yy + 14}" font-size="10" font-weight="800" text-anchor="middle" fill="${cc}">${ch > 0 ? "▲ تحسّن " + ch : ch < 0 ? "▼ تراجع " + Math.abs(ch) : "= ثبات"}${ch ? " نقطة" : ""}</text>`; }
+      yy += 26;
+      const tl = wrap(x.title, 20).slice(0, 3); tl.forEach((ln, q) => { v += `<text x="${cx}" y="${yy + 10 + q * 12}" font-size="10.5" font-weight="800" text-anchor="middle" fill="#2b1a20">${esc(ln)}</text>`; });
+      let ty = yy + 10 + tl.length * 12;
+      (x.tags || []).forEach((t) => { v += `<text x="${cx}" y="${ty}" font-size="9" text-anchor="middle" fill="${t[1]}" font-weight="700">${esc(t[0])}</text>`; ty += 11; });
     });
-    v += "</svg>";
-    out += v;
+    out += v + "</svg>";
   }
-  let lg = "";
-  if (mode === "unit") lg = `<span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> أقدم فترة</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الفترة الحالية</span><span>┄ خط المستهدف ١٠٠٪</span><span>+/− الانحراف عن المستهدف</span>`;
-  else { const names = []; groups.forEach((g) => g.items.forEach((i) => { if (i.unit && names.indexOf(i.unit.name) === -1) names.push(i.unit.name); })); lg = names.map((n, j) => `<span><s style="background:${shade(j, Math.max(names.length, 2))}"></s> ${esc(n)}</span>`).join("") + `<span>┄ خط المستهدف ١٠٠٪</span>`; }
-  return `<div class="rv-chart">${out}</div><div class="rg-leg">${lg}</div>`;
+  return out;
 }
-function g_low(g) { return !!(g && g.low); }
+function indVizSvg(groups, mode) {
+  let html = "", lg = "";
+  if (mode === "unit") {
+    const gs = groups.map((g) => ({ title: g.name, cols: g.items[0] ? g.items[0].cols : [], low: g.low, tags: (g.low ? [["الأقل أفضل", "#2f5a85"]] : []).concat(g.cum ? [["تراكمي", "#9a5b1e"]] : []) })).filter((x) => x.cols.length);
+    if (!gs.length) return "";
+    html = `<div class="rv-chart">${indDrawGroups(gs, 4)}</div>`;
+    lg = `<span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> أقدم فترة</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الأحدث</span><span>┄ خط المستهدف ١٠٠٪</span><span>+/− الانحراف عن المستهدف</span>`;
+  } else {
+    // التقرير النهائي: لكل مؤشر رسم واحد، لكل وحدة مجموعة أعمدتها حسب اختيارها
+    groups.forEach((g) => {
+      const modes = new Set(g.items.map((i) => i.mode)), mixed = modes.size > 1;
+      const gs = g.items.filter((i) => i.cols.length).map((i) => ({ title: i.unit ? i.unit.name : "", cols: i.cols, low: g.low, tags: mixed ? [[IND_CMP_LBL[i.mode], "#5a4a8a"]] : [] }));
+      if (!gs.length) return;
+      const tags = `<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px">${g.goals.map((n) => `<i class="ind-tg">${esc(n)}</i>`).join("")}${g.progs.map((n) => `<i class="ind-tp">${esc(n)}</i>`).join("")}${g.cum ? `<i class="ind-tc">تراكمي</i>` : ""}${g.low ? `<i class="ind-tl">الأقل أفضل</i>` : ""}${!mixed ? `<i class="ind-to">${IND_CMP_LBL[[...modes][0]]}</i>` : ""}</span>`;
+      html += `<div class="ind-blk"><div class="ind-bh">${esc(g.name)}${tags}</div><div class="rv-chart">${indDrawGroups(gs, 4)}</div></div>`;
+    });
+    if (!html) return "";
+    lg = `<span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> الأقدم</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الأحدث</span><span>┄ خط المستهدف ١٠٠٪</span><span>+/− الانحراف عن المستهدف</span>`;
+  }
+  return html + `<div class="rg-leg">${lg}</div>`;
+}
 function indVizTable(groups, mode) {
   const K = (s) => (s.key === "achieved" ? "ok" : s.key === "close" ? "wr" : s.key === "noData" ? "na" : "bad");
   const head = mode === "unit"
@@ -8172,7 +8193,7 @@ function indVizTable(groups, mode) {
       else if (mode === "unit") { n++; nameTd = `<td>${n}</td><td style="font-weight:700">${esc(g.name)}${tags(g, r0)}</td>`; }
       let dir = "—";
       if (mode === "unit") { const ps = it.cols.map((x) => x.p).filter((q) => q != null); if (ps.length >= 2) { const ch = ps[ps.length - 1] - ps[0]; dir = `<b style="color:${ch > 0 ? "#1f8a5b" : ch < 0 ? "#c0392b" : "#8a7279"}">${ch > 0 ? "▲ تحسّن " + ch : ch < 0 ? "▼ تراجع " + Math.abs(ch) : "= ثبات"}</b>`; } }
-      const base = `<td>${esc(it.bs != null ? it.bs : "—")}</td><td>${esc(c.tg != null ? indFmtV(c.tg) : "—")}</td><td>${esc(r0.actual !== "" && r0.actual != null ? r0.actual : "—")}</td>`;
+      const base = `<td>${esc(it.bs != null ? it.bs : "—")}</td><td>${esc(c.tg != null ? indFmtV(c.tg) : "—")}</td><td>${esc(r0.actual !== "" && r0.actual != null ? r0.actual : "—")}${it.cols.length > 1 ? `<div style="font-size:8px;color:#8a7279;font-weight:500;white-space:nowrap">${it.cols.map((x) => esc(indFmtV(x.ac))).join(" ← ")}</div>` : ""}</td>`;
       const tail = `${rgBar(p, K(c.st))}<td>${esc(c.st.label)}</td>`;
       const act2 = `<td>${dev || act ? dev + (act ? `<div class="kpi-act">${act}</div>` : "") : "—"}</td>`;
       html += mode === "unit" ? `<tr>${nameTd}${base}${tail}<td>${dir}</td>${act2}</tr>` : `<tr>${nameTd}<td style="font-weight:600">${esc(it.unit ? it.unit.name : "—")}</td>${base}${tail}${act2}</tr>`;
@@ -17191,7 +17212,7 @@ function attachClickListener() {
       }
       case "us-page-set": {
         const uid = S.currentUnitId; if (!uid || !(S.isAdmin || isUnitInUserScope(uid))) break;
-        if (!["orient", "margin", "pageNum"].includes(ds.key)) break;
+        if (!["orient", "margin", "pageNum", "indCmp"].includes(ds.key)) break;
         ulSetImage(uid, ds.key, ds.val || "");
         if (ds.key === "margin" && RPT_MARGINS[ds.val]) { const m = RPT_MARGINS[ds.val]; ["mt", "mb", "mr", "ml"].forEach((k, i) => ulSetImage(uid, k, m[i])); }
         if (ds.key === "margin" && ds.val === "") ["mt", "mb", "mr", "ml"].forEach((k) => ulSetImage(uid, k, ""));
