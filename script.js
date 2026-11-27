@@ -746,7 +746,7 @@ function renderSchemaRepeaterHtml(schema, d) {
   const belowMin = schema.minItems != null && items.length > 0 && items.length < schema.minItems;
   const minWarningHtml = belowMin ? `<div class="hint bad">أضيفي ${schema.minItems - items.length} ${schema.itemLabelPlural || schema.itemLabel} إضافية على الأقل لاستيفاء الحد الأدنى (${schema.minItems}).</div>` : "";
   const addBtn = pillBtn(addLabel, { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: schema.arrayKey }, disabled: atMax });
-  if (schema.arrayKey === "programs") return `${hintHtml}<div style="margin-bottom:14px;">${addBtn}${pillBtn("استيراد من جدول", { variant: "ghost", action: "xl-open" })}</div>${xlPanelHtml()}${rows}${minWarningHtml}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
+  if (schema.arrayKey === "programs") return `${hintHtml}<div style="margin-bottom:14px;">${addBtn}${pillBtn("استيراد من جدول", { variant: "ghost", action: "xl-open" })}</div>${xlPanelHtml()}${rows}${minWarningHtml}${pcStatsFormHtml(d, d.programs || [])}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
   return `${hintHtml}<div style="margin-bottom:14px;">${addBtn}</div>${rows}${minWarningHtml}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
   return `${hintHtml}${rows}${addBtn}${minWarningHtml}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
 }
