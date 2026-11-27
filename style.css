@@ -1777,3 +1777,10 @@ html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt
 .pc-chip .pc-x{padding:5px 9px;color:#a8324f;border-inline-start:1px solid #f0e4e7}
 .pc-it{margin-bottom:10px}
 .rg-rtb.pc-sumt td{font-size:11px}
+
+/* التقرير: البرامج وأدواتها وتحليلها متصلة بلا إطارات ولا فواصل */
+.rpt-chapter .rpt-pcs{display:block}
+.rpt-chapter .rpt-pc,.rpt-chapter .rpt-pc.rpt-pc-gen,.rpt-v5 .rpt-pc-gen{border:0!important;background:transparent!important;border-radius:0;padding:0;margin:0 0 6px;box-shadow:none;break-inside:auto;page-break-inside:auto}
+.rpt-chapter .rpt-pc-h{margin:12px 0 4px}
+.rpt-chapter .rpt-pc-row{border-top:0}
+.rpt-chapter .rpt-pc-s{margin:8px 0 3px}
