@@ -9950,8 +9950,8 @@ function pcStatsTableHtml(progs, report) {
   return `<div class="rg-tw"><table class="rg-rtb ind2 pc-sumt"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join("")}</colgroup><tr><th>م</th><th>العمل</th><th>ماذا نعدّ؟</th><th>المستهدف</th><th>المنجز</th><th>نسبة الإنجاز</th><th>المؤشر المرتبط</th></tr>${body}</table></div>`;
 }
 function pcStatsFormHtml(d, progs) {
-  if (!(progs || []).some((p) => p && String(p.name || "").trim())) return "";
-  const blocks = progs.filter((p) => p && String(p.name || "").trim()).map((p) => `<div class="repeat-item pc-it"><div class="repeat-item-head"><span class="repeat-item-title">${esc(String(p.name).trim())}</span></div>${pcCountBlockHtml(p, d)}</div>`).join("");
+  if (!(progs || []).length) return "";
+  const blocks = progs.map((p, i) => `<div class="repeat-item pc-it"><div class="repeat-item-head"><span class="repeat-item-title">${esc(String(p.name || "").trim() || "العمل / البرنامج " + (i + 1))}</span></div>${pcCountBlockHtml(p, d)}</div>`).join("");
   let entry = null; try { entry = typeof getCurrentReportEntry === "function" ? getCurrentReportEntry() : null; } catch (e) {}
   return `<div class="subhead" style="margin-top:22px">ماذا أنجزتِ في هذه الأعمال؟ (إحصائية الإنجاز)</div>
     <div class="hint" style="margin-bottom:8px;line-height:1.8">لكل عمل اختاري «ماذا نعدّ؟»، ثم اكتبي المستهدف والمنجز، والنسبة تُحسب تلقائيًا. مثال: زيارة إشرافية ← مركز: المستهدف ٤٥ والمنجز ٣٨ = ٨٤٪. وتقدرين تضيفين أسماء المراكز أو الحلقات وتعلّمين المنجز منها.</div>
