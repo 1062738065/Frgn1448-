@@ -1762,3 +1762,8 @@ html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt
 @media print{.rg-rtb.ind2{table-layout:fixed!important}}
 .ind-blk{margin:8px 0 10px;break-inside:avoid;page-break-inside:avoid}
 .ind-bh{font-weight:800;font-size:12px;color:var(--rpt-ink,#2b1a20);margin:6px 0 2px;display:flex;flex-wrap:wrap;align-items:center}
+
+/* مقارنة التقرير: جداول الفصل */
+.rg-rtb.cmp-t th.sub{font-size:9px;padding:3px 2px;font-weight:700}
+.rg-rtb.cmp-t th.dv,.rg-rtb.cmp-t td.dv{border-inline-start:2px solid #d9bcc6!important}
+.rg-rtb.cmp-t td{font-size:10px}

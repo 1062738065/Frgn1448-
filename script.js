@@ -5723,7 +5723,7 @@ function usPageCardHtml(unit) {
     ${row("الهوامش", "margin", [["narrow", "ضيقة"], ["normal", "عادية"], ["wide", "واسعة"], ["custom", "بالمليمتر"]])}
     ${cur.margin === "custom" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px;">${[["mt", "أعلى"], ["mb", "أسفل"], ["mr", "يمين"], ["ml", "يسار"]].map(([k, l]) => `<label style="font-size:12px;">${l}<input type="number" class="input" data-us-m="${k}" min="0" max="50" inputmode="numeric" value="${Number(cur[k]) || 0}" style="width:78px;" /></label>`).join("")}</div>` : ""}
     ${row("ترقيم الصفحات", "pageNum", [["none", "بدون"], ["paren", "(٢)"], ["num", "٢"], ["of", "٢ من ٨"]])}
-    ${row("مقارنة المؤشرات في التقرير", "indCmp", [["cur", "العام الحالي فقط"], ["terms", "فصول العام"], ["years", "الأعوام (٣ أعوام)"]])}
+    ${row("مقارنة التقرير (مؤشرات · أهداف · برامج · أدوات)", "indCmp", [["cur", "العام الحالي فقط"], ["terms", "فصول العام"], ["years", "الأعوام (٣ أعوام)"]])}
   </div>`;
 }
 function usLetterheadCardHtml(unit) {
@@ -7513,7 +7513,7 @@ const AGG_CHAPTERS = [
   { key: "perf", title: "مستوى أداء الأقسام والوحدات", icon: "building" },
   { key: "indicators", title: "المؤشرات والأرقام", icon: "gauge" },
   { key: "goalsChapter", title: "الأهداف التشغيلية — المستهدف والمتحقق والأدلة", icon: "check" },
-  { key: "yearCompare", title: "مقارنة آخر 3 سنوات — المستهدف والمتحقق", icon: "gauge" },
+  { key: "yearCompare", title: "المقارنة بالفترات السابقة — المستهدف والمتحقق", icon: "gauge" },
   { key: "programs", title: "الأعمال والبرامج وإحصائية الإنجاز", icon: "layers" },
   { key: "achievements", title: "أعلى الإنجازات ذات الأثر", icon: "sparkles" },
   { key: "strengths", title: "نقاط القوة المشتركة", icon: "check" },
@@ -7928,9 +7928,9 @@ function aggReportData(s) {
     initiatives: initiatives.filter((it) => it.scalability).slice(0, lim),
     nextTasks: nextTasks.slice(0, lim * 2),
     goalsHtml: () => aggGoalsChapterBody(flat), hasGoals: () => aggGoalsRows(flat).length > 0,
-    yearCompareHtml: () => yearCompareReportChapterBody(finalUnits),
+    yearCompareHtml: () => cmpChapterBody(finalUnits),
     programsHtml: () => programsReportChapterBody(finalUnits, year),
-    hasYearCompare: () => { const yc = yearlyComparisonData(finalUnits); return !!(yc.indicators.length || yc.goals.length); },
+    hasYearCompare: () => finalUnits.some((u) => { const r = latestReportForUnit(u.id); return !!(r && reportHasContent(r)); }),
     hasPrograms: () => collectProgramsForUnits(finalUnits, year).length > 0,
   };
 }
@@ -10093,6 +10093,88 @@ function programsReportChapterBody(units, year) {
     return [esc(unit.name), esc(p.name), esc(p.workType || "—"), esc(p.executionStatus || "—"), a == null ? "—" : esc(fmtNum(a) + (cu ? " " + cu : "")), esc(p.highlightResult || "—")];
   }));
   return `<div class="rpt-subheading">إحصائية الإنجاز</div>${statsTable}<div class="rpt-subheading">قائمة الأعمال والبرامج (${progs.length})</div>${listTable}`;
+}
+/* ===== المقارنة بالفترات السابقة: فصل التقرير النهائي (أهداف · مؤشرات · برامج · أدوات) — كل وحدة بما اختارته في «مقارنة التقرير» ===== */
+function cmpPeriodsOf(unit, report) {
+  const mode = indCmpOf(unit); let cur = null; try { cur = reportTermInfo(report); } catch (e) {}
+  const one = [{ r: report, label: cur ? cur.label : "الحالي" }];
+  if (mode === "cur" || !cur) return { mode: "cur", cols: one };
+  let list = []; try { list = ensureUnitReportsLoaded(unit.id) || []; } catch (e) {}
+  let pt = ""; try { pt = reportPeriodType(report); } catch (e) {}
+  const m = {};
+  list.forEach((r) => { try { if (!reportHasContent(r) || reportPeriodType(r) !== pt) return; const t = reportTermInfo(r); if (t.ord > cur.ord) return; const o = m[t.key]; if (!o || (r.createdAt || 0) > (o.r.createdAt || 0)) m[t.key] = { r, t }; } catch (e) {} });
+  const ts = Object.values(m).sort((a, b) => a.t.ord - b.t.ord);
+  let pick;
+  if (mode === "terms") pick = ts.filter((x) => String(x.t.year) === String(cur.year)).slice(-3).map((x) => ({ r: x.r, label: x.t.label }));
+  else { const by = {}; ts.forEach((x) => { by[x.t.year] = x; }); pick = Object.keys(by).sort().slice(-3).map((y) => ({ r: by[y].r, label: y + "هـ" })); }
+  return pick.length >= 2 ? { mode, cols: pick } : { mode: "cur", cols: one };
+}
+// عناصر تقرير واحد لكل نوع: خريطة اسم ← { ac, tg, p, link }
+function cmpItemsOf(unit, r) {
+  const out = { goals: {}, inds: {}, progs: {}, tools: {} };
+  const progs = rptProgramList(r), indRows = dashIndRows(r), gDefs = S.goalsDefinitions.operational || [];
+  const indInfo = indRows.map((row) => {
+    const def = findIndicatorDef(row.name), rv = resolveIndicatorRow(row, def);
+    if ((rv.target === "" || rv.target == null) && (row.__t != null || (row.target !== "" && row.target != null))) rv.target = row.__t != null ? row.__t : row.target;
+    const st = computeIndicatorStatus(rv), ac = indNumV(row.actual), tg = indNumV(rv.target);
+    return { row, ac, tg, p: st.ratio == null || !isFinite(st.ratio) ? null : Math.round(st.ratio * 100), goals: indLinkedGoalDefs(row).map((g) => String(g.name).trim()), progs: indLinkedPrograms(progs, row).map((p) => String(p.name).trim()) };
+  });
+  indInfo.forEach((x) => { out.inds[String(x.row.name).trim()] = { ac: x.ac, tg: x.tg, p: x.p, link: x.goals.concat(x.progs).join("، ") }; });
+  dashOpGoals(r).forEach((og) => {
+    const nm = String(og.name).trim(), def = gbDefByName(nm), v = og.level && og.percentage !== "" && og.percentage != null ? numOrNull(og.percentage) : null;
+    let tg = def ? numOrNull(ogTargetForReport(def.id, unit.id, r)) : null; if (tg == null) tg = 100;
+    out.goals[nm] = { ac: v, tg, p: v == null ? null : Math.round(v / tg * 100), link: "" };
+  });
+  progs.forEach((p) => {
+    const nm = String(p.name).trim(), rel = indInfo.filter((x) => x.progs.indexOf(nm) !== -1), ps = rel.map((x) => x.p).filter((q) => q != null).map((q) => Math.min(100, q));
+    const v = ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null, gl = [...new Set(rel.flatMap((x) => x.goals))];
+    out.progs[nm] = { ac: v, tg: 100, p: v, link: gl.join("، ") };
+  });
+  (((r.sections || {}).tools || {}).data || {}).tools && ((r.sections.tools.data.tools) || []).forEach((t) => {
+    const nm = String(t.name || "").trim(); if (!nm) return;
+    let v = null; try { if (t.analysis) { const q = svMainPct(t.analysis, t.mainSource); if (q != null && isFinite(q)) v = Math.round(q); } } catch (e) {}
+    out.tools[nm] = { ac: v, tg: null, p: v, link: String(t.relatedProgram || "").trim() };
+  });
+  return out;
+}
+function cmpTableHtml(rows, cols, kind) {
+  const n = cols.length, hasTg = kind !== "tools";
+  const sub = hasTg ? cols.map((c, i) => `<th class="sub${i ? " dv" : ""}">المستهدف</th><th class="sub">المتحقق</th>`).join("") : "";
+  const top = cols.map((c, i) => hasTg ? `<th colspan="2"${i ? ' class="dv"' : ""}>${esc(c.label)}</th>` : `<th${i ? ' class="dv"' : ""}>${esc(c.label)}</th>`).join("");
+  const lnk = kind === "goals" ? "" : (kind === "inds" || kind === "progs" ? "الهدف / البرنامج المرتبط" : "البرنامج المرتبط");
+  const fmt = (v, k) => v == null ? "—" : (kind === "inds" ? indFmtV(v) : indFmtV(v) + "٪");
+  let body = "";
+  rows.forEach((r, i) => {
+    const ps = r.vals.map((v) => (v && v.p != null ? v.p : null)).filter((p) => p != null);
+    let chg = "—"; if (ps.length >= 2) { const d = ps[ps.length - 1] - ps[ps.length - 2]; chg = `<b style="color:${d > 0 ? "#1f8a5b" : d < 0 ? "#c0392b" : "#8a7279"}">${d > 0 ? "▲ " + d : d < 0 ? "▼ " + Math.abs(d) : "= ثبات"}</b>`; }
+    const cells = r.vals.map((v, j) => hasTg ? `<td${j ? ' class="dv"' : ""}>${v && v.tg != null ? esc(fmt(v.tg)) : "—"}</td><td>${v && v.ac != null ? esc(fmt(v.ac)) : "—"}</td>` : `<td${j ? ' class="dv"' : ""}>${v && v.ac != null ? esc(fmt(v.ac)) : "—"}</td>`).join("");
+    body += `<tr><td>${i + 1}</td><td style="font-weight:700;text-align:right">${esc(r.name)}</td>${lnk ? `<td>${esc(r.link || "—")}</td>` : ""}${cells}<td>${n > 1 ? chg : "—"}</td></tr>`;
+  });
+  const head = `<tr><th rowspan="${hasTg ? 2 : 1}">م</th><th rowspan="${hasTg ? 2 : 1}">${{ goals: "الهدف التشغيلي", inds: "المؤشر", progs: "البرنامج", tools: "أداة القياس" }[kind]}</th>${lnk ? `<th rowspan="${hasTg ? 2 : 1}">${lnk}</th>` : ""}${top}<th rowspan="${hasTg ? 2 : 1}">التغير</th></tr>${hasTg ? `<tr>${sub}</tr>` : ""}`;
+  const total = 100, fixed = 4 + 24 + (lnk ? 16 : 0) + 12, per = (total - fixed) / (n * (hasTg ? 2 : 1));
+  const cw = [4, 24].concat(lnk ? [16] : []).concat(Array(n * (hasTg ? 2 : 1)).fill(per)).concat([12]);
+  return `<div class="rg-tw"><table class="rg-rtb ind2 cmp-t"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join("")}</colgroup>${head}${body}</table></div>`;
+}
+function cmpUnitBlock(unit, report) {
+  const pr = cmpPeriodsOf(unit, report), cols = pr.cols;
+  const per = cols.map((c) => cmpItemsOf(unit, c.r));
+  const KINDS = [["goals", "الأهداف التشغيلية"], ["inds", "مؤشرات الأداء"], ["progs", "البرامج"], ["tools", "أدوات القياس"]];
+  let html = "";
+  KINDS.forEach(([k, title]) => {
+    const names = []; per.slice().reverse().forEach((m) => Object.keys(m[k]).forEach((n) => { if (names.indexOf(n) === -1) names.push(n); }));
+    const rows = names.map((n) => ({ name: n, link: (per.slice().reverse().map((m) => (m[k][n] || {}).link).find((x) => x) || ""), vals: per.map((m) => m[k][n] || null) })).filter((r) => r.vals.some((v) => v && v.ac != null));
+    if (!rows.length) return;
+    const gs = rows.map((r) => ({ title: r.name, cols: r.vals.map((v, i) => ({ label: cols[i].label, ac: v ? v.ac : null, tg: v ? v.tg : null, p: v ? v.p : null })), low: false, tags: [] }));
+    html += `<div class="ind-blk"><div class="ind-bh">${title}<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px"><i class="ind-to">${rows.length}</i></span></div>${cmpTableHtml(rows, cols, k)}<div class="rv-chart">${indDrawGroups(gs, 4)}</div></div>`;
+  });
+  if (!html) return "";
+  return `<div class="ind-bh" style="margin-top:14px">${esc(unit.name)}<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px"><i class="ind-to">${esc(IND_CMP_LBL[pr.mode])}</i></span></div>${html}`;
+}
+function cmpChapterBody(units) {
+  let html = "";
+  (units || []).forEach((u) => { const rep = latestReportForUnit(u.id); if (rep && reportHasContent(rep)) html += cmpUnitBlock(u, rep); });
+  if (!html) return emptyHint("لا توجد بيانات كافية للمقارنة بالفترات.");
+  return html + `<div class="rg-leg"><span><s style="background:var(--rpt-g-tg,#e3b6c5)"></s> الأقدم</span><span><s style="background:var(--rpt-g-ac,#7a1f3d)"></s> الأحدث</span><span>┄ خط ١٠٠٪</span></div>`;
 }
 function yearCompareReportChapterBody(units) {
   const data = yearlyComparisonData(units);
