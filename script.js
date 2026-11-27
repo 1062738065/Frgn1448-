@@ -7517,7 +7517,7 @@ const AGG_CHAPTERS = [
   { key: "perf", title: "مستوى أداء الأقسام والوحدات", icon: "building" },
   { key: "indicators", title: "المؤشرات والأرقام", icon: "gauge" },
   { key: "goalsChapter", title: "الأهداف التشغيلية — المستهدف والمتحقق والأدلة", icon: "check" },
-  { key: "yearCompare", title: "المقارنة بالفترات السابقة — المستهدف والمتحقق", icon: "gauge" },
+  { key: "yearCompare", title: "مقارنة الأهداف والبرامج والأدوات بالفترات السابقة", icon: "gauge" },
   { key: "programs", title: "الأعمال والبرامج وإحصائية الإنجاز", icon: "layers" },
   { key: "achievements", title: "أعلى الإنجازات ذات الأثر", icon: "sparkles" },
   { key: "strengths", title: "نقاط القوة المشتركة", icon: "check" },
@@ -7934,7 +7934,7 @@ function aggReportData(s) {
     goalsHtml: () => aggGoalsChapterBody(flat), hasGoals: () => aggGoalsRows(flat).length > 0,
     yearCompareHtml: () => cmpChapterBody(finalUnits),
     programsHtml: () => programsReportChapterBody(finalUnits, year),
-    hasYearCompare: () => finalUnits.some((u) => { const r = latestReportForUnit(u.id); return !!(r && reportHasContent(r)); }),
+    hasYearCompare: () => finalUnits.some((u) => { const r = latestReportForUnit(u.id); return !!(r && reportHasContent(r) && cmpUnitBlock(u, r)); }),
     hasPrograms: () => collectProgramsForUnits(finalUnits, year).length > 0,
   };
 }
@@ -10171,7 +10171,8 @@ function cmpTableHtml(rows, cols, kind) {
 function cmpUnitBlock(unit, report) {
   const pr = cmpPeriodsOf(unit, report), cols = pr.cols;
   const per = cols.map((c) => cmpItemsOf(unit, c.r));
-  const KINDS = [["goals", "الأهداف التشغيلية"], ["inds", "مؤشرات الأداء"], ["progs", "البرامج"], ["tools", "أدوات القياس"]];
+  // المؤشرات في فصلها (تحليل مؤشرات الأداء) بنفس الفترات، والأهداف في فصلها للفترة الحالية: فلا تتكرر هنا
+  const KINDS = [["goals", "الأهداف التشغيلية"], ["progs", "البرامج"], ["tools", "أدوات القياس"]].filter((x) => x[0] !== "goals" || cols.length >= 2);
   let html = "";
   KINDS.forEach(([k, title]) => {
     const names = []; per.slice().reverse().forEach((m) => Object.keys(m[k]).forEach((n) => { if (names.indexOf(n) === -1) names.push(n); }));
@@ -13745,6 +13746,38 @@ function svQuality(n, pop) {
 }
 function svD(x) { return String(x || "").replace(/-/g, "/").replace(/\d/g, (c) => "٠١٢٣٤٥٦٧٨٩"[c]); }
 function svAr(x, d) { const v = Number(x); if (!isFinite(v)) return ""; return v.toLocaleString("ar-SA", { maximumFractionDigits: d == null ? 0 : d, useGrouping: false }); }
+
+/* ===== أدوات القياس: شرح تحت الحقول + نتيجة القياس + المستجيبات من نتائج الأداة ===== */
+function fieldWrapH(label, hint, a, b) {
+  const w = b === undefined ? fieldWrap(label, a) : fieldWrap(label, a, b);
+  return w.replace(/<\/div>$/, `<div class="hint" style="margin-top:3px;font-size:11.5px">${hint}</div></div>`);
+}
+function svRespFieldHtml(t) {
+  const auto = !!(t.autoFields && t.autoFields.respondentsCount) && !t.respManual;
+  if (auto) return fieldWrapH("عدد المستجيبات", "من نتائج الأداة (للقراءة فقط)", readonlyBox(String(t.respondentsCount == null ? "" : t.respondentsCount)) + `<button type="button" class="pill-btn pill-ghost" data-action="tool-resp-manual" data-id="${esc(t.id)}" style="margin-top:6px">تعديل يدوي</button>`);
+  return fieldWrapH("عدد المستجيبات", t.analysis ? "معدَّل يدويًا" : "من أجبن فعلًا. يُعبَّأ تلقائيًا عند قراءة النتائج", inp("tools", t.id, "respondentsCount", t.respondentsCount, "0", "number"));
+}
+function svResultBlockHtml(t) {
+  return `<div class="subhead">نتيجة القياس</div>
+    <div class="hint" style="margin-bottom:8px">تُعبَّأ تلقائيًا بعد قراءة نتائج الأداة، وتقدرين تعدّلينها.${t.analysis ? "" : " ولا تظهر تلقائيًا بدون قراءة النتائج، فاكتبيها يدويًا."}</div>
+    ${fieldWrapH("النتيجة الرئيسية", "رقم واحد يلخّص الأداة، مثل: رضا عام ٨٦٪", inp("tools", t.id, "resultMain", t.resultMain, "مثال: ٨٦٪"))}
+    <div class="row-flex">
+      ${fieldWrapH("أعلى بند", "أفضل محور أو سؤال", inp("tools", t.id, "resultTop", t.resultTop, "مثال: وضوح المحتوى ٩٢٪"))}
+      ${fieldWrapH("أدنى بند", "أضعف محور أو سؤال", inp("tools", t.id, "resultLow", t.resultLow, "مثال: مدة الدورة ٧١٪"))}
+    </div>
+    ${fieldWrapH("تفسير مختصر", "جملة أو جملتان تشرحان النتيجة", txt("tools", t.id, "resultNote", t.resultNote, "تفسير النتيجة"))}`;
+}
+function svFillResult(t) {
+  const a = t.analysis; if (!a) return;
+  try {
+    const o = svTexts(t), sq = svScaleQs(a).slice().sort((x, y) => svQPct(y) - svQPct(x));
+    t.resultMain = o && o.main != null ? svAr(o.main) + "٪" : "";
+    t.resultTop = sq.length ? `${sq[0].t} (${svAr(svQPct(sq[0]))}٪)` : "";
+    t.resultLow = sq.length > 1 ? `${sq[sq.length - 1].t} (${svAr(svQPct(sq[sq.length - 1]))}٪)` : "";
+    t.resultNote = (o && o.summary) || "";
+    if (t.autoFields) t.autoFields.result = 1;
+  } catch (e) {}
+}
 function svApplyToTool(t, a) {
   t.analysis = a;
   t.respondentsCount = String(a.n);
@@ -13754,6 +13787,8 @@ function svApplyToTool(t, a) {
   t.resultQuality = svQuality(a.n, t.populationSize);
   t.autoFields = { sampleSize: keepSample ? 0 : 1, respondentsCount: 1, applicationDate: !!a.from, resultQuality: 1 };
   if (!t.mainSource) t.mainSource = "all";
+  t.respManual = false;
+  svFillResult(t);
 }
 // نصوص التحليل التلقائي (تعبّي القسم ٦)
 function svTexts(t) {
@@ -14117,24 +14152,25 @@ function toolsSectionHtml(d) {
     const responseRate = svResponseRate(t);
     return `<div class="repeat-item">
       <div class="repeat-item-head"><span class="repeat-item-title">أداة القياس ${i + 1}</span>${removeBtn("tools", t.id)}</div>
-      ${fieldWrap("نوع الأداة", true, expandableSelectHtml("toolType", t.toolType, MEASUREMENT_TOOL_TYPES, customToolTypes, "اختاري نوع الأداة", "أخرى", "tools", t.id))}
+      ${fieldWrapH("نوع الأداة", "يحدد طريقة التحليل",  true, expandableSelectHtml("toolType", t.toolType, MEASUREMENT_TOOL_TYPES, customToolTypes, "اختاري نوع الأداة", "أخرى", "tools", t.id))}
       <div class="subhead">بيانات الأداة</div>
-      ${fieldWrap("اسم الأداة", true, inp("tools", t.id, "name", t.name, "اسم أداة القياس"))}
-      ${fieldWrap("الهدف من استخدامها", txt("tools", t.id, "purpose", t.purpose, "لماذا استُخدمت هذه الأداة؟"))}
-      ${fieldWrap("الجهة أو البرنامج المرتبط بها", (rptProgramNames().length ? sel("tools", t.id, "relatedProgram", t.relatedProgram, [...new Set([...rptProgramNames(), ...(t.relatedProgram ? [t.relatedProgram] : [])])], "بدون ربط") : inp("tools", t.id, "relatedProgram", t.relatedProgram, "مثال: دورة إدارة الوقت")))}
-      ${fieldWrap("الفئة التي طبقت عليها", inp("tools", t.id, "targetGroup", t.targetGroup, "مثال: الموظفات"))}
+      ${fieldWrapH("اسم الأداة", "العنوان الذي يظهر في التقرير",  true, inp("tools", t.id, "name", t.name, "اسم أداة القياس"))}
+      ${fieldWrapH("الهدف من استخدامها", "ماذا تقيس الأداة ولماذا استُخدمت",  txt("tools", t.id, "purpose", t.purpose, "لماذا استُخدمت هذه الأداة؟"))}
+      ${fieldWrapH("الجهة أو البرنامج المرتبط بها", "يربط الأداة ببرنامج التقرير وتحليله",  (rptProgramNames().length ? sel("tools", t.id, "relatedProgram", t.relatedProgram, [...new Set([...rptProgramNames(), ...(t.relatedProgram ? [t.relatedProgram] : [])])], "بدون ربط") : inp("tools", t.id, "relatedProgram", t.relatedProgram, "مثال: دورة إدارة الوقت")))}
+      ${fieldWrapH("الفئة التي طبقت عليها", "من طُبقت عليهم الأداة",  inp("tools", t.id, "targetGroup", t.targetGroup, "مثال: الموظفات"))}
       <div class="row-flex">
-        ${fieldWrap("حجم المجتمع", inp("tools", t.id, "populationSize", t.populationSize, "0", "number"))}
-        ${fieldWrap("حجم العينة", inp("tools", t.id, "sampleSize", t.sampleSize, "0", "number"))}
+        ${fieldWrapH("حجم المجتمع", "كل الفئة المعنية",  inp("tools", t.id, "populationSize", t.populationSize, "0", "number"))}
+        ${fieldWrapH("حجم العينة", "من استُهدفوا بالأداة",  inp("tools", t.id, "sampleSize", t.sampleSize, "0", "number"))}
       </div>
-      ${fieldWrap("عدد المستجيبات", inp("tools", t.id, "respondentsCount", t.respondentsCount, "0", "number"))}
-      ${fieldWrap("نسبة الاستجابة", readonlyBox(responseRate != null ? `${responseRate}٪` : "تُحسب تلقائيًا بعد إدخال حجم العينة وعدد المستجيبات"))}
-      ${fieldWrap("تاريخ التطبيق", inp("tools", t.id, "applicationDate", t.applicationDate, "", "date"))}
-      ${fieldWrap("رابط نسخة الأداة", inp("tools", t.id, "toolLink", t.toolLink, "https://..."))}
-      ${fieldWrap("رابط نتائجها", inp("tools", t.id, "resultsLink", t.resultsLink, "https://..."))}
+      ${svRespFieldHtml(t)}
+      ${fieldWrapH("نسبة الاستجابة", "تُحسب تلقائيًا: المستجيبات ÷ العينة",  readonlyBox(responseRate != null ? `${responseRate}٪` : "تُحسب تلقائيًا بعد إدخال حجم العينة وعدد المستجيبات"))}
+      ${fieldWrapH("تاريخ التطبيق", "متى طُبقت الأداة",  inp("tools", t.id, "applicationDate", t.applicationDate, "", "date"))}
+      ${fieldWrapH("رابط نسخة الأداة", "رابط نموذج الأداة نفسه",  inp("tools", t.id, "toolLink", t.toolLink, "https://..."))}
+      ${fieldWrapH("رابط نتائجها", "رابط جدول الردود",  inp("tools", t.id, "resultsLink", t.resultsLink, "https://..."))}
       ${svToolBlockHtml(t)}
+      ${svResultBlockHtml(t)}
       <div class="subhead">جودة نتائج الأداة</div>
-      ${fieldWrap("جودة نتائج الأداة", radio("tools", t.id, "resultQuality", t.resultQuality, TOOL_RESULT_QUALITY))}
+      ${fieldWrapH("جودة نتائج الأداة", "كافية لاتخاذ قرار، أو تحتاج تعزيزًا أو إعادة تطبيق",  radio("tools", t.id, "resultQuality", t.resultQuality, TOOL_RESULT_QUALITY))}
     </div>`;
   }).join("");
   return `${rows}${pillBtn("إضافة أداة قياس", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "tools" } })}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
@@ -15698,6 +15734,8 @@ function rptProgramNames(report) {
 function rptMeasureToolHtml(t) {
   const rr = svResponseRate(t);
   let h = `<div class="rpt-pc-row"><span>${esc(t.name || t.toolType || "أداة")}</span><b>${rr != null && rr !== "" ? "استجابة " + esc(String(rr)) + "٪" : esc(t.resultQuality || "")}</b></div>`;
+  if (t.resultMain) h += `<div class="rpt-pc-row"><span>نتيجة القياس</span><b>${esc(t.resultMain)}</b></div>`;
+  if (t.resultTop || t.resultLow) h += `<div class="rpt-pc-row"><span>${t.resultTop ? "أعلى: " + esc(t.resultTop) : ""}</span><b style="font-weight:600">${t.resultLow ? "أدنى: " + esc(t.resultLow) : ""}</b></div>`;
   if (t.analysis) {
     h += svReportHtml(t);
     const o = svTexts(t);
@@ -18661,6 +18699,7 @@ function handleReportEditorAction(action, ds) {
       if (sm && sm.text) { it.resultValue = sm.text; it.judgment = sm.judgment; if (!String(it.topic || "").trim()) it.topic = it.topicRef; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); }
       render(); return true;
     }
+    case "tool-resp-manual": { const t = svFindTool(ds.id); if (t) { t.respManual = true; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); } render(); return true; }
     case "pc-menu": { S.ui.pcOpen = S.ui.pcOpen === ds.id ? null : ds.id; render(); return true; }
     case "pc-toggle": case "pc-add-custom": {
       const it = findById(getItemList("programs"), ds.id); if (!it) return true;
