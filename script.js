@@ -10130,7 +10130,59 @@ function dashDeptRows(items, unitNameOf, rowFn, colspan) {
   let last = null;
   return keyed.map((k) => { const h = k.d !== last ? (last = k.d, `<tr><td colspan="${colspan}" style="background:${GRAY_BG};font-weight:800;color:${ROSE};padding:8px 10px;">${esc(k.d)}</td></tr>`) : ""; return h + rowFn(k.it); }).join("");
 }
-function programsCardHtml(units) {
+function pbColsHtml(names, T, M, X) {
+  X = X || {};
+  const g = (m, k) => { const v = m[k] && m[k].v; return v == null ? null : Math.max(0, Math.min(100, v)); };
+  const col = (v, cls) => v == null ? `<div class="pbc-c"><div class="pbc-v pbc-na">—</div><div class="pbc-bar ${cls} pbc-empty" style="height:4px"></div></div>` : `<div class="pbc-c"><div class="pbc-v">${v}٪</div><div class="pbc-bar ${cls}" style="height:${Math.max(v, 3)}%"></div></div>`;
+  const grp = names.map((k) => `<div class="pbc-g"><div class="pbc-pair">${col(g(T, k), "pbc-a")}${col(g(M, k), "pbc-b")}</div><div class="pbc-n"><b>${esc(k)}</b>${X[k] && X[k].d ? `<span class="pbc-x">${esc(X[k].d)}</span>` : ""}${X[k] && X[k].t ? `<span class="pbc-x pbc-t">${esc(X[k].t)}</span>` : ""}</div></div>`).join("");
+  return `<div class="pbc"><div class="pbc-lg"><span><i class="pbc-a"></i>إنجاز العمل</span><span><i class="pbc-b"></i>نتيجة القياس</span></div><div class="pbc-sc"><div class="pbc-plot"><div class="pbc-grid"><b>١٠٠٪</b><b>٧٥٪</b><b>٥٠٪</b><b>٢٥٪</b><b>٠</b></div>${grp}</div></div></div>`;
+}
+function pbToolChart(t) {
+  let rows = [];
+  try { const a = t.analysis; if (a) rows = svScaleQs(a).map((q) => ({ l: q.t, v: Math.round(svQPct(q)) })).sort((x, y) => y.v - x.v); } catch (e) { rows = []; }
+  if (rows.length > 6) rows = rows.slice(0, 3).concat(rows.slice(-3));
+  if (!rows.length) { const v = stNum(t.resultMain); if (v != null) rows = [{ l: "النتيجة الرئيسية", v: Math.round(v) }]; }
+  if (!rows.length) return "";
+  const mx = Math.max(...rows.map((r) => r.v)), mn = Math.min(...rows.map((r) => r.v));
+  return `<div class="pbq-tc">${rows.map((r) => `<div class="pbq-tr"><span class="pbq-tl">${esc(String(r.l).length > 46 ? String(r.l).slice(0, 46) + "…" : r.l)}</span><span class="pbq-tb"><i style="width:${Math.max(2, Math.min(100, r.v))}%;background:${rows.length > 1 && r.v === mn ? "var(--danger)" : r.v === mx && rows.length > 1 ? "var(--green)" : "var(--rose)"}"></i></span><b>${r.v}٪</b></div>`).join("")}</div>`;
+}
+function progBoardHtml(units) {
+  const year = dashProgramsYear(units);
+  const progs = collectProgramsForUnits(units, year).sort((a, b) => (b.report.createdAt || 0) - (a.report.createdAt || 0));
+  const pctOf = (p) => { const cs = (Array.isArray(p.counts) ? p.counts : []).map((c) => progPct(c.done, c.target)).filter((v) => v != null); if (cs.length) return Math.round(cs.reduce((a, v) => a + Math.min(100, v), 0) / cs.length); const c = numOrNull(p.completionPercent); return c == null ? null : Math.round(c); };
+  const toolPct = (t) => { let v = stNum(t.resultMain); if (v == null) { try { v = t.analysis ? svMainPct(t.analysis, t.mainSource) : null; } catch (e) { v = null; } } return v == null ? null : Math.round(v); };
+  const items = progs.map((x, i) => {
+    const nm = String(x.p.name || "").trim(), tools = ((((x.report.sections || {}).tools || {}).data || {}).tools || []).filter((t) => t && String(t.relatedProgram || "").trim() === nm);
+    const ms = tools.map(toolPct).filter((v) => v != null);
+    return { x, i: String(i), nm, pct: pctOf(x.p), tools, mp: ms.length ? Math.round(ms.reduce((a, v) => a + v, 0) / ms.length) : null };
+  });
+  const sel = items.find((it) => it.i === (S.ui && S.ui.pbSel)) || items[0];
+  const cap = (v, cls, none) => v == null ? (none ? `<div class="pbq-t"><div class="pbq-f pbq-n" style="height:15%">لا أداة</div></div>` : `<div class="pbq-t"></div>`) : `<div class="pbq-t"><div class="pbq-f ${cls}" style="height:${Math.max(Math.min(v, 100), 11)}%">${v}٪</div></div>`;
+  const cnt = (p) => { const cs = (Array.isArray(p.counts) ? p.counts : []).filter((c) => numOrNull(c.target) != null || numOrNull(c.done) != null); if (!cs.length) return ""; return "منجز " + fmtNum(cs.reduce((a, c) => a + (numOrNull(c.done) || 0), 0)) + " من " + fmtNum(cs.reduce((a, c) => a + (numOrNull(c.target) || 0), 0)); };
+  const cols = items.map((it) => `<div class="pbq-g${it === sel ? " pbq-sel" : ""}" data-action="pb-sel" data-i="${it.i}"><div class="pbq-pair">${cap(it.pct, "pbq-a")}${cap(it.mp, "pbq-b", !it.tools.length)}</div><div class="pbq-nm"><b>${esc(it.nm || "—")}</b>${cnt(it.x.p) ? `<span>${esc(cnt(it.x.p))}</span>` : ""}</div><i class="pbq-ar"></i></div>`).join("");
+  const ck = (h) => `<div class="pbq-ck"><i>✓</i><div>${h}</div></div>`;
+  let box = "";
+  if (sel) {
+    const p = sel.x.p, rows = [];
+    const sc = { "مكتمل": [GREEN, GREEN_BG], "مستمر": [BLUE, BLUE_BG], "متعثر": [DANGER, DANGER_BG], "مؤجل": [GOLD, GOLD_BG], "ملغى": [SUBTLE, GRAY_BG] }[p.executionStatus] || [SUBTLE, GRAY_BG];
+    const c1 = cnt(p); const extra = [p.attendanceRate ? "الحضور " + esc(String(p.attendanceRate)) + "٪" : "", numOrNull(p.actualBeneficiaries) != null ? "المستفيدات " + fmtNum(numOrNull(p.actualBeneficiaries)) : ""].filter(Boolean).join(" · ");
+    if (c1 || extra || sel.pct != null) rows.push(ck(`<b>المنجز:</b> ${esc([c1, sel.pct != null ? "الإنجاز " + sel.pct + "٪" : ""].filter(Boolean).join(" · "))}${extra ? " · " + extra : ""}`));
+    rows.push(ck(`<b>أبرز نتيجة:</b> ${p.highlightResult ? esc(String(p.highlightResult)) : `<span class="pbq-no">غير مُدخلة</span>`}`));
+    if (!sel.tools.length) rows.push(ck(`<b>القياس:</b> <span class="pbq-no">لا توجد أداة قياس مرتبطة بهذا العمل</span>`));
+    sel.tools.forEach((t) => {
+      let sm = ""; try { const o = t.analysis ? svTexts(t) : null; sm = o && o.summary ? String(o.summary).replace(/\s+/g, " ").slice(0, 220) : ""; } catch (e) {}
+      let rr = ""; try { const r = svResponseRate(t); if (r != null && r !== "") rr = "استجابة " + r + (String(r).includes("%") ? "" : "٪"); } catch (e) {}
+      const meta = [t.resultMain ? "النتيجة " + t.resultMain : "", t.resultTop ? "أعلى: " + t.resultTop : "", t.resultLow ? "أدنى: " + t.resultLow : "", t.resultQuality, rr].filter(Boolean).map((v) => esc(v)).join(" · ");
+      rows.push(ck(`<b>${esc(t.name || t.toolType || "أداة قياس")}${t.toolType && t.name ? " (" + esc(t.toolType) + ")" : ""}:</b> ${meta}${sm ? `<div class="pbq-sm">${esc(sm)}</div>` : ""}${pbToolChart(t)}`));
+    });
+    box = `<div class="pbq-box"><div class="pbq-bh"><b data-action="view-report-pdf" data-unit-id="${esc(sel.x.unit.id)}" data-report-id="${esc(sel.x.report.id)}" style="cursor:pointer">${esc(sel.nm || "—")}</b>${p.workType ? `<span class="pbq-ty">${esc(p.workType)}</span>` : ""}${p.executionStatus ? badgeHtml(p.executionStatus, sc[0], sc[1]) : ""}${units.length > 1 ? `<span style="color:${SUBTLE};font-size:11px">${esc(sel.x.unit.name)}</span>` : ""}</div><div class="pbq-bg">${rows.join("")}</div></div>`;
+  }
+  const lg = `<div class="pbq-lg"><span><i class="pbq-a"></i>إنجاز العمل</span><span><i class="pbq-b"></i>نتيجة القياس</span><span class="pbq-hint">اضغطي على أي عمود لتظهر معلوماته</span></div>`;
+  const body = items.length ? `${lg}<div class="pbq-sc"><div class="pbq-row">${cols}</div></div>${box}` : emptyHint(year ? `لا توجد أعمال مُدخلة لعام ${hijriYearLabel(year)}.` : "لا توجد أعمال مُدخلة بعد.");
+  return `<div class="card" style="margin-bottom:18px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;"><div class="prs-title" style="font-size:14px;font-weight:800;">الأعمال والبرامج وقياسها وتحليلها <span style="font-size:12px;color:${SUBTLE};font-weight:700">(${items.length})</span></div>${dashYearSelectHtml(units)}</div>${body}</div>`;
+}
+function programsCardHtml(units) { return progBoardHtml(units); }
+function programsCardHtml0(units) {
   const year = dashProgramsYear(units);
   const progs = collectProgramsForUnits(units, year).sort((a, b) => (b.report.createdAt || 0) - (a.report.createdAt || 0));
   const statusColor = { "مكتمل": [GREEN, GREEN_BG], "مستمر": [BLUE, BLUE_BG], "متعثر": [DANGER, DANGER_BG], "مؤجل": [GOLD, GOLD_BG], "ملغى": [SUBTLE, GRAY_BG] };
@@ -15971,7 +16023,7 @@ function stBarsSvg(names, cols) {
   [0, 0.5, 1].forEach((f) => { const v = Math.round(mx * f); s += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="#ecdfe3"/><text x="${pl - 6}" y="${Y(v) + 4}" font-size="10" text-anchor="end" fill="#8a7279">${v}</text>`; });
   names.forEach((nm, i) => {
     const cx = pl + gw * (i + 0.5), n = cols.length, bw = Math.min(34, (gw - 16) / n - 5), tot = n * bw + (n - 1) * 5;
-    cols.forEach((c, j) => { const v = (c.map[nm] || {}).v || 0, bx = cx - tot / 2 + j * (bw + 5), y = Y(v); s += `<rect x="${bx}" y="${y}" width="${bw}" height="${Math.max(0, Y(0) - y)}" rx="3" fill="${colr(j, n)}"/><text x="${bx + bw / 2}" y="${y - 5}" font-size="11" font-weight="700" text-anchor="middle" fill="#2b1a20">${v}</text>`; });
+    cols.forEach((c, j) => { const raw = (c.map[nm] || {}).v; if (raw == null) return; const v = raw || 0, bx = cx - tot / 2 + j * (bw + 5), y = Y(v); s += `<rect x="${bx}" y="${y}" width="${bw}" height="${Math.max(0, Y(0) - y)}" rx="3" fill="${colr(j, n)}"/><text x="${bx + bw / 2}" y="${y - 5}" font-size="11" font-weight="700" text-anchor="middle" fill="#2b1a20">${v}</text>`; });
     const words = String(nm).split(" "), lines = []; let cur = ""; words.forEach((w) => { if ((cur + " " + w).trim().length > 14 && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) lines.push(cur);
     lines.slice(0, 3).forEach((l, k) => { s += `<text x="${cx}" y="${H - pb + 16 + k * 13}" font-size="11" text-anchor="middle" fill="#2b1a20" style="direction:rtl">${esc(l)}</text>`; });
   });
@@ -18951,6 +19003,7 @@ function handleReportEditorAction(action, ds) {
     case "st-row-add": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; const el = document.getElementById("st-nn-" + ds.id), v = String((el && el.value) || "").trim(); if (!v) return true; t.rows = t.rows || []; t.rows.push({ id: uid("sr"), name: v, group: "" }); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "st-row-del": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; t.rows = (t.rows || []).filter((r) => r.id !== ds.rid); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "st-paste": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; stPaste(t); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
+    case "pb-sel": { S.ui.pbSel = ds.i; render(); return true; }
     case "pc-names": { const key = ds.id + "|" + ds.cid; S.ui.pcNamesOpen = S.ui.pcNamesOpen === key ? null : key; render(); return true; }
     case "pc-name-add": case "pc-name-toggle": case "pc-name-del": {
       const it = findById(getItemList("programs"), ds.id); if (!it) return true;
