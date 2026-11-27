@@ -10122,9 +10122,9 @@ function cmpItemsOf(unit, r) {
     const def = findIndicatorDef(row.name), rv = resolveIndicatorRow(row, def);
     if ((rv.target === "" || rv.target == null) && (row.__t != null || (row.target !== "" && row.target != null))) rv.target = row.__t != null ? row.__t : row.target;
     const st = computeIndicatorStatus(rv), ac = indNumV(row.actual), tg = indNumV(rv.target);
-    return { row, ac, tg, p: st.ratio == null || !isFinite(st.ratio) ? null : Math.round(st.ratio * 100), goals: indLinkedGoalDefs(row).map((g) => String(g.name).trim()), progs: indLinkedPrograms(progs, row).map((p) => String(p.name).trim()) };
+    return { row, ac, tg, low: indBetter(def && def.direction) === "L", p: st.ratio == null || !isFinite(st.ratio) ? null : Math.round(st.ratio * 100), goals: indLinkedGoalDefs(row).map((g) => String(g.name).trim()), progs: indLinkedPrograms(progs, row).map((p) => String(p.name).trim()) };
   });
-  indInfo.forEach((x) => { out.inds[String(x.row.name).trim()] = { ac: x.ac, tg: x.tg, p: x.p, link: x.goals.concat(x.progs).join("، ") }; });
+  indInfo.forEach((x) => { out.inds[String(x.row.name).trim()] = { ac: x.ac, tg: x.tg, p: x.p, low: x.low, link: x.goals.concat(x.progs).join("، ") }; });
   dashOpGoals(r).forEach((og) => {
     const nm = String(og.name).trim(), def = gbDefByName(nm), v = og.level && og.percentage !== "" && og.percentage != null ? numOrNull(og.percentage) : null;
     let tg = def ? numOrNull(ogTargetForReport(def.id, unit.id, r)) : null; if (tg == null) tg = 100;
@@ -10143,21 +10143,29 @@ function cmpItemsOf(unit, r) {
   return out;
 }
 function cmpTableHtml(rows, cols, kind) {
-  const n = cols.length, hasTg = kind !== "tools";
-  const sub = hasTg ? cols.map((c, i) => `<th class="sub${i ? " dv" : ""}">المستهدف</th><th class="sub">المتحقق</th>`).join("") : "";
-  const top = cols.map((c, i) => hasTg ? `<th colspan="2"${i ? ' class="dv"' : ""}>${esc(c.label)}</th>` : `<th${i ? ' class="dv"' : ""}>${esc(c.label)}</th>`).join("");
+  const n = cols.length, hasTg = kind !== "tools", sp = hasTg ? 3 : 1, R = hasTg ? 2 : 1;
+  const top = cols.map((c, i) => `<th colspan="${sp}"${i ? ' class="dv"' : ""}>${esc(c.label)}</th>`).join("");
+  const sub = hasTg ? cols.map((c, i) => `<th class="sub${i ? " dv" : ""}">المستهدف</th><th class="sub">المتحقق</th><th class="sub">الفرق</th>`).join("") : "";
   const lnk = kind === "goals" ? "" : (kind === "inds" || kind === "progs" ? "الهدف / البرنامج المرتبط" : "البرنامج المرتبط");
-  const fmt = (v, k) => v == null ? "—" : (kind === "inds" ? indFmtV(v) : indFmtV(v) + "٪");
+  const pc = kind !== "inds" ? "٪" : "";
+  const fmt = (v) => (v == null ? "—" : indFmtV(v) + pc);
+  const sg = (d, low) => { if (d == null) return "—"; if (d === 0) return `<span style="color:#8a7279">=</span>`; const good = low ? d < 0 : d > 0; return `<b style="color:${good ? "#1f8a5b" : "#c0392b"};direction:ltr;display:inline-block">${d > 0 ? "+" : "−"}${indFmtV(Math.abs(d))}</b>`; };
   let body = "";
   rows.forEach((r, i) => {
     const ps = r.vals.map((v) => (v && v.p != null ? v.p : null)).filter((p) => p != null);
-    let chg = "—"; if (ps.length >= 2) { const d = ps[ps.length - 1] - ps[ps.length - 2]; chg = `<b style="color:${d > 0 ? "#1f8a5b" : d < 0 ? "#c0392b" : "#8a7279"}">${d > 0 ? "▲ " + d : d < 0 ? "▼ " + Math.abs(d) : "= ثبات"}</b>`; }
-    const cells = r.vals.map((v, j) => hasTg ? `<td${j ? ' class="dv"' : ""}>${v && v.tg != null ? esc(fmt(v.tg)) : "—"}</td><td>${v && v.ac != null ? esc(fmt(v.ac)) : "—"}</td>` : `<td${j ? ' class="dv"' : ""}>${v && v.ac != null ? esc(fmt(v.ac)) : "—"}</td>`).join("");
-    body += `<tr><td>${i + 1}</td><td style="font-weight:700;text-align:right">${esc(r.name)}</td>${lnk ? `<td>${esc(r.link || "—")}</td>` : ""}${cells}<td>${n > 1 ? chg : "—"}</td></tr>`;
+    let chg = "—";
+    if (ps.length >= 2) { const parts = []; for (let k = 1; k < ps.length; k++) { const d = ps[k] - ps[k - 1]; parts.push(`<b style="color:${d > 0 ? "#1f8a5b" : d < 0 ? "#c0392b" : "#8a7279"};white-space:nowrap">${d > 0 ? "▲ " + d : d < 0 ? "▼ " + Math.abs(d) : "= ثبات"}</b>`); } chg = parts.join("<br>"); }
+    const cells = r.vals.map((v, j) => {
+      const dv = j ? ' class="dv"' : "";
+      if (!hasTg) return `<td${dv}>${v && v.ac != null ? esc(fmt(v.ac)) : "—"}</td>`;
+      const d = v && v.ac != null && v.tg != null ? Math.round((v.ac - v.tg) * 100) / 100 : null;
+      return `<td${dv}>${v && v.tg != null ? esc(fmt(v.tg)) : "—"}</td><td>${v && v.ac != null ? esc(fmt(v.ac)) : "—"}</td><td>${sg(d, r.low)}</td>`;
+    }).join("");
+    body += `<tr><td>${i + 1}</td><td style="font-weight:700;text-align:right">${esc(r.name)}</td>${lnk ? `<td>${esc(r.link || "—")}</td>` : ""}${cells}<td>${chg}</td></tr>`;
   });
-  const head = `<tr><th rowspan="${hasTg ? 2 : 1}">م</th><th rowspan="${hasTg ? 2 : 1}">${{ goals: "الهدف التشغيلي", inds: "المؤشر", progs: "البرنامج", tools: "أداة القياس" }[kind]}</th>${lnk ? `<th rowspan="${hasTg ? 2 : 1}">${lnk}</th>` : ""}${top}<th rowspan="${hasTg ? 2 : 1}">التغير</th></tr>${hasTg ? `<tr>${sub}</tr>` : ""}`;
-  const total = 100, fixed = 4 + 24 + (lnk ? 16 : 0) + 12, per = (total - fixed) / (n * (hasTg ? 2 : 1));
-  const cw = [4, 24].concat(lnk ? [16] : []).concat(Array(n * (hasTg ? 2 : 1)).fill(per)).concat([12]);
+  const head = `<tr><th rowspan="${R}">م</th><th rowspan="${R}">${{ goals: "الهدف التشغيلي", inds: "المؤشر", progs: "البرنامج", tools: "أداة القياس" }[kind]}</th>${lnk ? `<th rowspan="${R}">${lnk}</th>` : ""}${top}<th rowspan="${R}">التغير بين الفترات</th></tr>${hasTg ? `<tr>${sub}</tr>` : ""}`;
+  const fixed = 4 + 20 + (lnk ? 13 : 0) + 11, per = (100 - fixed) / (n * sp);
+  const cw = [4, 20].concat(lnk ? [13] : []).concat(Array(n * sp).fill(per)).concat([11]);
   return `<div class="rg-tw"><table class="rg-rtb ind2 cmp-t"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join("")}</colgroup>${head}${body}</table></div>`;
 }
 function cmpUnitBlock(unit, report) {
@@ -10167,7 +10175,7 @@ function cmpUnitBlock(unit, report) {
   let html = "";
   KINDS.forEach(([k, title]) => {
     const names = []; per.slice().reverse().forEach((m) => Object.keys(m[k]).forEach((n) => { if (names.indexOf(n) === -1) names.push(n); }));
-    const rows = names.map((n) => ({ name: n, link: (per.slice().reverse().map((m) => (m[k][n] || {}).link).find((x) => x) || ""), vals: per.map((m) => m[k][n] || null) })).filter((r) => r.vals.some((v) => v && v.ac != null));
+    const rows = names.map((n) => ({ name: n, low: !!per.map((m) => (m[k][n] || {}).low).find((x) => x), link: (per.slice().reverse().map((m) => (m[k][n] || {}).link).find((x) => x) || ""), vals: per.map((m) => m[k][n] || null) })).filter((r) => r.vals.some((v) => v && v.ac != null));
     if (!rows.length) return;
     const gs = rows.map((r) => ({ title: r.name, cols: r.vals.map((v, i) => ({ label: cols[i].label, ac: v ? v.ac : null, tg: v ? v.tg : null, p: v ? v.p : null })), low: false, tags: [] }));
     html += `<div class="ind-blk"><div class="ind-bh">${title}<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px"><i class="ind-to">${rows.length}</i></span></div>${cmpTableHtml(rows, cols, k)}<div class="rv-chart">${indDrawGroups(gs, 4)}</div></div>`;
