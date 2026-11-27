@@ -34,6 +34,7 @@ const DEFAULT_SECTIONS = [
   { id: "goals", label: "الأهداف والمستهدفات" },
   { id: "kpi", label: "مؤشرات الأداء" },
   { id: "programs", label: "الأعمال والبرامج" },
+  { id: "stats", label: "الإحصاءات والرسوم" },
   { id: "tools", label: "أدوات القياس" },
   { id: "analysis", label: "تحليل النتائج" },
   { id: "strengths", label: "نقاط القوة" },
@@ -53,7 +54,7 @@ let SECTIONS = DEFAULT_SECTIONS.map((s) => ({ ...s }));
 
 const PHASES = [
   { id: "phase1", label: "التأسيس", sectionIds: ["basic", "goals", "kpi"] },
-  { id: "phase2", label: "التنفيذ", sectionIds: ["programs", "tools", "analysis"] },
+  { id: "phase2", label: "التنفيذ", sectionIds: ["programs", "stats", "tools", "analysis"] },
   { id: "phase3", label: "التقييم", sectionIds: ["strengths", "challenges", "improvement"] },
   { id: "phase4", label: "الأثر والتميز", sectionIds: ["initiatives", "impact", "recommendations"] },
   { id: "phase5", label: "الإغلاق والاعتماد", sectionIds: ["nextplan", "evidence", "review"] },
@@ -314,7 +315,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "applicationDate", type: "date", label: "تاريخ التطبيق" },
       { id: "toolLink", type: "text", label: "رابط نسخة الأداة", placeholder: "https://..." },
       { id: "resultsLink", type: "text", label: "رابط نتائجها", placeholder: "https://..." },
-      { id: "resultQuality", type: "radio", label: "جودة نتائج الأداة", options: TOOL_RESULT_QUALITY, subheadBefore: "جودة نتائج الأداة" },
+      { id: "resultQuality", type: "select", label: "جودة نتائج الأداة", hideLabel: true, options: TOOL_RESULT_QUALITY, placeholder: "اختاري جودة النتائج", subheadBefore: "جودة نتائج الأداة" },
     ],
   },
   challenges: {
@@ -2953,7 +2954,8 @@ async function refreshRolesPersonsFromDb() {
 // يبني متغيّر SECTIONS الفعلي (المستخدم في كل مكان بالتطبيق) من قائمة التعريفات
 // الكاملة: يستبعد الأقسام المعطّلة ويرتّب الباقي حسب order.
 function applyReportSectionDefs(list) {
-  const defs = Array.isArray(list) && list.length ? list : DEFAULT_SECTIONS.map((s, i) => ({ id: s.id, label: s.label, order: i, enabled: true }));
+  let defs = Array.isArray(list) && list.length ? list : DEFAULT_SECTIONS.map((s, i) => ({ id: s.id, label: s.label, order: i, enabled: true }));
+  if (!defs.some((x) => x.id === "stats")) { const pr = defs.find((x) => x.id === "programs"); defs = defs.concat([{ id: "stats", label: "الإحصاءات والرسوم", order: pr ? (pr.order ?? 0) + 0.5 : 99, enabled: true }]); }
   S.reportSectionDefs = defs;
   SECTIONS = defs.filter((s) => s.enabled !== false).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((s) => ({ id: s.id, label: s.label }));
   if (!SECTIONS.length) SECTIONS = DEFAULT_SECTIONS.map((s) => ({ ...s })); // شبكة أمان: لا يبقى النظام بلا أقسام أبدًا
@@ -9901,7 +9903,7 @@ function pcCountBlockHtml(item, d) {
   const open = S.ui && S.ui.pcOpen === item.id;
   const sum = cur.length ? cur.map((x) => esc(x.unit)).join("، ") : "اختاري وحدة أو أكثر";
   const menu = open ? `<div class="pc-menu">${all.map((u) => { const on = cur.some((x) => x.unit === u); return `<button type="button" class="pc-opt${on ? " on" : ""}" data-action="pc-toggle" data-id="${esc(item.id)}" data-unit="${esc(u)}"><span class="bx">${on ? "✓" : ""}</span>${esc(u)}</button>`; }).join("")}<div class="pc-add"><input class="input" id="pc-new-${esc(item.id)}" placeholder="وحدة أخرى، مثال: مدرسة" /><button type="button" class="pill-btn pill-ghost" data-action="pc-add-custom" data-id="${esc(item.id)}">＋ إضافة</button></div><button type="button" class="pill-btn pc-done" data-action="pc-menu" data-id="${esc(item.id)}">تم</button></div>` : "";
-  const rows = cur.map((x) => `<div class="pc-row"><div class="pc-u">${esc(x.unit)}</div>${inpSub("programs", item.id, "counts", x.id, "target", x.target, "0", "number")}${inpSub("programs", item.id, "counts", x.id, "done", x.done, "0", "number")}<div class="pc-pct">${(() => { const r = progPct(x.done, x.target); return r == null ? "—" : r + "٪"; })()}</div></div>${pcNamesHtml(item, x)}`).join("");
+  const rows = cur.map((x) => `<div class="pc-row"><div class="pc-u">${esc(x.unit)}</div>${inpSub("programs", item.id, "counts", x.id, "target", x.target, "0", "number")}${inpSub("programs", item.id, "counts", x.id, "done", x.done, "0", "number")}<div class="pc-pct">${(() => { const r = progPct(x.done, x.target); return r == null ? "—" : r + "٪"; })()}</div></div>${pcIndHtml(item, x)}${pcNamesHtml(item, x)}`).join("");
   const table = cur.length ? `<div class="pc-table"><div class="pc-row pc-head"><div>ماذا نعدّ؟</div><div>العدد المستهدف</div><div>العدد المنجز الفعلي</div><div>نسبة الإنجاز</div></div>${rows}</div>` : "";
   return `<div class="field"><label class="field-label">ماذا نعدّ؟ (يمكن اختيار أكثر من وحدة)</label><button type="button" class="pc-dd input" data-action="pc-menu" data-id="${esc(item.id)}"><span>${sum}</span><span>${open ? "▴" : "▾"}</span></button>${menu}</div>${table}`;
 }
@@ -9913,15 +9915,26 @@ function pcNameSuggestions(unit) {
   } catch (e) {}
   return [...out];
 }
+function pcNameT(n) { return n.t != null && n.t !== "" ? Number(n.t) || 0 : 1; }
+function pcNameD(n) { return n.d != null && n.d !== "" ? Number(n.d) || 0 : (n.ok ? 1 : 0); }
+function pcNamesSync(c) { if (c.names && c.names.length) { c.target = String(c.names.reduce((a, n) => a + pcNameT(n), 0)); c.done = String(c.names.reduce((a, n) => a + pcNameD(n), 0)); } }
+function pcNameSet(el) {
+  const it = findById(getItemList("programs"), el.dataset.id); if (!it) return;
+  const c = (it.counts || []).find((x) => x.id === el.dataset.cid); if (!c) return;
+  const n = (c.names || []).find((q) => q.id === el.dataset.nid); if (!n) return;
+  n[el.dataset.f] = el.value; delete n.ok; pcNamesSync(c);
+  if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render();
+}
 function pcNamesHtml(item, x) {
   const key = item.id + "|" + x.id, open = S.ui && S.ui.pcNamesOpen === key, names = x.names || [];
-  const sum = names.length ? `${names.filter((n) => n.ok).length} من ${names.length}` : "إضافة أسماء (اختياري)";
+  const sum = names.length ? `${names.length} بالأسماء` : "إضافة بالأسماء (اختياري)";
   let h = `<div class="pc-nm"><button type="button" class="pill-btn pill-ghost pc-nmb" data-action="pc-names" data-id="${esc(item.id)}" data-cid="${esc(x.id)}">${esc(x.unit)}: ${esc(sum)} ${open ? "▴" : "▾"}</button>`;
   if (open) {
     const ds = `data-id="${esc(item.id)}" data-cid="${esc(x.id)}"`;
-    h += `<div class="pc-chips">${names.map((n) => `<span class="pc-chip${n.ok ? " ok" : ""}"><button type="button" data-action="pc-name-toggle" ${ds} data-nid="${esc(n.id)}">${n.ok ? "✓ " : ""}${esc(n.name)}</button><button type="button" class="pc-x" data-action="pc-name-del" ${ds} data-nid="${esc(n.id)}">×</button></span>`).join("")}</div>
-      <div class="pc-add"><input class="input" id="pc-nn-${esc(x.id)}" list="pc-dl-${esc(x.id)}" placeholder="اسم ${esc(x.unit)}، مثال: ${esc(x.unit)} ١" /><datalist id="pc-dl-${esc(x.id)}">${pcNameSuggestions(x.unit).map((n) => `<option value="${esc(n)}">`).join("")}</datalist><button type="button" class="pill-btn pill-ghost" data-action="pc-name-add" ${ds}>＋ إضافة</button></div>
-      <div class="hint">اضغطي على الاسم لتعليمه منجزًا ✓. المستهدف والمنجز يُحسبان من القائمة.</div>`;
+    const rows = names.map((n) => `<div class="pc-nr"><div class="pc-nn">${esc(n.name)}</div><input class="input" type="number" inputmode="numeric" placeholder="المستهدف" value="${esc(String(n.t != null && n.t !== "" ? n.t : (n.ok != null ? 1 : "")))}" ${ds} data-nid="${esc(n.id)}" data-f="t" onchange="pcNameSet(this)"><input class="input" type="number" inputmode="numeric" placeholder="المنجز" value="${esc(String(n.d != null && n.d !== "" ? n.d : (n.ok ? 1 : (n.ok === false ? 0 : ""))))}" ${ds} data-nid="${esc(n.id)}" data-f="d" onchange="pcNameSet(this)"><button type="button" class="pc-x" data-action="pc-name-del" ${ds} data-nid="${esc(n.id)}">×</button></div>`).join("");
+    h += `<div class="pc-nrh"><div>${esc(x.unit)}</div><div>المستهدف</div><div>المنجز</div><div></div></div>${rows}
+      <div class="pc-add"><input class="input" id="pc-nn-${esc(x.id)}" list="pc-dl-${esc(x.id)}" placeholder="اسم ${esc(x.unit)}، مثال: ${esc(x.unit)} ١" /><datalist id="pc-dl-${esc(x.id)}">${pcNameSuggestions(x.unit).map((q) => `<option value="${esc(q)}">`).join("")}</datalist><button type="button" class="pill-btn pill-ghost" data-action="pc-name-add" ${ds}>＋ إضافة</button></div>
+      <div class="hint">اكتبي لكل ${esc(x.unit)} المستهدف والمنجز، ويُحسب الإجمالي تلقائيًا.</div>`;
   }
   return h + `</div>`;
 }
@@ -9933,21 +9946,37 @@ function pcStatsRows(progs, report) {
     let ind = null; try { const row = dashIndRows(report || {}).find((r) => indLinkedPrograms([p], r).length); if (row) ind = { name: String(row.name).trim(), p: dashIndPct(row) }; } catch (e) {}
     cs.forEach((c, i) => {
       const t = numOrNull(c.target), dn = numOrNull(c.done); if (t == null && dn == null) return;
-      rows.push({ work: nm, unit: c.unit, t, d: dn, pct: progPct(dn, t), names: c.names || [], ind, first: i === 0 });
+      rows.push({ work: nm, unit: c.unit, t, d: dn, pct: progPct(dn, t), names: c.names || [], topic: String(c.topic || "").trim(), indName: String(c.ind || c.topic || "").trim(), ind, first: i === 0 });
     });
   });
   return rows;
 }
+function pcIndNames() { try { return [...new Set(cmpRefNames(getCurrentReportEntry(), "مؤشر").filter(Boolean))]; } catch (e) { return []; } }
+function pcIndHtml(item, x) {
+  const id = "pc-ind-" + esc(x.id);
+  return `<div class="pc-ind"><label class="field-label" style="font-size:12px">المؤشر (ماذا نقيس؟)</label><input class="input" list="${id}" ${bindAttrs("programs", item.id, "ind", "counts", x.id)} value="${esc(x.ind || "")}" placeholder="اختاري مؤشرًا أو اكتبي، مثال: عدد الحافظات في المراكز" /><datalist id="${id}">${pcIndNames().map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div>`;
+}
 function pcStatsTableHtml(progs, report) {
   const rows = pcStatsRows(progs, report); if (!rows.length) return "";
   const col = (p) => (p == null ? "#8a7279" : p >= 100 ? "#1f8a5b" : p >= 75 ? "#c9831a" : "#c0392b");
-  const body = rows.map((r, i) => {
-    const ok = r.names.filter((n) => n.ok).map((n) => n.name), no = r.names.filter((n) => !n.ok).map((n) => n.name);
-    const nm = r.names.length ? `<div style="font-size:9px;color:#8a7279;font-weight:500;line-height:1.5">${ok.length ? "✓ " + esc(ok.join("، ")) : ""}${no.length ? `<br>✗ ${esc(no.join("، "))}` : ""}</div>` : "";
-    return `<tr><td>${i + 1}</td><td style="font-weight:700;text-align:right">${esc(r.work)}</td><td>${esc(r.unit || "—")}${nm}</td><td>${r.t != null ? indFmtV(r.t) : "—"}</td><td style="font-weight:800">${r.d != null ? indFmtV(r.d) : "—"}</td><td><b style="color:${col(r.pct)}">${r.pct != null ? r.pct + "٪" : "—"}</b></td><td>${r.ind ? esc(r.ind.name) + (r.ind.p != null ? ` <b style="color:${col(r.ind.p)}">(${r.ind.p}٪)</b>` : "") : "—"}</td></tr>`;
+  const A = (v) => (v == null ? "—" : indFmtV(v));
+  const P = (p) => `<b style="color:${col(p)}">${p == null ? "—" : p + "٪"}</b>`;
+  const th = "background:#f4d6de;border:1px solid #e7c3cc;padding:6px;font-size:11px", td = "border:1px solid #eadfdb;padding:6px;font-size:11.5px", lb = td + ";font-weight:700;background:#fdf8f5;text-align:right";
+  return rows.map((r) => {
+    const names = r.names || [], hasN = names.length > 0;
+    const cols = hasN ? names.map((q) => ({ n: q.name, t: pcNameT(q), d: pcNameD(q) })) : [];
+    const topic = r.indName || (r.ind && r.ind.name) || "";
+    let ip = null; if (r.indName && report) { try { const row = dashIndRows(report).find((x) => String(x.name).trim() === r.indName); if (row) ip = dashIndPct(row); } catch (e) {} } else if (r.ind) ip = r.ind.p;
+    const head = `<div style="margin:14px 0 2px;font-weight:800;font-size:13.5px">${esc(r.work)}</div>${topic ? `<div style="margin-bottom:6px;font-size:12px;color:#7a1f3d;font-weight:700">المؤشر: ${esc(topic)}${ip != null ? ` <span style="color:${col(ip)}">(${ip}٪)</span>` : ""} <span style="font-weight:500;color:#8a7279">· ${esc(r.unit || "")}</span></div>` : `<div style="margin-bottom:6px;font-size:12px;color:#8a7279">${esc(r.unit || "")}</div>`}`;
+    const tbl = `<div class="rg-tw"><table class="pc-st" style="width:100%;border-collapse:collapse;text-align:center"><tr><th style="${th};width:18%"></th>${cols.map((c) => `<th style="${th}">${esc(c.n)}</th>`).join("")}<th style="${th};background:#ecc2cc">${hasN ? "الإجمالي" : esc(r.unit || "الإجمالي")}</th></tr>
+      <tr><td style="${lb}">المستهدف</td>${cols.map((c) => `<td style="${td}">${A(c.t)}</td>`).join("")}<td style="${td};font-weight:800">${A(r.t)}</td></tr>
+      <tr><td style="${lb}">المنجز</td>${cols.map((c) => `<td style="${td};font-weight:800">${A(c.d)}</td>`).join("")}<td style="${td};font-weight:800">${A(r.d)}</td></tr>
+      <tr><td style="${lb}">النسبة</td>${cols.map((c) => `<td style="${td}">${P(progPct(c.d, c.t))}</td>`).join("")}<td style="${td}">${P(r.pct)}</td></tr></table></div>`;
+    const T = {}, D = {}, nm = hasN ? cols.map((c) => c.n) : [r.unit || r.work];
+    if (hasN) cols.forEach((c) => { T[c.n] = { v: c.t }; D[c.n] = { v: c.d }; }); else { T[nm[0]] = { v: r.t || 0 }; D[nm[0]] = { v: r.d || 0 }; }
+    const lg = `<div style="display:flex;gap:12px;justify-content:center;font-size:11px;margin:2px 0"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#c9708f;margin-inline-end:4px"></i>المستهدف</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7a1f3d;margin-inline-end:4px"></i>المنجز</span></div>`;
+    return `<div class="prs-avoid-break">${head}${tbl}${lg}${stBarsSvg(nm, [{ label: "المستهدف", map: T }, { label: "المنجز", map: D }])}</div>`;
   }).join("");
-  const cw = [4, 22, 17, 11, 11, 11, 24];
-  return `<div class="rg-tw"><table class="rg-rtb ind2 pc-sumt"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join("")}</colgroup><tr><th>م</th><th>العمل</th><th>ماذا نعدّ؟</th><th>المستهدف</th><th>المنجز</th><th>نسبة الإنجاز</th><th>المؤشر المرتبط</th></tr>${body}</table></div>`;
 }
 function pcStatsFormHtml(d, progs) {
   if (!(progs || []).length) return "";
@@ -12934,6 +12963,7 @@ function renderSectionFields(section, d, unit, report) {
     case "kpi": return kpiSectionHtml(d, report);
     case "goals": return goalsSectionHtml(d);
     case "programs": return programsSectionHtml(d);
+    case "stats": return statsSectionHtml(d);
     case "tools": return toolsSectionHtml(d);
     case "analysis": return analysisSectionHtml(d);
     case "strengths": return strengthsSectionHtml(d);
@@ -14224,7 +14254,7 @@ function toolsSectionHtml(d) {
       ${svToolBlockHtml(t)}
       ${svResultBlockHtml(t)}
       <div class="subhead">جودة نتائج الأداة</div>
-      ${fieldWrapH("جودة نتائج الأداة", "كافية لاتخاذ قرار، أو تحتاج تعزيزًا أو إعادة تطبيق",  radio("tools", t.id, "resultQuality", t.resultQuality, TOOL_RESULT_QUALITY))}
+      ${fieldWrap("", sel("tools", t.id, "resultQuality", t.resultQuality, TOOL_RESULT_QUALITY, "اختاري جودة النتائج"))}
     </div>`;
   }).join("");
   return `${rows}${pillBtn("إضافة أداة قياس", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "tools" } })}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
@@ -14488,8 +14518,137 @@ function reviewSectionHtml(d, report) {
     ${notesFieldHtml(d)}`;
 }
 
+/* ===== قسم «الإحصاءات والرسوم»: جداول بمؤشر (١–٣) ووحدة عد قابلة للتعديل، السابق والحالي، ورسوم ===== */
+const ST_FIELDS = [["p1", "c1"], ["p2", "c2"], ["p3", "c3"]];
+function stNum(v) { if (v == null || v === "") return null; const s = String(v).replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/[۰-۹]/g, (c) => "۰۱۲۳۴۵۶۷۸۹".indexOf(c)).replace(/[٬,\s]/g, "").replace("٫", ".").replace("٪", "").replace("%", ""); const n = parseFloat(s); return isNaN(n) ? null : n; }
+function stInds(t) { return [t.n1, t.n2, t.n3].map((n, i) => ({ i, name: String(n || "").trim() })).filter((x, i) => x.name || (i === 0 && (t.rows || []).length)); }
+function stIndOptionsHtml() { return `<datalist id="st-dl">${pcIndNames().map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`; }
+function statsSectionHtml(d) {
+  const tabs = d.statTables || [];
+  const hint = `<div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:14px;line-height:1.8">لكل جدول: اختاري المؤشر (أو اكتبيه)، وسمّي وحدة العد (مقر، معلمة، حلقة…)، ثم أضيفي الأسماء مع «السابق» و«الحالي». ممكن تلصقين الجدول من Excel أو Google Sheets. الجدول يعرض الحالي، والرسم يجمع السابق والحالي.</div>`;
+  const cards = tabs.map((t, i) => {
+    const rows = t.rows || [], inds = stInds(t), k = Math.max(1, inds.length);
+    const open = S.ui && S.ui.stOpen === t.id || tabs.length === 1;
+    const head = `<div class="repeat-item-head" style="cursor:pointer" data-action="st-toggle" data-id="${esc(t.id)}"><span class="repeat-item-title">جدول ${i + 1}${t.title ? " — " + esc(t.title) : ""}</span>${removeBtn("statTables", t.id)}</div>`;
+    if (!open) return `<div class="repeat-item">${head}</div>`;
+    const indIn = [["n1", "المؤشر الأول (ماذا نقيس؟)"], ["n2", "مؤشر ثانٍ (اختياري)"], ["n3", "مؤشر ثالث (اختياري)"]].map(([f, l]) => fieldWrap(l, `<input class="input" list="st-dl" ${bindAttrs("statTables", t.id, f)} value="${esc(t[f] || "")}" placeholder="اختاري أو اكتبي، مثال: عدد الدارسات" />`)).join("");
+    const rowsHtml = rows.map((r) => `<div class="st-r" style="grid-template-columns:1.5fr 1fr ${"1fr 1fr ".repeat(k)}26px"><div class="st-rn">${inpSub("statTables", t.id, "rows", r.id, "name", r.name, "الاسم")}</div>${inpSub("statTables", t.id, "rows", r.id, "group", r.group, "المجموعة")}${ST_FIELDS.slice(0, k).map(([p, c]) => inpSub("statTables", t.id, "rows", r.id, p, r[p], "السابق", "number") + inpSub("statTables", t.id, "rows", r.id, c, r[c], "الحالي", "number")).join("")}<button type="button" class="pc-x" data-action="st-row-del" data-id="${esc(t.id)}" data-rid="${esc(r.id)}">×</button></div>`).join("");
+    const rh = `<div class="st-r st-rh" style="grid-template-columns:1.5fr 1fr ${"1fr 1fr ".repeat(k)}26px"><div>${esc(t.unit || "الاسم")}</div><div>المجموعة (اختياري)</div>${inds.slice(0, k).map((x) => `<div style="grid-column:span 2">${esc(x.name || "المؤشر")}</div>`).join("")}<div></div></div>`;
+    return `<div class="repeat-item">${head}
+      ${fieldWrap("عنوان الجدول", inp("statTables", t.id, "title", t.title, "مثال: تقرير الحلقات الصيفية"))}
+      ${indIn}
+      ${fieldWrap("وحدة العد", inp("statTables", t.id, "unit", t.unit, "مثال: المقر، المعلمة، الحلقة"))}
+      <div class="row-flex">${fieldWrap("إظهار عمود «السابق» في الجدول", sel("statTables", t.id, "showPrev", t.showPrev, ["نعم", "لا"], "لا"))}${fieldWrap("إظهار عمود «التغير»", sel("statTables", t.id, "showChg", t.showChg, ["نعم", "لا"], "لا"))}</div>
+      <div class="subhead">الأسماء والقيم</div>
+      <div class="st-rows">${rows.length ? rh : ""}${rowsHtml}</div>
+      <div class="pc-add"><input class="input" id="st-nn-${esc(t.id)}" placeholder="اسم جديد، مثال: مقر ١" /><button type="button" class="pill-btn pill-ghost" data-action="st-row-add" data-id="${esc(t.id)}">＋ إضافة</button></div>
+      <div class="subhead">رفع ملف أو لصق جدول</div>
+      ${fieldWrap("ملف Excel أو CSV أو Word أو PDF", `<input type="file" class="input" accept=".xlsx,.xls,.csv,.tsv,.txt,.docx,.pdf" data-st-file="${esc(t.id)}" />${S.ui.stMsg && S.ui.stMsg.id === t.id ? `<div class="hint" style="margin-top:6px">${esc(S.ui.stMsg.t)}</div>` : ""}`)}
+      ${fieldWrap("ترتيب الأعمدة في الجدول الملصوق", sel("statTables", t.id, "pasteMode", t.pasteMode, ["الاسم ← السابق ← الحالي", "الاسم ← المجموعة ← السابق ← الحالي", "الاسم ← الحالي"], "الاسم ← السابق ← الحالي"))}
+      <textarea class="input" style="min-height:90px" ${bindAttrs("statTables", t.id, "pasteText")} placeholder="الصقي الصفوف هنا (كل صف سطر، والأعمدة بفاصل Tab أو فاصلة). عند وجود أكثر من مؤشر تتكرر أعمدة السابق والحالي لكل مؤشر.">${esc(t.pasteText || "")}</textarea>
+      <div style="margin-top:6px"><button type="button" class="pill-btn pill-ghost" data-action="st-paste" data-id="${esc(t.id)}">إضافة الصفوف الملصوقة</button></div>
+    </div>`;
+  }).join("");
+  return `${hint}${stIndOptionsHtml()}${cards}${pillBtn("إضافة جدول إحصائي", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "statTables" } })}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
+}
+/* ===== رفع ملف Excel / CSV / Word / PDF إلى خانة اللصق ===== */
+function stLoadScript(src, test) {
+  if (test()) return Promise.resolve();
+  return new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = src; sc.onload = ok; sc.onerror = () => no(new Error("تعذّر تحميل أداة قراءة الملف. الصقي الجدول بدل الرفع.")); document.head.appendChild(sc); });
+}
+function stFixAr(str) {
+  if (!/[\uFE70-\uFEFF\uFB50-\uFDFF]/.test(str)) return str;
+  const n = str.normalize("NFKC");
+  return Array.from(n).length > 1 ? Array.from(n).reverse().join("") : n;
+}
+async function stFileToText(file) {
+  const n = String(file.name || "").toLowerCase();
+  if (/\.(csv|tsv|txt)$/.test(n)) return await file.text();
+  if (/\.(xlsx|xls)$/.test(n)) { const X = await impLoadXlsx(); const wb = X.read(await file.arrayBuffer(), { type: "array" }); return X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "" }).map((r) => r.join("\t")).join("\n"); }
+  if (/\.docx$/.test(n)) {
+    await stLoadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js", () => window.mammoth);
+    const res = await window.mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+    const doc = new DOMParser().parseFromString(res.value, "text/html"), lines = [];
+    const tabs = [...doc.querySelectorAll("table")];
+    if (tabs.length) tabs.forEach((tb) => tb.querySelectorAll("tr").forEach((tr) => lines.push([...tr.children].map((c) => c.textContent.replace(/\s+/g, " ").trim()).join("\t"))));
+    else doc.querySelectorAll("p").forEach((p) => { const t = p.textContent.trim(); if (t) lines.push(t); });
+    return lines.join("\n");
+  }
+  if (/\.pdf$/.test(n)) {
+    await stLoadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", () => window.pdfjsLib);
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise, out = [];
+    for (let pg = 1; pg <= pdf.numPages; pg++) {
+      const tc = await (await pdf.getPage(pg)).getTextContent(), rows = [];
+      tc.items.forEach((it) => { if (!String(it.str).trim()) return; const y = Math.round(it.transform[5] / 3) * 3; let r = rows.find((q) => Math.abs(q.y - y) <= 3); if (!r) { r = { y, its: [] }; rows.push(r); } r.its.push({ x: it.transform[4], w: it.width, s: stFixAr(it.str.trim()) }); });
+      rows.sort((a, b) => b.y - a.y).forEach((r) => {
+        const rtl = r.its.filter((i) => /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(i.s)).length > r.its.length / 2;
+        r.its.sort((a, b) => (rtl ? b.x - a.x : a.x - b.x));
+        let line = "", prev = null;
+        r.its.forEach((i) => { if (prev) { const gap = rtl ? prev.x - (i.x + i.w) : i.x - (prev.x + prev.w); line += gap > 8 ? "\t" : gap < 1 ? "" : " "; } line += i.s; prev = i; });
+        out.push(line);
+      });
+    }
+    return out.join("\n");
+  }
+  throw new Error("نوع الملف غير مدعوم. المدعوم: Excel وCSV وWord (docx) وPDF.");
+}
+async function stReadFile(tid, file) {
+  const t = findById(getItemList("statTables"), tid); if (!t) return;
+  S.ui.stMsg = { id: tid, t: "جارٍ قراءة الملف…" }; render();
+  try { const txt = await stFileToText(file); t.pasteText = txt; S.ui.stMsg = { id: tid, t: txt.trim() ? "تمت القراءة. راجعي النص ثم اختاري ترتيب الأعمدة واضغطي «إضافة الصفوف الملصوقة»." : "ما لقيت جدولًا في الملف. جرّبي اللصق." }; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); }
+  catch (e) { S.ui.stMsg = { id: tid, t: (e && e.message) || "تعذّرت قراءة الملف. الصقي الجدول بدل الرفع." }; }
+  render();
+}
+function stPaste(t) {
+  const mode = t.pasteMode || "الاسم ← السابق ← الحالي", k = Math.max(1, stInds(t).length);
+  const lines = String(t.pasteText || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean); let added = 0;
+  t.rows = t.rows || [];
+  lines.forEach((l) => {
+    const c = l.split(/\t|,|،|;|\s{2,}/).map((x) => x.trim());
+    if (!c[0]) return;
+    const r = { id: uid("sr"), name: c[0], group: "" }; let a = 1;
+    if (mode === "الاسم ← الحالي") { ST_FIELDS.slice(0, k).forEach(([p, cu], i) => { const v = stNum(c[1 + i]); r[cu] = v == null ? "" : String(v); }); }
+    else { if (mode.indexOf("المجموعة") !== -1) { r.group = c[1] || ""; a = 2; } ST_FIELDS.slice(0, k).forEach(([p, cu], i) => { const pv = stNum(c[a + i * 2]), cv = stNum(c[a + i * 2 + 1]); r[p] = pv == null ? "" : String(pv); r[cu] = cv == null ? "" : String(cv); }); }
+    if (["p1", "c1", "p2", "c2", "p3", "c3"].some((f) => stNum(r[f]) != null)) { t.rows.push(r); added++; }
+  });
+  t.pasteText = ""; return added;
+}
+function stBarsFor(names, cols) { let out = ""; for (let s = 0; s < names.length; s += 12) { const ns = names.slice(s, s + 12); out += stBarsSvg(ns, cols); } return out; }
+function statsReportHtml(d) {
+  const tabs = (d.statTables || []).filter((t) => (t.rows || []).length);
+  if (!tabs.length) return "";
+  return tabs.map((t) => {
+    const rows = t.rows || [], inds = stInds(t).slice(0, 3), k = inds.length || 1, showP = t.showPrev === "نعم", showC = t.showChg === "نعم";
+    const hasG = rows.some((r) => String(r.group || "").trim());
+    const th = "background:#f4d6de;border:1px solid #e7c3cc;padding:6px;font-size:11px", td = "border:1px solid #eadfdb;padding:6px;font-size:11.5px;text-align:center";
+    const fmt = (v) => (v == null ? "—" : indFmtV(v));
+    const chg = (p, c) => { if (p == null || c == null) return "—"; const x = c - p; return x === 0 ? "—" : `<b style="color:${x > 0 ? "#1f8a5b" : "#c0392b"}">${x > 0 ? "▲" : "▼"} ${indFmtV(Math.abs(x))}</b>`; };
+    const sub = 1 + (showP ? 1 : 0) + (showC ? 1 : 0), multi = k > 1 || showP || showC;
+    let hd = `<tr><th style="${th};text-align:right" ${multi ? 'rowspan="2"' : ""}>${esc(t.unit || "الاسم")}</th>${inds.map((x) => `<th style="${th}" colspan="${sub}">${esc(x.name || "العدد")}</th>`).join("")}</tr>`;
+    if (multi) hd += `<tr>${inds.map(() => `${showP ? `<th style="${th}">السابق</th>` : ""}<th style="${th}">الحالي</th>${showC ? `<th style="${th}">التغير</th>` : ""}`).join("")}</tr>`;
+    const cells = (rs) => inds.map((x) => { const [p, c] = ST_FIELDS[x.i]; const pv = rs.map((r) => stNum(r[p])).filter((v) => v != null), cv = rs.map((r) => stNum(r[c])).filter((v) => v != null); const P = pv.length ? pv.reduce((a, b) => a + b, 0) : null, C = cv.length ? cv.reduce((a, b) => a + b, 0) : null; return `${showP ? `<td style="${td}">${fmt(P)}</td>` : ""}<td style="${td};font-weight:800">${fmt(C)}</td>${showC ? `<td style="${td}">${chg(P, C)}</td>` : ""}`; }).join("");
+    let body = "";
+    const rowHtml = (r) => `<tr><td style="${td};text-align:right;font-weight:700">${esc(r.name)}</td>${cells([r])}</tr>`;
+    if (hasG) {
+      const gs = []; rows.forEach((r) => { const g = String(r.group || "").trim() || "بدون مجموعة"; let o = gs.find((x) => x.g === g); if (!o) { o = { g, rs: [] }; gs.push(o); } o.rs.push(r); });
+      gs.forEach((o) => { body += `<tr><td colspan="${1 + k * sub}" style="${td};background:#fbe8ee;font-weight:800;text-align:right">${esc(o.g)}</td></tr>` + o.rs.map(rowHtml).join("") + `<tr style="background:#fdf3f6"><td style="${td};text-align:right;font-weight:800">مجموع ${esc(o.g)}</td>${cells(o.rs)}</tr>`; });
+    } else body = rows.map(rowHtml).join("");
+    body += `<tr style="background:#f7d9e1"><td style="${td};text-align:right;font-weight:800">الإجمالي</td>${cells(rows)}</tr>`;
+    const names = rows.map((r) => String(r.name)), charts = inds.map((x) => {
+      const [p, c] = ST_FIELDS[x.i], P = {}, C = {}; rows.forEach((r) => { P[String(r.name)] = { v: stNum(r[p]) || 0 }; C[String(r.name)] = { v: stNum(r[c]) || 0 }; });
+      const hasPrev = rows.some((r) => stNum(r[p]) != null);
+      const cols = hasPrev ? [{ label: "السابق", map: P }, { label: "الحالي", map: C }] : [{ label: "الحالي", map: C }];
+      const lg = hasPrev ? `<div style="display:flex;gap:12px;justify-content:center;font-size:11px"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#c9708f;margin-inline-end:4px"></i>السابق</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7a1f3d;margin-inline-end:4px"></i>الحالي</span></div>` : "";
+      return `<div style="margin-top:8px;font-weight:800;font-size:12.5px;color:#7a1f3d">${esc(x.name || t.title || "")}</div>${lg}${stBarsFor(names, cols)}`;
+    }).join("");
+    return `<div class="prs-avoid-break" style="margin-bottom:18px"><div style="background:#b3262e;color:#fff;font-weight:800;font-size:15px;padding:8px 14px;border-radius:6px;text-align:center;margin:6px 0 8px">${esc(t.title || "الإحصاءات")}</div><div class="rg-tw"><table style="width:100%;border-collapse:collapse">${hd}${body}</table></div>${charts}</div>`;
+  }).join("");
+}
+
 /* =============================== Empty-item factories ========================= */
 const EMPTY_ITEM_FACTORY = {
+  statTables: () => ({ id: uid("st"), title: "", n1: "", n2: "", n3: "", unit: "", showPrev: "", showChg: "", pasteMode: "", pasteText: "", rows: [] }),
   programs: () => ({ id: uid("prog"), workType: "", name: "", goal: "", targetGroup: "", targetCount: "", actualBeneficiaries: "", countUnit: "", achievedCount: "", counts: [], startDate: "", endDate: "", location: "", deliveryMode: "", executingEntity: "", participatingEntities: "", responsiblePerson: "", executionStatus: "", completionPercent: "", attendeesCount: "", registeredCount: "", startCount: "", continuingCount: "", attendanceRate: "", continuationRate: "", approvedCost: "", actualCost: "", highlightResult: "" }),
   tools: () => ({ id: uid("tool"), toolType: "", name: "", purpose: "", relatedProgram: "", targetGroup: "", populationSize: "", sampleSize: "", respondentsCount: "", applicationDate: "", toolLink: "", resultsLink: "", resultQuality: "" }),
   comparisons: () => ({ id: uid("cmp"), topic: "", resultValue: "", judgment: "", changeReason: "" }),
@@ -14721,6 +14880,7 @@ function rptSchemaItemsHtml(sid, items, emptyText) {
   items.forEach((it, i) => long.forEach((f) => { const t = schemaFieldText(it[f.id]); if (t) lng += textBlock(`${f.label || f.id}${items.length > 1 || !short.length ? " — " + titleOf(it, i) : ""}`, t); }));
   if (lng) html += `<div class="rpt-tbs">${lng}</div>`;
   html += rptNewExtrasHtml(sid, items, fields.map((f) => f.id));
+  if (sid === "programs") { let _pc = ""; try { _pc = pcStatsTableHtml(items, null); } catch (e) {} if (_pc) html += `<div class="rpt-subheading">إحصائية الإنجاز</div>${_pc}`; }
   return html;
 }
 // سطر ملخص للحقول الجديدة (البرامج/الأدوات) تحت الجدول؛ لا يغيّر أعمدة الجدول ولا يظهر إلا لما فيه بيانات
@@ -14739,7 +14899,6 @@ function rptNewExtrasHtml(sid, items, shown) {
       if (on("continuationRate") && con != null && con !== "") parts.push("نسبة الاستمرار: " + fmtNum(Number(con)) + "٪");
       const cd = on("costDiff") ? programCostDiff(it) : null;
       if (cd) parts.push("فرق التكلفة: " + fmtNum(cd.diff) + (cd.pct != null ? " (" + fmtNum(cd.pct) + "٪)" : ""));
-      if (Array.isArray(it.counts)) it.counts.forEach((x) => { const r = x && x.unit ? progPct(x.done, x.target) : null; if (r != null) parts.push(x.unit + ": " + fmtNum(r) + "٪"); });
     } else {
       const st = toolLinkState(it), kinds = { work: "عمل/برنامج", goal: "هدف", indicator: "مؤشر", general: "تقييم عام" };
       if (st.kind) {
@@ -16020,12 +16179,13 @@ function sectionBodyOnly(section, saved, report) {
     const sc = SECTION_FIELD_SCHEMAS[section.id];
     body = sc.fixed ? rptSchemaFixedHtml(section.id, d) : rptSchemaItemsHtml(section.id, rptSectionItemsOf(section.id, d));
     if (d.content) body = textBlock("المحتوى", d.content) + body.replace(/<div class="hint">لم يُدخل محتوى بعد.<\/div>/, "");
+  } else if (section.id === "stats") {
+    body = statsReportHtml(d) || emptyHint("لم يُدخل محتوى بعد.");
   } else {
     body = textBlock("المحتوى", d.content) || emptyHint("لم يُدخل محتوى بعد.");
   }
   if (d.notes) body += textBlock("ملاحظات", d.notes);
   if (section.id === "programs" && report) body += (svMergeOn() ? rptStatsPageHtml(report) + rptMeasureHtml(report) : rptProgramCardsHtml(report));
-  if (section.id === "programs" && report) { const _pcs = pcStatsTableHtml(d.programs || [], report); if (_pcs) body += `<div class="rpt-subheading">إحصائية الإنجاز</div>${_pcs}`; }
   if (d.shapeBlocks && d.shapeBlocks.length) body += rptShapeBlocksHtml(d.shapeBlocks, report, section.id, d);
   else if (shapeAutoFor(section.id)) body += shapeRender(shapeAutoFor(section.id), { auto: true }, { report, unitId: report ? reportUnitIdOf(report) : "", sectionId: section.id, data: d });
   return body;
@@ -16906,6 +17066,7 @@ function attachFormListeners() {
     if (el.id === "imp-file" && el.files && el.files[0]) { impReadFile(el.files[0]); return; }
     if (el.dataset && el.dataset.impMap) { const st = impState(); st.map[el.dataset.impMap] = el.value === "" ? undefined : +el.value; render(); return; }
     if (el.dataset && (el.dataset.sbK === "t" || el.dataset.sbK === "req")) { sbInput(el, true); return; }
+    if (el.dataset && el.dataset.stFile && el.files && el.files[0]) { stReadFile(el.dataset.stFile, el.files[0]); el.value = ""; return; }
     if (el.dataset && el.dataset.paFile && el.files && el.files[0]) { paRun(el.dataset.paFile, "file", el.files[0]); el.value = ""; return; }
     if (el.dataset && el.dataset.paIdcol) { const st = paState(el.dataset.paIdcol); if (st.pend) { st.pend.idCol = +el.value; st.msg = null; render(); } return; }
     if (el.dataset && el.dataset.toolLinkKind) { const t = findById(getItemList("tools"), el.dataset.toolLinkKind); if (t) { toolLinkSetKind(t, el.value); render(); } return; }
@@ -18786,14 +18947,18 @@ function handleReportEditorAction(action, ds) {
       render(); return true;
     }
     case "tool-resp-manual": { const t = svFindTool(ds.id); if (t) { t.respManual = true; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); } render(); return true; }
+    case "st-toggle": { S.ui.stOpen = S.ui.stOpen === ds.id ? null : ds.id; render(); return true; }
+    case "st-row-add": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; const el = document.getElementById("st-nn-" + ds.id), v = String((el && el.value) || "").trim(); if (!v) return true; t.rows = t.rows || []; t.rows.push({ id: uid("sr"), name: v, group: "" }); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
+    case "st-row-del": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; t.rows = (t.rows || []).filter((r) => r.id !== ds.rid); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
+    case "st-paste": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; stPaste(t); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "pc-names": { const key = ds.id + "|" + ds.cid; S.ui.pcNamesOpen = S.ui.pcNamesOpen === key ? null : key; render(); return true; }
     case "pc-name-add": case "pc-name-toggle": case "pc-name-del": {
       const it = findById(getItemList("programs"), ds.id); if (!it) return true;
       const c = (it.counts || []).find((x) => x.id === ds.cid); if (!c) return true;
       c.names = Array.isArray(c.names) ? c.names : [];
-      if (action === "pc-name-add") { const el = document.getElementById("pc-nn-" + ds.cid), v = String((el && el.value) || "").trim(); if (!v) return true; if (!c.names.some((n) => n.name === v)) c.names.push({ id: uid("pn"), name: v, ok: false }); }
+      if (action === "pc-name-add") { const el = document.getElementById("pc-nn-" + ds.cid), v = String((el && el.value) || "").trim(); if (!v) return true; if (!c.names.some((n) => n.name === v)) c.names.push({ id: uid("pn"), name: v, t: "", d: "" }); }
       else { const i = c.names.findIndex((n) => n.id === ds.nid); if (i >= 0) { if (action === "pc-name-toggle") c.names[i].ok = !c.names[i].ok; else c.names.splice(i, 1); } }
-      if (c.names.length) { c.target = String(c.names.length); c.done = String(c.names.filter((n) => n.ok).length); }
+      pcNamesSync(c);
       if (typeof autoSaveSchedule === "function") autoSaveSchedule();
       render(); return true;
     }

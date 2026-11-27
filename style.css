@@ -1784,3 +1784,12 @@ html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt
 .rpt-chapter .rpt-pc-h{margin:12px 0 4px}
 .rpt-chapter .rpt-pc-row{border-top:0}
 .rpt-chapter .rpt-pc-s{margin:8px 0 3px}
+
+.pc-nrh,.pc-nr{display:grid;grid-template-columns:1.6fr 1fr 1fr 28px;gap:6px;align-items:center;margin:4px 0}.pc-nrh{font-size:11px;color:#8a7279;font-weight:800}.pc-nr .input{padding:6px 8px;font-size:13px}.pc-nn{font-size:13px;font-weight:700}
+
+.pc-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 10px}.pc-tile{background:#fbf6f2;border:1px solid #eadfdb;border-radius:12px;padding:8px 6px;text-align:center}.pc-tile b{display:block;font-size:20px;line-height:1.2}.pc-tile span{font-size:10.5px;color:#8a7279;font-weight:700}
+.pc-sumt td.pc-w{font-weight:800;text-align:right;vertical-align:top;background:#fdf8f5}.pc-n{display:inline-block;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:#7a1f3d;color:#fff;font-size:10px;text-align:center;margin-inline-end:6px}
+.pc-sumt tr.pc-sub td{background:#fcfaf8;font-size:10px;color:#5c4a50}.pc-sumt tr.pc-sub td:first-child{padding-inline-start:16px}
+.pc-pb{white-space:nowrap}.pc-bar{display:inline-block;width:52%;height:7px;background:#f0e6e2;border-radius:4px;vertical-align:middle;margin-inline-end:6px;overflow:hidden}.pc-bar i{display:block;height:100%;border-radius:4px}
+
+.pc-sumt tr.pc-topic td{background:#f7eef0}.pc-sumt tr.pc-tot td{background:#faf3f1;font-weight:800}.pc-tp{margin:6px 0 8px}
