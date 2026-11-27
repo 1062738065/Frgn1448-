@@ -700,6 +700,10 @@ function renderSchemaFieldsHtml(fields, arrKey, itemId, item, d, subArrKey, subI
       if (f.id === "countUnit") html += subhead + pcCountBlockHtml(item, d);
       i += 1; continue;
     }
+    if (arrKey === "comparisons" && !subArrKey && f.id === "topic") {
+      html += subhead + cmpPickBlockHtml(item) + renderSchemaFieldHtml(f, arrKey, itemId, item[f.id], undefined, item, subArrKey, subItemId);
+      i += 1; continue;
+    }
     if (f.rowGroup && next && next.rowGroup === f.rowGroup) {
       html += subhead + `<div class="row-flex">${renderSchemaFieldHtml(f, arrKey, itemId, item[f.id], f.customKey ? d[f.customKey] : undefined, item, subArrKey, subItemId)}${renderSchemaFieldHtml(next, arrKey, itemId, item[next.id], next.customKey ? d[next.customKey] : undefined, item, subArrKey, subItemId)}</div>`;
       i += 2;
@@ -10095,18 +10099,19 @@ function programsReportChapterBody(units, year) {
   return `<div class="rpt-subheading">إحصائية الإنجاز</div>${statsTable}<div class="rpt-subheading">قائمة الأعمال والبرامج (${progs.length})</div>${listTable}`;
 }
 /* ===== المقارنة بالفترات السابقة: فصل التقرير النهائي (أهداف · مؤشرات · برامج · أدوات) — كل وحدة بما اختارته في «مقارنة التقرير» ===== */
-function cmpPeriodsOf(unit, report) {
-  const mode = indCmpOf(unit); let cur = null; try { cur = reportTermInfo(report); } catch (e) {}
+function cmpPeriodsOf(unit, report, modeOv, cntOv) {
+  const mode = modeOv || indCmpOf(unit), CN = cntOv || 3; let cur = null; try { cur = reportTermInfo(report); } catch (e) {}
   const one = [{ r: report, label: cur ? cur.label : "الحالي" }];
   if (mode === "cur" || !cur) return { mode: "cur", cols: one };
   let list = []; try { list = ensureUnitReportsLoaded(unit.id) || []; } catch (e) {}
   let pt = ""; try { pt = reportPeriodType(report); } catch (e) {}
   const m = {};
   list.forEach((r) => { try { if (!reportHasContent(r) || reportPeriodType(r) !== pt) return; const t = reportTermInfo(r); if (t.ord > cur.ord) return; const o = m[t.key]; if (!o || (r.createdAt || 0) > (o.r.createdAt || 0)) m[t.key] = { r, t }; } catch (e) {} });
+  if (!m[cur.key] || m[cur.key].r.id === report.id) m[cur.key] = { r: report, t: cur };
   const ts = Object.values(m).sort((a, b) => a.t.ord - b.t.ord);
   let pick;
-  if (mode === "terms") pick = ts.filter((x) => String(x.t.year) === String(cur.year)).slice(-3).map((x) => ({ r: x.r, label: x.t.label }));
-  else { const by = {}; ts.forEach((x) => { by[x.t.year] = x; }); pick = Object.keys(by).sort().slice(-3).map((y) => ({ r: by[y].r, label: y + "هـ" })); }
+  if (mode === "terms") pick = ts.filter((x) => String(x.t.year) === String(cur.year)).slice(-CN).map((x) => ({ r: x.r, label: x.t.label }));
+  else { const by = {}; ts.forEach((x) => { by[x.t.year] = x; }); pick = Object.keys(by).sort().slice(-CN).map((y) => ({ r: by[y].r, label: y + "هـ" })); }
   return pick.length >= 2 ? { mode, cols: pick } : { mode: "cur", cols: one };
 }
 // عناصر تقرير واحد لكل نوع: خريطة اسم ← { ac, tg, p, link }
@@ -10169,6 +10174,51 @@ function cmpUnitBlock(unit, report) {
   });
   if (!html) return "";
   return `<div class="ind-bh" style="margin-top:14px">${esc(unit.name)}<span class="ind-tags" style="display:inline-flex;margin-inline-start:8px"><i class="ind-to">${esc(IND_CMP_LBL[pr.mode])}</i></span></div>${html}`;
+}
+/* ===== اختيار موضوع المقارنة وفتراتها في «تحليل النتائج» ===== */
+const CMP_KINDS = ["نص حر", "مؤشر", "هدف", "برنامج", "أداة قياس"];
+const CMP_KEY = { "مؤشر": "inds", "هدف": "goals", "برنامج": "progs", "أداة قياس": "tools" };
+function cmpRefNames(report, kind) {
+  if (!report) return [];
+  const nm = (x) => String(x || "").trim();
+  if (kind === "مؤشر") return dashIndRows(report).map((r) => nm(r.name));
+  if (kind === "هدف") return dashOpGoals(report).map((g) => nm(g.name));
+  if (kind === "برنامج") return rptProgramList(report).map((p) => nm(p.name));
+  if (kind === "أداة قياس") return ((((report.sections || {}).tools || {}).data || {}).tools || []).map((t) => nm(t.name));
+  return [];
+}
+function cmpCompute(unit, report, c) {
+  const k = CMP_KEY[c.topicKind]; if (!k || !c.topicRef) return null;
+  const mo = c.cmpMode === "فصول" ? "terms" : c.cmpMode === "أعوام" ? "years" : null, cnt = c.cmpCount === "٢" ? 2 : 3;
+  const pr = cmpPeriodsOf(unit, report, mo, cnt);
+  const vals = pr.cols.map((col) => ({ label: col.label, v: (cmpItemsOf(unit, col.r)[k] || {})[c.topicRef] || null }));
+  return { mode: pr.mode, vals };
+}
+function cmpSummary(res) {
+  if (!res) return null;
+  const ps = res.vals.map((x) => (x.v && x.v.p != null ? x.v.p : null)).filter((p) => p != null);
+  if (ps.length < 2) return { text: ps.length ? "نسبة التحقق " + ps[0] + "٪ (لا توجد فترة سابقة للمقارنة)" : "", judgment: "لا توجد بيانات للمقارنة" };
+  const seq = res.vals.filter((x) => x.v && x.v.p != null).map((x) => x.label + ": " + x.v.p + "٪").join(" ← "), d = ps[ps.length - 1] - ps[0];
+  return { text: "نسبة التحقق " + seq + (d > 0 ? " (ارتفاع " + d + " نقطة)" : d < 0 ? " (انخفاض " + Math.abs(d) + " نقطة)" : " (ثبات)"), judgment: d > 0 ? "تحسن" : d < 0 ? "تراجع" : "ثابت" };
+}
+function cmpPickBlockHtml(item) {
+  const entry = typeof getCurrentReportEntry === "function" ? getCurrentReportEntry() : null;
+  const unit = (S.units || []).find((u) => u.id === S.currentUnitId) || (entry ? (S.units || []).find((u) => u.id === entry.unitId) : null);
+  const kind = item.topicKind || "نص حر", names = [...new Set(cmpRefNames(entry, kind))].filter(Boolean);
+  let h = `<div class="field"><label class="field-label">نوع الموضوع</label>${sel("comparisons", item.id, "topicKind", kind, CMP_KINDS, "نص حر")}</div>`;
+  if (kind === "نص حر") return h + `<div class="hint" style="margin:-6px 0 12px">اكتبي الموضوع بحرية، أو اختاري نوعًا ليُحسب من الفترات السابقة تلقائيًا.</div>`;
+  h += `<div class="field"><label class="field-label">${kind === "مؤشر" ? "المؤشر" : kind === "هدف" ? "الهدف التشغيلي" : kind === "برنامج" ? "البرنامج" : "أداة القياس"}</label>${sel("comparisons", item.id, "topicRef", item.topicRef || "", names, "اختاري من المسجّل")}</div>`;
+  h += `<div class="row-flex"><div class="field"><label class="field-label">المقارنة بين</label>${sel("comparisons", item.id, "cmpMode", item.cmpMode || "", ["فصول", "أعوام"], "حسب إعداد الوحدة")}</div><div class="field"><label class="field-label">عدد الفترات</label>${sel("comparisons", item.id, "cmpCount", item.cmpCount || "", ["٢", "٣"], "٣")}</div></div>`;
+  if (item.topicRef && unit && entry) {
+    let res = null; try { res = cmpCompute(unit, entry, item); } catch (e) {}
+    const sm = cmpSummary(res);
+    if (res && res.vals.length) {
+      const cell = (v) => (v && v.p != null ? v.p + "٪" : "—");
+      h += `<div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:8px 12px;margin:0 0 10px"><b>${esc(IND_CMP_LBL[res.mode])}:</b> ${res.vals.map((x) => esc(x.label) + " ← " + cell(x.v)).join(" · ")}</div>`;
+      if (sm && sm.text) h += `<button type="button" class="pill-btn pill-ghost" data-action="cmp-fill" data-id="${esc(item.id)}">تعبئة النتيجة والحكم تلقائيًا</button>`;
+    } else h += `<div class="hint">لا توجد بيانات لهذا العنصر في الفترات المختارة.</div>`;
+  }
+  return h;
 }
 function cmpChapterBody(units) {
   let html = "";
@@ -18596,6 +18646,13 @@ function handleReportEditorAction(action, ds) {
     }
     case "xl-open": case "xl-close": case "xl-link": case "xl-paste": case "xl-apply": return impAction(action, ds);
     case "ach-set": { const c = achCfg(); S.ui.achCfg = { d: c.d, s: c.s, by: c.by }; S.ui.achCfg[ds.k] = ds.v; try { localStorage.setItem(achKey(), JSON.stringify(S.ui.achCfg)); } catch (e) { /* بدون تخزين */ } saveEntityPrefs(achKey(), { ach: { ...S.ui.achCfg } }); render(); return true; }
+    case "cmp-fill": {
+      const it = findById(getItemList("comparisons"), ds.id); if (!it) return true;
+      const entry = getCurrentReportEntry(), unit = (S.units || []).find((u) => u.id === S.currentUnitId) || (entry ? (S.units || []).find((u) => u.id === entry.unitId) : null);
+      let sm = null; try { sm = cmpSummary(cmpCompute(unit, entry, it)); } catch (e) {}
+      if (sm && sm.text) { it.resultValue = sm.text; it.judgment = sm.judgment; if (!String(it.topic || "").trim()) it.topic = it.topicRef; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); }
+      render(); return true;
+    }
     case "pc-menu": { S.ui.pcOpen = S.ui.pcOpen === ds.id ? null : ds.id; render(); return true; }
     case "pc-toggle": case "pc-add-custom": {
       const it = findById(getItemList("programs"), ds.id); if (!it) return true;
