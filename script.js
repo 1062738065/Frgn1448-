@@ -9926,7 +9926,7 @@ function pcNamesHtml(item, x) {
   return h + `</div>`;
 }
 function pcStatsRows(progs, report) {
-  const rows = [], list = rptProgramList(report);
+  const rows = [];
   (progs || []).forEach((p) => {
     const nm = String(p.name || "").trim(); if (!nm) return;
     const cs = (Array.isArray(p.counts) ? p.counts.filter((x) => x && String(x.unit || "").trim()) : []).length ? p.counts.filter((x) => x && String(x.unit || "").trim()) : programCounts(p).map((c) => ({ unit: c.unit, target: c.target, done: c.done }));
@@ -10149,7 +10149,8 @@ function programsReportChapterBody(units, year) {
     const a = programAchievedValue(p), cu = programCountUnit(p);
     return [esc(unit.name), esc(p.name), esc(p.workType || "—"), esc(p.executionStatus || "—"), a == null ? "—" : esc(fmtNum(a) + (cu ? " " + cu : "")), esc(p.highlightResult || "—")];
   }));
-  return `<div class="rpt-subheading">إحصائية الإنجاز</div>${statsTable}<div class="rpt-subheading">قائمة الأعمال والبرامج (${progs.length})</div>${listTable}`;
+  let pcT = ""; try { pcT = pcStatsTableHtml(progs.map((x) => x.p), null); } catch (e) {}
+  return `<div class="rpt-subheading">إحصائية الإنجاز</div>${pcT || statsTable}<div class="rpt-subheading">قائمة الأعمال والبرامج (${progs.length})</div>${listTable}`;
 }
 /* ===== المقارنة بالفترات السابقة: فصل التقرير النهائي (أهداف · مؤشرات · برامج · أدوات) — كل وحدة بما اختارته في «مقارنة التقرير» ===== */
 function cmpPeriodsOf(unit, report, modeOv, cntOv) {
