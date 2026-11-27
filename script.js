@@ -697,7 +697,7 @@ function renderSchemaFieldsHtml(fields, arrKey, itemId, item, d, subArrKey, subI
     const subhead = f.subheadBefore ? `<div class="subhead">${esc(f.subheadBefore)}</div>` : "";
     const next = fields[i + 1];
     if (arrKey === "programs" && !subArrKey && (f.id === "countUnit" || f.id === "achievedCount")) {
-      if (f.id === "countUnit") html += subhead + pcCountBlockHtml(item, d);
+      /* انتقلت إحصائية الإنجاز إلى آخر قسم الأعمال والبرامج (pcStatsFormHtml) */
       i += 1; continue;
     }
     if (arrKey === "comparisons" && !subArrKey && f.id === "topic") {
@@ -9901,9 +9901,62 @@ function pcCountBlockHtml(item, d) {
   const open = S.ui && S.ui.pcOpen === item.id;
   const sum = cur.length ? cur.map((x) => esc(x.unit)).join("، ") : "اختاري وحدة أو أكثر";
   const menu = open ? `<div class="pc-menu">${all.map((u) => { const on = cur.some((x) => x.unit === u); return `<button type="button" class="pc-opt${on ? " on" : ""}" data-action="pc-toggle" data-id="${esc(item.id)}" data-unit="${esc(u)}"><span class="bx">${on ? "✓" : ""}</span>${esc(u)}</button>`; }).join("")}<div class="pc-add"><input class="input" id="pc-new-${esc(item.id)}" placeholder="وحدة أخرى، مثال: مدرسة" /><button type="button" class="pill-btn pill-ghost" data-action="pc-add-custom" data-id="${esc(item.id)}">＋ إضافة</button></div><button type="button" class="pill-btn pc-done" data-action="pc-menu" data-id="${esc(item.id)}">تم</button></div>` : "";
-  const rows = cur.map((x) => `<div class="pc-row"><div class="pc-u">${esc(x.unit)}</div>${inpSub("programs", item.id, "counts", x.id, "target", x.target, "0", "number")}${inpSub("programs", item.id, "counts", x.id, "done", x.done, "0", "number")}<div class="pc-pct">${(() => { const r = progPct(x.done, x.target); return r == null ? "—" : r + "٪"; })()}</div></div>`).join("");
-  const table = cur.length ? `<div class="pc-table"><div class="pc-row pc-head"><div>وحدة العد</div><div>العدد المستهدف</div><div>العدد المنجز الفعلي</div><div>نسبة الإنجاز</div></div>${rows}</div>` : "";
-  return `<div class="field"><label class="field-label">وحدة العدّ (يمكن اختيار أكثر من وحدة)</label><button type="button" class="pc-dd input" data-action="pc-menu" data-id="${esc(item.id)}"><span>${sum}</span><span>${open ? "▴" : "▾"}</span></button>${menu}</div>${table}`;
+  const rows = cur.map((x) => `<div class="pc-row"><div class="pc-u">${esc(x.unit)}</div>${inpSub("programs", item.id, "counts", x.id, "target", x.target, "0", "number")}${inpSub("programs", item.id, "counts", x.id, "done", x.done, "0", "number")}<div class="pc-pct">${(() => { const r = progPct(x.done, x.target); return r == null ? "—" : r + "٪"; })()}</div></div></div>${pcNamesHtml(item, x)}`).join("");
+  const table = cur.length ? `<div class="pc-table"><div class="pc-row pc-head"><div>ماذا نعدّ؟</div><div>العدد المستهدف</div><div>العدد المنجز الفعلي</div><div>نسبة الإنجاز</div></div>${rows}</div>` : "";
+  return `<div class="field"><label class="field-label">ماذا نعدّ؟ (يمكن اختيار أكثر من وحدة)</label><button type="button" class="pc-dd input" data-action="pc-menu" data-id="${esc(item.id)}"><span>${sum}</span><span>${open ? "▴" : "▾"}</span></button>${menu}</div>${table}`;
+}
+/* ===== إحصائية الإنجاز: جدول في آخر «الأعمال والبرامج» + قائمة الأسماء + المؤشر المرتبط ===== */
+function pcNameSuggestions(unit) {
+  const out = new Set();
+  try {
+    (ensureUnitReportsLoaded(S.currentUnitId) || []).forEach((r) => (((r.sections || {}).programs || {}).data || {}).programs && r.sections.programs.data.programs.forEach((p) => (p.counts || []).forEach((c) => { if (String(c.unit).trim() === unit) (c.names || []).forEach((n) => n && n.name && out.add(String(n.name).trim())); })));
+  } catch (e) {}
+  return [...out];
+}
+function pcNamesHtml(item, x) {
+  const key = item.id + "|" + x.id, open = S.ui && S.ui.pcNamesOpen === key, names = x.names || [];
+  const sum = names.length ? `${names.filter((n) => n.ok).length} من ${names.length}` : "إضافة أسماء (اختياري)";
+  let h = `<div class="pc-nm"><button type="button" class="pill-btn pill-ghost pc-nmb" data-action="pc-names" data-id="${esc(item.id)}" data-cid="${esc(x.id)}">${esc(x.unit)}: ${esc(sum)} ${open ? "▴" : "▾"}</button>`;
+  if (open) {
+    const ds = `data-id="${esc(item.id)}" data-cid="${esc(x.id)}"`;
+    h += `<div class="pc-chips">${names.map((n) => `<span class="pc-chip${n.ok ? " ok" : ""}"><button type="button" data-action="pc-name-toggle" ${ds} data-nid="${esc(n.id)}">${n.ok ? "✓ " : ""}${esc(n.name)}</button><button type="button" class="pc-x" data-action="pc-name-del" ${ds} data-nid="${esc(n.id)}">×</button></span>`).join("")}</div>
+      <div class="pc-add"><input class="input" id="pc-nn-${esc(x.id)}" list="pc-dl-${esc(x.id)}" placeholder="اسم ${esc(x.unit)}، مثال: ${esc(x.unit)} ١" /><datalist id="pc-dl-${esc(x.id)}">${pcNameSuggestions(x.unit).map((n) => `<option value="${esc(n)}">`).join("")}</datalist><button type="button" class="pill-btn pill-ghost" data-action="pc-name-add" ${ds}>＋ إضافة</button></div>
+      <div class="hint">اضغطي على الاسم لتعليمه منجزًا ✓. المستهدف والمنجز يُحسبان من القائمة.</div>`;
+  }
+  return h + `</div>`;
+}
+function pcStatsRows(progs, report) {
+  const rows = [], list = rptProgramList(report);
+  (progs || []).forEach((p) => {
+    const nm = String(p.name || "").trim(); if (!nm) return;
+    const cs = (Array.isArray(p.counts) ? p.counts.filter((x) => x && String(x.unit || "").trim()) : []).length ? p.counts.filter((x) => x && String(x.unit || "").trim()) : programCounts(p).map((c) => ({ unit: c.unit, target: c.target, done: c.done }));
+    let ind = null; try { const row = dashIndRows(report || {}).find((r) => indLinkedPrograms([p], r).length); if (row) ind = { name: String(row.name).trim(), p: dashIndPct(row) }; } catch (e) {}
+    cs.forEach((c, i) => {
+      const t = numOrNull(c.target), dn = numOrNull(c.done); if (t == null && dn == null) return;
+      rows.push({ work: nm, unit: c.unit, t, d: dn, pct: progPct(dn, t), names: c.names || [], ind, first: i === 0 });
+    });
+  });
+  return rows;
+}
+function pcStatsTableHtml(progs, report) {
+  const rows = pcStatsRows(progs, report); if (!rows.length) return "";
+  const col = (p) => (p == null ? "#8a7279" : p >= 100 ? "#1f8a5b" : p >= 75 ? "#c9831a" : "#c0392b");
+  const body = rows.map((r, i) => {
+    const ok = r.names.filter((n) => n.ok).map((n) => n.name), no = r.names.filter((n) => !n.ok).map((n) => n.name);
+    const nm = r.names.length ? `<div style="font-size:9px;color:#8a7279;font-weight:500;line-height:1.5">${ok.length ? "✓ " + esc(ok.join("، ")) : ""}${no.length ? `<br>✗ ${esc(no.join("، "))}` : ""}</div>` : "";
+    return `<tr><td>${i + 1}</td><td style="font-weight:700;text-align:right">${esc(r.work)}</td><td>${esc(r.unit || "—")}${nm}</td><td>${r.t != null ? indFmtV(r.t) : "—"}</td><td style="font-weight:800">${r.d != null ? indFmtV(r.d) : "—"}</td><td><b style="color:${col(r.pct)}">${r.pct != null ? r.pct + "٪" : "—"}</b></td><td>${r.ind ? esc(r.ind.name) + (r.ind.p != null ? ` <b style="color:${col(r.ind.p)}">(${r.ind.p}٪)</b>` : "") : "—"}</td></tr>`;
+  }).join("");
+  const cw = [4, 22, 17, 11, 11, 11, 24];
+  return `<div class="rg-tw"><table class="rg-rtb ind2 pc-sumt"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join("")}</colgroup><tr><th>م</th><th>العمل</th><th>ماذا نعدّ؟</th><th>المستهدف</th><th>المنجز</th><th>نسبة الإنجاز</th><th>المؤشر المرتبط</th></tr>${body}</table></div>`;
+}
+function pcStatsFormHtml(d, progs) {
+  if (!(progs || []).some((p) => p && String(p.name || "").trim())) return "";
+  const blocks = progs.filter((p) => p && String(p.name || "").trim()).map((p) => `<div class="repeat-item pc-it"><div class="repeat-item-head"><span class="repeat-item-title">${esc(String(p.name).trim())}</span></div>${pcCountBlockHtml(p, d)}</div>`).join("");
+  let entry = null; try { entry = typeof getCurrentReportEntry === "function" ? getCurrentReportEntry() : null; } catch (e) {}
+  return `<div class="subhead" style="margin-top:22px">ماذا أنجزتِ في هذه الأعمال؟ (إحصائية الإنجاز)</div>
+    <div class="hint" style="margin-bottom:8px;line-height:1.8">لكل عمل اختاري «ماذا نعدّ؟»، ثم اكتبي المستهدف والمنجز، والنسبة تُحسب تلقائيًا. مثال: زيارة إشرافية ← مركز: المستهدف ٤٥ والمنجز ٣٨ = ٨٤٪. وتقدرين تضيفين أسماء المراكز أو الحلقات وتعلّمين المنجز منها.</div>
+    ${blocks}
+    ${pcStatsTableHtml(progs, entry)}`;
 }
 function programAchievedValue(p) {
   const a = numOrNull(p.achievedCount);
@@ -13622,7 +13675,7 @@ function programsSectionHtml(d) {
       </div>
       ${fieldWrap("أبرز نتيجة", true, txt("programs", p.id, "highlightResult", p.highlightResult, "أبرز نتيجة تحققت من هذا العمل"))}
     </div>`).join("");
-  return `${rows}${pillBtn("إضافة برنامج أو عمل", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "programs" } })}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
+  return `${rows}${pillBtn("إضافة برنامج أو عمل", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "programs" } })}${pcStatsFormHtml(d, d.programs || [])}<div style="margin-top:18px;">${notesFieldHtml(d)}</div>`;
 }
 
 /* =============================== تحليل الاستبانة (لصق الجدول أو رابط Google) ===== */
@@ -15940,6 +15993,7 @@ function sectionBodyOnly(section, saved, report) {
   }
   if (d.notes) body += textBlock("ملاحظات", d.notes);
   if (section.id === "programs" && report) body += (svMergeOn() ? rptStatsPageHtml(report) + rptMeasureHtml(report) : rptProgramCardsHtml(report));
+  if (section.id === "programs" && report) { const _pcs = pcStatsTableHtml(d.programs || [], report); if (_pcs) body += `<div class="rpt-subheading">إحصائية الإنجاز</div>${_pcs}`; }
   if (d.shapeBlocks && d.shapeBlocks.length) body += rptShapeBlocksHtml(d.shapeBlocks, report, section.id, d);
   else if (shapeAutoFor(section.id)) body += shapeRender(shapeAutoFor(section.id), { auto: true }, { report, unitId: report ? reportUnitIdOf(report) : "", sectionId: section.id, data: d });
   return body;
@@ -18700,6 +18754,17 @@ function handleReportEditorAction(action, ds) {
       render(); return true;
     }
     case "tool-resp-manual": { const t = svFindTool(ds.id); if (t) { t.respManual = true; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); } render(); return true; }
+    case "pc-names": { const key = ds.id + "|" + ds.cid; S.ui.pcNamesOpen = S.ui.pcNamesOpen === key ? null : key; render(); return true; }
+    case "pc-name-add": case "pc-name-toggle": case "pc-name-del": {
+      const it = findById(getItemList("programs"), ds.id); if (!it) return true;
+      const c = (it.counts || []).find((x) => x.id === ds.cid); if (!c) return true;
+      c.names = Array.isArray(c.names) ? c.names : [];
+      if (action === "pc-name-add") { const el = document.getElementById("pc-nn-" + ds.cid), v = String((el && el.value) || "").trim(); if (!v) return true; if (!c.names.some((n) => n.name === v)) c.names.push({ id: uid("pn"), name: v, ok: false }); }
+      else { const i = c.names.findIndex((n) => n.id === ds.nid); if (i >= 0) { if (action === "pc-name-toggle") c.names[i].ok = !c.names[i].ok; else c.names.splice(i, 1); } }
+      if (c.names.length) { c.target = String(c.names.length); c.done = String(c.names.filter((n) => n.ok).length); }
+      if (typeof autoSaveSchedule === "function") autoSaveSchedule();
+      render(); return true;
+    }
     case "pc-menu": { S.ui.pcOpen = S.ui.pcOpen === ds.id ? null : ds.id; render(); return true; }
     case "pc-toggle": case "pc-add-custom": {
       const it = findById(getItemList("programs"), ds.id); if (!it) return true;

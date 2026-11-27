@@ -1767,3 +1767,13 @@ html body :where(.a4-page) table.prs-table:not(#z) tbody td{background:var(--rpt
 .rg-rtb.cmp-t th.sub{font-size:9px;padding:3px 2px;font-weight:700}
 .rg-rtb.cmp-t th.dv,.rg-rtb.cmp-t td.dv{border-inline-start:2px solid #d9bcc6!important}
 .rg-rtb.cmp-t td{font-size:10px}
+
+/* إحصائية الإنجاز: الأسماء والجدول */
+.pc-nm{padding:0 10px 8px;border-bottom:1px solid #f1e8da}.pc-nmb{font-size:12px;padding:4px 12px}
+.pc-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.pc-chip{display:inline-flex;align-items:center;border:1px solid #e7dccb;border-radius:99px;background:#fff;overflow:hidden}
+.pc-chip button{font-family:inherit;border:0;background:transparent;padding:5px 11px;font-size:12.5px;cursor:pointer;color:#2a2025}
+.pc-chip.ok{background:#e6f3ec;border-color:#9fd0b6}.pc-chip.ok button:first-child{color:#1f6b46;font-weight:800}
+.pc-chip .pc-x{padding:5px 9px;color:#a8324f;border-inline-start:1px solid #f0e4e7}
+.pc-it{margin-bottom:10px}
+.rg-rtb.pc-sumt td{font-size:11px}
