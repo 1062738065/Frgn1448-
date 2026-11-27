@@ -15796,11 +15796,42 @@ function rptMeasureToolHtml(t) {
   }
   return h;
 }
-function rptStatsPageHtml(report) {
-  const ctx = { report, unitId: reportUnitIdOf(report) };
-  const h = ["st_table", "st_dumb", "st_line"].map((id) => shapeRender(id, {}, ctx)).join("");
-  return h ? `<div class="rpt-stats"><h3>الإحصائيات</h3>${h}</div>` : "";
+/* ===== إحصاءات البرامج: جدول الحالية + رسم السابق/الحالي لجميع البرامج (يستبدل الإحصائيات القديمة) ===== */
+function stProgsOf(r) {
+  const out = {};
+  try { rptProgramList(r).forEach((p) => { const nm = String(p.name || "").trim(); if (!nm) return; const v = numOrNull(p.actualBeneficiaries); out[nm] = { v: v == null ? 0 : v, t: numOrNull(p.targetCount), type: p.workType || "" }; }); } catch (e) {}
+  return out;
 }
+function stBarsSvg(names, cols) {
+  const W = 900, H = 300, pl = 36, pr = 8, pt = 26, pb = 70, gw = (W - pl - pr) / Math.max(2, names.length);
+  const mx = Math.max(1, ...cols.map((c) => Math.max(0, ...names.map((n) => (c.map[n] || {}).v || 0))));
+  const Y = (v) => pt + (H - pt - pb) * (1 - v / mx);
+  const pal = ["#e3b6c5", "#c9708f", "#7a1f3d"], colr = (j, n) => (n === 1 ? pal[2] : j === n - 1 ? pal[2] : j === 0 && n > 2 ? pal[0] : pal[1]);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="direction:ltr;font-family:inherit;display:block">`;
+  [0, 0.5, 1].forEach((f) => { const v = Math.round(mx * f); s += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="#ecdfe3"/><text x="${pl - 6}" y="${Y(v) + 4}" font-size="10" text-anchor="end" fill="#8a7279">${v}</text>`; });
+  names.forEach((nm, i) => {
+    const cx = pl + gw * (i + 0.5), n = cols.length, bw = Math.min(34, (gw - 16) / n - 5), tot = n * bw + (n - 1) * 5;
+    cols.forEach((c, j) => { const v = (c.map[nm] || {}).v || 0, bx = cx - tot / 2 + j * (bw + 5), y = Y(v); s += `<rect x="${bx}" y="${y}" width="${bw}" height="${Math.max(0, Y(0) - y)}" rx="3" fill="${colr(j, n)}"/><text x="${bx + bw / 2}" y="${y - 5}" font-size="11" font-weight="700" text-anchor="middle" fill="#2b1a20">${v}</text>`; });
+    const words = String(nm).split(" "), lines = []; let cur = ""; words.forEach((w) => { if ((cur + " " + w).trim().length > 14 && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) lines.push(cur);
+    lines.slice(0, 3).forEach((l, k) => { s += `<text x="${cx}" y="${H - pb + 16 + k * 13}" font-size="11" text-anchor="middle" fill="#2b1a20" style="direction:rtl">${esc(l)}</text>`; });
+  });
+  return s + "</svg>";
+}
+function rptStatsPageHtml(report) {
+  const unitId = reportUnitIdOf(report), unit = { id: unitId };
+  const curMap = stProgsOf(report), names = Object.keys(curMap);
+  if (!names.length) return "";
+  let per = cmpPeriodsOf(unit, report, "terms", 3);
+  if (per.cols.length < 2) per = cmpPeriodsOf(unit, report, "years", 3);
+  const cols = per.cols.map((c) => ({ label: c.label, map: c.r === report || c.r.id === report.id ? curMap : stProgsOf(c.r) }));
+  const allNames = [...new Set([...names, ...cols.flatMap((c) => Object.keys(c.map))])];
+  const tb = names.map((n, i) => { const x = curMap[n]; return `<tr><td>${i + 1}</td><td style="font-weight:700;text-align:right">${esc(n)}</td><td>${esc(x.type || "—")}</td><td>${x.t != null ? indFmtV(x.t) : "—"}</td><td style="font-weight:800">${indFmtV(x.v)}</td></tr>`; }).join("");
+  const tot = names.reduce((a, n) => a + curMap[n].v, 0);
+  const table = `<div class="rg-tw"><table class="rg-rtb ind2"><colgroup><col style="width:6%"><col style="width:44%"><col style="width:20%"><col style="width:15%"><col style="width:15%"></colgroup><tr><th>م</th><th>العمل / البرنامج</th><th>النوع</th><th>المستهدف</th><th>المستفيدات (الحالي)</th></tr>${tb}<tr style="background:#faf3f1;font-weight:800"><td colspan="4">الإجمالي</td><td>${indFmtV(tot)}</td></tr></table></div>`;
+  const legend = cols.length > 1 ? `<div style="display:flex;gap:12px;justify-content:center;font-size:11px;margin:4px 0">${cols.map((c, j) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${j === cols.length - 1 ? "#7a1f3d" : j === 0 && cols.length > 2 ? "#e3b6c5" : "#c9708f"};margin-inline-end:4px"></i>${esc(c.label)}</span>`).join("")}</div>` : "";
+  return `<div class="rpt-stats"><h3>إحصاءات الأعمال والبرامج</h3>${table}<div class="rpt-subheading">عدد المستفيدات لكل برنامج${cols.length > 1 ? " (السابق والحالي)" : ""}</div>${legend}${stBarsSvg(allNames, cols)}</div>`;
+}
+
 function rptMeasureHtml(report) {
   const sec = report.sections || {};
   const g = (id) => (sec[id] && sec[id].data) || {};
