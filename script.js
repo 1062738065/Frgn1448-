@@ -11761,7 +11761,7 @@ function ogResolveLink(report, ln) {
     const row = (draft("kpi", "indicators") || sec("kpi").indicators || []).find((x) => x.id === ln.refId);
     if (!row) return { gone: true, title: ln.refName || "مؤشر", kindLabel: "رقم مؤشر" };
     const def = findIndicatorDef(row.name), rs = resolveIndicatorRow(row, def), st = computeIndicatorStatus(rs);
-    return { title: ogIndCode(def, ((draft("kpi", "indicators") || sec("kpi").indicators || []).indexOf(row))) + " | " + row.name, kindLabel: "رقم مؤشر", det: [["المستهدف", rs.target], ["المتحقق", row.actual], ["نسبة التحقق", (() => { const pc = indicatorRowView(row).pct; return pc == null ? "" : pc + "٪"; })()], ["الحالة", st.label], ["الوحدة", def && def.unit], ["الدورية", def && def.frequency], ["طريقة الحساب", def && def.calculationMethod], ["مصدر البيانات", def && def.dataSource]], sub: `المتحقق ${row.actual !== "" && row.actual != null ? row.actual : "—"} من المستهدف ${rs.target !== "" && rs.target != null ? rs.target : "—"}${(() => { const pc = indicatorRowView(row).pct; return pc == null ? "" : " · التحقق " + pc + "٪"; })()}`, badge: st.label, color: st.color };
+    return { title: ogIndCode(def, ((draft("kpi", "indicators") || sec("kpi").indicators || []).indexOf(row))) + " | " + row.name, kindLabel: "رقم مؤشر", det: [["المستهدف", rs.target], ["المتحقق", row.actual], ["نسبة التحقق", (() => { const pc = indicatorRowView(row).pct; return pc == null ? "" : pc + "٪"; })()], ["الحالة", st.label], ["الوحدة", def && def.unit], ["الدورية", def && def.frequency], ["طريقة الحساب", def && def.calculationMethod], ["مصدر البيانات", def && def.dataSource]], sub: `المتحقق ${row.actual !== "" && row.actual != null ? row.actual : "—"} من المستهدف ${rs.target !== "" && rs.target != null ? rs.target : "—"}${(() => { const pc = indicatorRowView(row).pct; return pc == null ? " · لم يُدخل «المتحقق» في «مؤشرات الأداء» بعد، فلا يدخل في حساب نسبة الهدف" : " · التحقق " + pc + "٪"; })()}`, badge: st.label, color: st.color };
   }
   if (ln.kind === "tool") {
     const t = (draft("tools", "tools") || sec("tools").tools || []).find((x) => x.id === ln.refId);
@@ -13355,22 +13355,22 @@ function ogAutoInfo(report, og, unitId) {
   const live = S.sectionDraft && S.activeSectionId === "kpi" && S.sectionDraft.indicators;
   const kpi = live || (report && report.sections && report.sections.kpi && report.sections.kpi.data && report.sections.kpi.data.indicators) || [];
   try { indStampRows(report, unitId); } catch (e) { /* تجاهل */ }
-  const vals = [];
-  (og.evidenceLinks || []).forEach((ln) => {
-    if (!ln || ln.kind !== "ind") return;
-    const row = kpi.find((x) => x && x.id === ln.refId); if (!row) return;
-    const v = indicatorRowView(row).pct; if (v != null) vals.push(Math.max(0, Math.min(100, v)));
-  });
-  return { n: vals.length, pct: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null };
+  const vals = [], seen = new Set(); let tot = 0;
+  const take = (row) => { if (!row || seen.has(row.id)) return; seen.add(row.id); tot++; const v = indicatorRowView(row).pct; if (v != null) vals.push(Math.max(0, Math.min(100, v))); };
+  (og.evidenceLinks || []).forEach((ln) => { if (ln && ln.kind === "ind") take(kpi.find((x) => x && x.id === ln.refId)); });
+  // ربط تلقائي: المؤشرات التي ربطتِها بهذا الهدف من قسم «مؤشرات الأداء» تدخل في حسابه دون إضافتها شاهدًا
+  const defIds = ((S.goalsDefinitions && S.goalsDefinitions.operational) || []).filter((x) => String(x.name || "").trim() === String(og.name || "").trim()).map((x) => x.id);
+  if (defIds.length) kpi.forEach((row) => { if (row && (row.goalIds || []).some((id) => defIds.indexOf(id) !== -1)) take(row); });
+  return { n: vals.length, tot, pct: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null };
 }
 // يحدّث level/percentage على الهدف التشغيلي نفسه (تبقى مخزّنة كما كانت فتعمل كل اللوحات دون تغيير)
 function ogApplyAuto(report, og, unitId) {
   if (!og) return {};
   if (og.special && GOAL_SPECIAL_LEVELS.indexOf(og.special) !== -1) { og.level = og.special; og.percentage = 0; return { special: true }; }
   const a = ogAutoInfo(report, og, unitId);
-  if (a.pct == null) return { auto: false };
+  if (a.pct == null) return { auto: false, tot: a.tot };
   og.percentage = a.pct; og.level = goalLevelFromPct(a.pct);
-  return { auto: true, n: a.n, pct: a.pct };
+  return { auto: true, n: a.n, tot: a.tot, pct: a.pct };
 }
 // عند حفظ أي قسم (مثل المؤشرات): تُعاد حسبة الأهداف المرتبطة تلقائيًا
 function ogRecomputeEntry(entry, unitId) {
@@ -13409,7 +13409,7 @@ function ogTopRowHtml(g, og) {
     : fieldWrap("مستوى تحقق الهدف", true, selSub("goals", g.id, "operationalGoals", og.id, "level", og.level, GOAL_LEVELS, "اختاري المستوى"));
   const pctCell = fieldWrap("نسبة تحقق الهدف", barHtml);
   const cur = (S.ui.ogEvT || {})[og.id] || "";
-  const indCell = `<div class="field"><label class="field-label">مؤشرات مرتبطة</label><div style="font-size:13px;font-weight:800;min-height:24px;">${au.auto ? au.n + (au.n === 1 ? " مؤشر" : " مؤشرات") : "لا يوجد"}</div><div class="hint" style="margin:2px 0 0;">${au.special ? "حالة خاصة اخترتِها" : au.auto ? "الحساب تلقائي" : "اختيار يدوي"}</div></div>`;
+  const indCell = `<div class="field"><label class="field-label">مؤشرات مرتبطة</label><div style="font-size:13px;font-weight:800;min-height:24px;">${au.auto ? au.n + (au.n === 1 ? " مؤشر" : " مؤشرات") + (au.tot > au.n ? " من " + au.tot : "") : au.tot ? au.tot + " مرتبط، بلا إنجاز" : "لا يوجد"}</div><div class="hint" style="margin:2px 0 0;">${au.special ? "حالة خاصة اخترتِها" : au.auto ? "الحساب تلقائي" : au.tot ? "أدخلي «المتحقق» للمؤشر في «مؤشرات الأداء» ليُحسب تلقائيًا" : "اختيار يدوي"}</div></div>`;
   const note = au.special ? `<div class="hint" style="margin:0 0 8px;">حالة خاصة اخترتِها.</div>` : au.auto ? `<div class="hint" style="margin:0 0 8px;">النسبة والمستوى تُحسبان تلقائيًا من ${au.n} ${au.n === 1 ? "مؤشر مرتبط" : "مؤشرات مرتبطة"} بالهدف.</div>` : "";
   const special = au.auto || au.special ? `<details class="og-adv"${au.special ? " open" : ""}><summary>خيارات متقدمة: حالة خاصة</summary>${fieldWrap("حالة خاصة (اختياري)", selSub("goals", g.id, "operationalGoals", og.id, "special", og.special || "", GOAL_SPECIAL_LEVELS, "— لا يوجد (يُحسب تلقائيًا)"))}</details>` : "";
   return `<div class="og-trio">${levelCell}${pctCell}${indCell}</div>${note}${special}`;
@@ -15115,29 +15115,29 @@ function rptSchemaItemsHtml(sid, items, emptyText) {
 // سطر ملخص للحقول الجديدة (البرامج/الأدوات) تحت الجدول؛ لا يغيّر أعمدة الجدول ولا يظهر إلا لما فيه بيانات
 function rptNewExtrasHtml(sid, items, shown) {
   if (sid !== "programs" && sid !== "tools") return "";
-  const rows = [];
-  items.forEach((it, i) => {
-    const parts = [], on = (id) => shown.indexOf(id) === -1;
-    if (sid === "programs") {
-      const att = it.attendanceRate !== "" && it.attendanceRate != null ? it.attendanceRate : programAttendanceAuto(it);
-      const con = it.continuationRate !== "" && it.continuationRate != null ? it.continuationRate : programContinuationAuto(it);
-      if (on("registeredCount") && schemaFieldText(it.registeredCount)) parts.push("المسجلات: " + fmtNum(Number(it.registeredCount)));
-      if (on("startCount") && schemaFieldText(it.startCount)) parts.push("بدأن: " + fmtNum(Number(it.startCount)));
-      if (on("continuingCount") && schemaFieldText(it.continuingCount)) parts.push("مستمرات: " + fmtNum(Number(it.continuingCount)));
-      if (on("attendanceRate") && att != null && att !== "") parts.push("نسبة الحضور: " + fmtNum(Number(att)) + "٪");
-      if (on("continuationRate") && con != null && con !== "") parts.push("نسبة الاستمرار: " + fmtNum(Number(con)) + "٪");
-      const cd = on("costDiff") ? programCostDiff(it) : null;
-      if (cd) parts.push("فرق التكلفة: " + fmtNum(cd.diff) + (cd.pct != null ? " (" + fmtNum(cd.pct) + "٪)" : ""));
-    } else {
-      const st = toolLinkState(it), kinds = { work: "عمل/برنامج", goal: "هدف", indicator: "مؤشر", general: "تقييم عام" };
-      if (st.kind) {
-        const names = st.kind === "general" ? [] : toolLinkItems(st.kind, it).filter((x) => st.ids.indexOf(x.id) !== -1).map((x) => x.name || x.title || x.label || "").filter(Boolean);
-        parts.push("مرتبطة بـ " + kinds[st.kind] + (names.length ? ": " + names.join("، ") : ""));
-      }
-    }
-    if (parts.length) rows.push(`<div style="margin:3px 0;"><b>${esc(schemaFieldText(it.name) || schemaFieldText(it.title) || arabicDigits(i + 1))}</b> — ${esc(parts.join(" · "))}</div>`);
-  });
-  return rows.length ? `<div class="rpt-tbs rv-nums" style="font-size:12.5px;margin-top:6px;">${rows.join("")}</div>` : "";
+  const on = (id) => shown.indexOf(id) === -1, nm = (it, i) => esc(schemaFieldText(it.name) || schemaFieldText(it.title) || arabicDigits(i + 1));
+  let cols = [], rowsOf = [];
+  if (sid === "programs") {
+    const defs = [
+      ["registeredCount", "المسجلات", (it) => (schemaFieldText(it.registeredCount) ? fmtNum(Number(it.registeredCount)) : "")],
+      ["startCount", "بدأن", (it) => (schemaFieldText(it.startCount) ? fmtNum(Number(it.startCount)) : "")],
+      ["continuingCount", "مستمرات", (it) => (schemaFieldText(it.continuingCount) ? fmtNum(Number(it.continuingCount)) : "")],
+      ["attendanceRate", "نسبة الحضور", (it) => { const v = it.attendanceRate !== "" && it.attendanceRate != null ? it.attendanceRate : programAttendanceAuto(it); return v != null && v !== "" ? fmtNum(Number(v)) + "٪" : ""; }],
+      ["continuationRate", "نسبة الاستمرار", (it) => { const v = it.continuationRate !== "" && it.continuationRate != null ? it.continuationRate : programContinuationAuto(it); return v != null && v !== "" ? fmtNum(Number(v)) + "٪" : ""; }],
+      ["costDiff", "فرق التكلفة", (it) => { const cd = programCostDiff(it); return cd ? fmtNum(cd.diff) + (cd.pct != null ? " (" + fmtNum(cd.pct) + "٪)" : "") : ""; }],
+    ].filter((c) => on(c[0]));
+    const vals = items.map((it) => defs.map((c) => c[2](it)));
+    const keep = defs.map((c, j) => vals.some((r) => r[j] !== ""));
+    cols = defs.filter((c, j) => keep[j]).map((c) => c[1]);
+    rowsOf = items.map((it, i) => [nm(it, i)].concat(vals[i].filter((v, j) => keep[j]).map((v) => esc(v || "—"))));
+  } else {
+    const kinds = { work: "عمل/برنامج", goal: "هدف", indicator: "مؤشر", general: "تقييم عام" };
+    const vals = items.map((it) => { const st = toolLinkState(it); if (!st.kind) return ""; const names = st.kind === "general" ? [] : toolLinkItems(st.kind, it).filter((x) => st.ids.indexOf(x.id) !== -1).map((x) => x.name || x.title || x.label || "").filter(Boolean); return kinds[st.kind] + (names.length ? ": " + names.join("، ") : ""); });
+    if (!vals.some((v) => v)) return "";
+    cols = ["مرتبطة بـ"]; rowsOf = items.map((it, i) => [nm(it, i), esc(vals[i] || "—")]);
+  }
+  if (!cols.length) return "";
+  return `<div class="rv-nums" style="margin-top:8px;">${reportTable([sid === "programs" ? "العمل / البرنامج" : "الأداة"].concat(cols), rowsOf)}</div>`;
 }
 // قسم بحقول ثابتة (عنصر واحد)
 function rptSchemaFixedHtml(sid, d) {
