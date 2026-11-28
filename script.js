@@ -258,6 +258,7 @@ const SECTION_FIELD_SCHEMAS = {
     fields: [
       { id: "source", type: "select", label: "مصدر التوصية", required: true, options: RECOMMENDATION_SOURCES, placeholder: "اختاري مصدر التوصية" },
       { id: "level", type: "select", label: "مستوى التوصية", required: true, options: RECOMMENDATION_LEVELS, placeholder: "اختاري مستوى التوصية" },
+      { id: "routeTo", type: "select", label: "يُرفع إلى", options: ROUTE_TO_OPTIONS, placeholder: "اختاري الجهة التي يصلها هذا البند" },
       { id: "text", type: "textarea", label: "نص التوصية", required: true, placeholder: "نص التوصية بوضوح" },
       { id: "evidenceBasis", type: "textarea", label: "الدليل الذي بنيت عليه" },
       { id: "expectedResult", type: "textarea", label: "النتيجة المتوقعة" },
@@ -337,6 +338,7 @@ const SECTION_FIELD_SCHEMAS = {
       { id: "supportNeeded", type: "textarea", label: "الدعم أو القرار المطلوب" },
       { id: "proposedHandler", type: "expandableSelect", label: "الجهة المقترحة للمعالجة", baseOptions: CHALLENGE_HANDLERS_BASE, customKey: "customChallengeHandlers", otherLabel: "أخرى (إضافة جهة)", placeholder: "اختاري الجهة" },
       { id: "resolutionTime", type: "text", label: "المدة اللازمة للمعالجة", placeholder: "مثال: أسبوعان" },
+      { id: "routeTo", type: "select", label: "يُرفع إلى", options: ROUTE_TO_OPTIONS, placeholder: "اختاري الجهة التي يصلها هذا البند" },
     ],
   },
   improvement: {
@@ -720,9 +722,10 @@ const FIELD_HINTS = {
   "programs.highlightResult": "أهم ما تحقق من العمل، بجملة أو جملتين. مثال: رفع مستوى الإلقاء لدى ٤٦ معلمة."
 };
 function renderSchemaFieldHtml(f, arrKey, itemId, value, customOptionsList, item, subArrKey, subItemId) {
+  if (f && f.id === "routeTo" && !subArrKey) f = { ...f, options: routeUpOptions() };
   const h = renderSchemaFieldHtml0(f, arrKey, itemId, value, customOptionsList, item, subArrKey, subItemId);
   const tip = !subArrKey && f && FIELD_HINTS[arrKey + "." + f.id];
-  if (!subArrKey && item && Array.isArray(item.routeHist) && item.routeHist.length && h && (f.id === "routeTo" || (arrKey === "recommendations" && f.id === "level"))) return h + routeUnitBannerHtml(item, arrKey);
+  if (!subArrKey && item && Array.isArray(item.routeHist) && item.routeHist.length && h && f.id === "routeTo") return h + routeUnitBannerHtml(item, arrKey);
   if (!tip || !h || h.indexOf("fh-tip") !== -1) return h;
   const i = h.lastIndexOf("</div>");
   return i < 0 ? h : h.slice(0, i) + `<div class="hint fh-tip">${esc(tip)}</div>` + h.slice(i);
@@ -1832,7 +1835,9 @@ function apDecisionHtml(item) {
   const curated = ((report.shared || {}).curatedKeys) || [];
   const curList = cand ? [["أبرز الإنجازات", cand.achievements], ["نقاط القوة", cand.strengths], ["التوصيات", cand.recommendations], ["التحديات", cand.challenges]]
     .map(([t, items]) => [t, items.filter((it) => String(it.key).split(":")[1] === report.id)]).filter(([, items]) => items.length) : [];
+  const rvMine = rvListsAll().filter((l) => l.stageKey === stage.key), rvPend = rvPendingCount(stage.key, report);
   return `
+    ${rvMine.length ? `<div style="margin-bottom:10px;"><div style="font-size:12.5px;font-weight:800;margin-bottom:6px;">قائمة التحقق الخاصة بمرحلتك</div>${rvMine.map((l) => rvListHtml(l, report, true, unit.id)).join("")}${rvPend ? `<div class="hint" style="color:#a8691f;">تنبيه: ناقص ${rvPend} بند في قائمتك، ويمكنك الاعتماد مع ذلك.</div>` : ""}</div>` : ""}
     ${cand ? `<div style="background:${BLUE_BG};border-radius:12px;padding:10px 12px;margin-bottom:10px;">
       <div style="font-size:12.5px;font-weight:800;margin-bottom:6px;">اعتماد أبرز النتائج والتوصيات — علّمي الأهم (يطلع أولًا في الملخص والتقرير النهائي)</div>
       ${curList.length ? curList.map(([t, items]) => `<div style="font-size:11.5px;font-weight:700;color:${SUBTLE};margin:6px 0 4px;">${t}</div>${items.map((it) => { const on = curated.includes(it.key); return `<button type="button" data-action="ap-curate" data-unit="${esc(unit.id)}" data-report="${esc(report.id)}" data-key="${esc(it.key)}" style="display:flex;gap:8px;align-items:flex-start;width:100%;text-align:right;padding:7px 10px;margin-bottom:4px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;color:${INK};border:1px solid ${on ? GREEN : BORDER};background:${on ? GREEN_BG : "#fff"};">${on ? iconCheckCircle(16, GREEN) : iconCircle(16, SUBTLE)}<span>${esc(it.text || "—")}</span></button>`; }).join("")}`).join("") : `<div style="font-size:12px;color:${SUBTLE};">ما فيه إنجازات أو توصيات في هذا التقرير.</div>`}
@@ -3526,20 +3531,20 @@ const DASH_PAL = ["#6b2337", "#c9863a", "#5f8a6a", "#a05a72", "#7d8fa8", "#b89a5
 function routeStatusOf(sid, it) {
   if (!it || !Array.isArray(it.routeHist) || !it.routeHist.length) return null;
   const last = it.routeHist[it.routeHist.length - 1];
-  if (it.routeDone) return { txt: (ROUTE_DONE_LABEL[sid] || "تمت المعالجة") + " عند " + (ROUTE_LV_LABEL[last.lvl] || ""), col: "#2f8f6b" };
-  return { txt: "صعدت إلى " + (ROUTE_LV_LABEL[it.routeCur] || ""), col: "#c4577a" };
+  if (it.routeDone) return { txt: (ROUTE_DONE_LABEL[sid] || "تمت المعالجة") + " عند " + (routeLvLabel(last.lvl) || ""), col: "#2f8f6b" };
+  return { txt: "صعدت إلى " + (routeLvLabel(it.routeCur) || ""), col: "#c4577a" };
 }
 function routeBadgeHtml(sid, it) { const r = routeStatusOf(sid, it); return r ? `<span style="font-size:10.5px;font-weight:700;color:${r.col};background:${r.col}1a;border-radius:999px;padding:2px 9px;white-space:nowrap;">${esc(r.txt)}</span>` : ""; }
 function routeUnitBannerHtml(it, sid) {
   sid = sid || "challenges"; const ch = sid === "challenges";
   if (!it || !Array.isArray(it.routeHist) || !it.routeHist.length) return "";
   const last = it.routeHist[it.routeHist.length - 1], solved = !!it.routeDone, col = solved ? "#2f8f6b" : "#c4577a";
-  const head = solved ? (ch ? "تم حلها" : (ROUTE_DONE_LABEL[sid] || "تم اعتمادها")) + " عند " + (ROUTE_LV_LABEL[last.lvl] || "") : (it.routeCur === last.lvl ? (ch ? "لم تُحل — مدرجة ضمن الصعوبات غير المحلولة عند " : "قائمة عند ") + (ROUTE_LV_LABEL[last.lvl] || "") : (ch ? "لم تُحل بعد — صعدت إلى " : "صعدت إلى ") + (ROUTE_LV_LABEL[it.routeCur] || ""));
-  return `<div style="border:1.5px solid ${col};background:${col}12;border-radius:12px;padding:9px 12px;margin:10px 0;"><div style="font-weight:800;font-size:13px;color:${col};">${esc(head)}</div>${it.routeHist.map((h) => `<div style="font-size:12px;margin-top:4px;"><b>${esc(ROUTE_LV_LABEL[h.lvl] || "")}:</b> ${h.dec === "done" ? (ch ? "الحل: " : "القرار: ") : (ch ? "لم تتم: " : "رُفعت: ")}${esc(h.note || "—")}</div>`).join("")}</div>`;
+  const head = solved ? (ch ? "تم حلها" : (ROUTE_DONE_LABEL[sid] || "تم اعتمادها")) + " عند " + (routeLvLabel(last.lvl) || "") : (it.routeCur === last.lvl ? (ch ? "لم تُحل — مدرجة ضمن الصعوبات غير المحلولة عند " : "قائمة عند ") + (routeLvLabel(last.lvl) || "") : (ch ? "لم تُحل بعد — صعدت إلى " : "صعدت إلى ") + (routeLvLabel(it.routeCur) || ""));
+  return `<div style="border:1.5px solid ${col};background:${col}12;border-radius:12px;padding:9px 12px;margin:10px 0;"><div style="font-weight:800;font-size:13px;color:${col};">${esc(head)}</div>${it.routeHist.map((h) => `<div style="font-size:12px;margin-top:4px;"><b>${esc(routeLvLabel(h.lvl) || "")}:</b> ${h.dec === "done" ? (ch ? "الحل: " : "القرار: ") : (ch ? "لم تتم: " : "رُفعت: ")}${esc(h.note || "—")}</div>`).join("")}</div>`;
 }
 function routeHistHtml(it) {
   if (!it || !Array.isArray(it.routeHist) || !it.routeHist.length) return "";
-  return `<div class="ct-g"><div class="ct-gh">مسار المعالجة</div>${it.routeHist.map((h) => `<div class="ct-r"><span>${esc(ROUTE_LV_LABEL[h.lvl] || "")}</span><b>${h.dec === "done" ? "عولجت" : "لم تتم"}${h.note ? " — " + esc(h.note) : ""}</b></div>`).join("")}</div>`;
+  return `<div class="ct-g"><div class="ct-gh">مسار المعالجة</div>${it.routeHist.map((h) => `<div class="ct-r"><span>${esc(routeLvLabel(h.lvl) || "")}</span><b>${h.dec === "done" ? "عولجت" : "لم تتم"}${h.note ? " — " + esc(h.note) : ""}</b></div>`).join("")}</div>`;
 }
 const CH_LV = { "حرج": 0, "مرتفع": 1, "منخفض": 2 };
 function v6ColsHtml(items) { // رسم الأعمدة الجديد: أعمدة عمودية بألوان وردي/بيج/رمادي مع العدد
@@ -3665,7 +3670,7 @@ function dashFieldBlockHtml(kind, sid, units) {
   if (ROUTE_KIND_LEVEL[kind] && ROUTE_SECS.includes(sid)) {
     // «يصلها بس اللي لها»: الصعوبات والتوصيات تُوجَّه حسب النطاق/المستوى؛ وغيرها حسب «يُرفع إلى» إن حُدِّد
     const strict = sid === "challenges" || sid === "recommendations", lv = ROUTE_KIND_LEVEL[kind];
-    for (let i = rows.length - 1; i >= 0; i--) { const x = rows[i]; const set = strict || String(x.routeTo || "").trim() !== ""; if (set && routeLevelOf(sid, x) !== lv) rows.splice(i, 1); }
+    for (let i = rows.length - 1; i >= 0; i--) { const x = rows[i]; const set = strict || String(x.routeTo || "").trim() !== ""; if (set && !routeMine(routeLevelOf(sid, x), lv)) rows.splice(i, 1); }
   }
   if (!rows.length && sid !== "challenges") return "";
   if (sid === "challenges") {
@@ -3727,11 +3732,39 @@ function dashFieldBlockHtml(kind, sid, units) {
 }
 
 const ROUTE_SECS = ["challenges", "recommendations", "improvement", "initiatives", "impact", "strengths"];
-const ROUTE_KIND_LEVEL = { dept: "dept", role_asst: "asst", executive: "exec" };
+const ROUTE_KIND_LEVEL = { dept: "dept", role_asst: "asst", executive: "exec", level: "lvl" };
+function routeUnitCtx() { return (S.units || []).find((u) => u.id === S.currentUnitId) || null; }
+function routeChainLevels(unit) { // المستويات فوق الوحدة (لها حسابات) من الأقرب للأبعد
+  const out = []; if (!unit) return out;
+  let l = olActive().find((x) => x.linkKind === "unit" && x.linkId === unit.id), g = 0;
+  while (l && (l = olFind(l.parentId)) && g++ < 50) { if (olLevelHasAccount(l)) out.push(l); }
+  return out;
+}
+function routeUpOptions(unit) { const ch = routeChainLevels(unit || routeUnitCtx()); return ch.length ? ["الوحدة فقط", ...ch.map((l) => l.name)] : ROUTE_TO_OPTIONS; }
+function routeLvLabel(x) { x = String(x || ""); if (ROUTE_LV_LABEL[x]) return ROUTE_LV_LABEL[x]; if (x.indexOf("lvl:") === 0) { const l = olFind(x.slice(4)); return l ? l.name : ""; } return ""; }
+function routeTreeLevelOf(it) { const t = String((it && it.routeTo) || "").trim(); return t ? (olActive().find((l) => l.name === t && olLevelHasAccount(l)) || null) : null; }
+function myRouteLevelIds() {
+  const s = new Set(); if (S.levelScope && S.levelScope.levelId) s.add(S.levelScope.levelId);
+  if (S.isDepartmentUser && S.currentDepartmentId) olActive().forEach((l) => { if (l.linkKind === "dept" && l.linkId === S.currentDepartmentId) s.add(l.id); });
+  if (S.isExecutive || S.isAdmin) olActive().forEach((l) => { if (olLevelIsExec(l)) s.add(l.id); });
+  return s;
+}
+function routeMine(v, lv) { return v === lv || (typeof v === "string" && v.indexOf("lvl:") === 0 && myRouteLevelIds().has(v.slice(4))); }
+function routeNextAbove(curId) { // أول مستوى فوق هذا له حساب
+  let l = olFind(curId), g = 0; while (l && (l = olFind(l.parentId)) && g++ < 50) { if (olLevelHasAccount(l)) return l; } return null;
+}
+function routeNextLabel(sid, it, lv) {
+  const cur = routeLevelOf(sid, it);
+  if (String(cur).indexOf("lvl:") === 0) { const n = routeNextAbove(cur.slice(4)); return n ? n.name : routeLvLabel("exec"); }
+  return routeLvLabel(ROUTE_NEXT[lv]);
+}
 function routeLevelOf(sid, it) {
   if (!it || typeof it !== "object") return "unit";
   if (it.routeDone) return "done"; // عولج عند جهة: يبقى في تقرير الوحدة ولا يصعد
+  if (it.routeCurLevel) { const cl = olFind(it.routeCurLevel); if (cl) return olLevelIsExec(cl) ? "exec" : "lvl:" + cl.id; }
+  if (!it.routeCur) { const tl = routeTreeLevelOf(it); if (tl) return olLevelIsExec(tl) ? "exec" : "lvl:" + tl.id; }
   if (it.routeCur === "dept" || it.routeCur === "asst" || it.routeCur === "exec") return it.routeCur; // صعد من جهة لم تعالجه
+  if ((sid === "challenges" || sid === "recommendations") && it.routeTo) { const t0 = String(it.routeTo); if (t0 === "الوحدة فقط") return "unit"; if (/مساعد/.test(t0)) return "asst"; if (/إدارة التعليم النسائي|الإدارة العليا|قرار/.test(t0)) return "exec"; if (/القسم/.test(t0)) return "dept"; }
   if (sid === "challenges" && it.proposedHandler) { // الجهة المقترحة للمعالجة تغلب على النطاق
     const h = String(it.proposedHandler);
     if (/مساعد/.test(h)) return "asst";
@@ -3754,6 +3787,7 @@ function inboxScope() {
   if (S.isDepartmentUser && S.currentDepartmentId) return { kind: "dept", units: S.units.filter((u) => u.departmentId === S.currentDepartmentId && u.status === "active") };
   if (S.isExecutive) return { kind: dashRoleKind() === "role_asst" ? "role_asst" : "executive", units: S.units.filter(act) };
   if (S.isAdmin) return { kind: "executive", units: S.units.filter(act) };
+  if (S.levelScope && S.levelScope.unitIds) return { kind: "level", units: S.units.filter((u) => act(u) && S.levelScope.unitIds.has(u.id)) };
   return null;
 }
 function inboxItems(kind, units) {
@@ -3761,7 +3795,7 @@ function inboxItems(kind, units) {
   units.forEach((u) => ensureUnitReportsLoaded(u.id).forEach((r) => ROUTE_SECS.forEach((sid) => {
     const sc = SECTION_FIELD_SCHEMAS[sid]; if (!sc) return; const owner = DASH_FLD_OWNER[sid] || sid;
     const arr = r.sections && r.sections[owner] && r.sections[owner].data && r.sections[owner].data[sc.arrayKey];
-    if (Array.isArray(arr)) arr.forEach((it) => { if (it && it.id && routeLevelOf(sid, it) === lv) out.push({ u, r, sid, it }); });
+    if (Array.isArray(arr)) arr.forEach((it) => { if (it && it.id && routeMine(routeLevelOf(sid, it), lv)) out.push({ u, r, sid, it }); });
   })));
   return out;
 }
@@ -3771,15 +3805,15 @@ function renderItemsInbox() {
   if (!sc || !ROUTE_KIND_LEVEL[sc.kind]) return `<div class="page-wrap"><div class="page-inner">${topBarHtml({ title: "الواردات", subtitle: "", right })}<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">هذه الصفحة لحسابات القسم ومساعدة المدير وإدارة التعليم النسائي.</div></div></div>`;
   const lv = ROUTE_KIND_LEVEL[sc.kind], rows = inboxItems(sc.kind, sc.units);
   const card = (x) => {
-    const id = [x.u.id, x.r.id, x.sid, x.it.id].join("|"), hist = (x.it.routeHist || []).map((h) => `<div style="font-size:11.5px;color:${SUBTLE};">↳ ${esc(ROUTE_LV_LABEL[h.lvl] || h.lvl)}: لم تتم — ${esc(h.note || "")}</div>`).join("");
+    const id = [x.u.id, x.r.id, x.sid, x.it.id].join("|"), hist = (x.it.routeHist || []).map((h) => `<div style="font-size:11.5px;color:${SUBTLE};">↳ ${esc(routeLvLabel(h.lvl) || h.lvl)}: لم تتم — ${esc(h.note || "")}</div>`).join("");
     const det = [x.it.description, x.it.text, x.it.impact].filter(Boolean)[0];
     return `<div class="card" style="padding:14px 16px;margin-bottom:10px;">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span class="ct-pill ct-l1" style="background:#f3e8eb;color:#6b2139;">${esc(dashFieldSecLabel(x.sid))}</span><b style="font-size:14px;flex:1;">${esc(routeItemTitle(x.it))}</b>${x.it.severity ? `<span class="ct-pill ct-l${CH_LV[x.it.severity] ?? 2}">${esc(x.it.severity)}</span>` : ""}</div>
       <div style="font-size:12px;color:${SUBTLE};margin:3px 0;">${esc(x.u.name)}${det ? " · " + esc(String(det).slice(0, 160)) : ""}</div>${hist}
       <textarea id="rn-${esc(id)}" rows="2" placeholder="${x.sid === "challenges" ? "الحل الذي تم (إلزامي عند «تم حلها») أو سبب عدم الحل (إلزامي عند «لم تتم»)" : "ملاحظة (إلزامية عند «لم تتم»)"}" style="width:100%;margin-top:8px;border:1px solid #e6dde0;border-radius:10px;padding:8px;font:inherit;font-size:12.5px;"></textarea>
-      <div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="ct-more" data-action="route-decide" data-id="${esc(id)}" data-dec="done" style="background:#6b2139;color:#fff;">${esc(ROUTE_DONE_LABEL[x.sid] || "تمت المعالجة")}</button><button type="button" class="ct-more" data-action="route-decide" data-id="${esc(id)}" data-dec="esc">${lv === "exec" ? "لم تتم — تبقى قائمة" : "لم تتم — تصعيد إلى " + esc(ROUTE_LV_LABEL[ROUTE_NEXT[lv]])}</button></div></div>`;
+      <div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="ct-more" data-action="route-decide" data-id="${esc(id)}" data-dec="done" style="background:#6b2139;color:#fff;">${esc(ROUTE_DONE_LABEL[x.sid] || "تمت المعالجة")}</button><button type="button" class="ct-more" data-action="route-decide" data-id="${esc(id)}" data-dec="esc">${lv === "exec" ? "لم تتم — تبقى قائمة" : "لم تتم — تصعيد إلى " + esc(routeNextLabel(x.sid, x.it, lv))}</button></div></div>`;
   };
-  return `<div class="page-wrap"><div class="page-inner">${topBarHtml({ title: "الواردات", subtitle: ROUTE_LV_LABEL[lv] + " — " + rows.length + " بند بانتظار قرارك", right })}${rows.length ? rows.map(card).join("") : `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد بنود واردة بانتظارك.</div>`}</div></div>`;
+  return `<div class="page-wrap"><div class="page-inner">${topBarHtml({ title: "الواردات", subtitle: (routeLvLabel(lv) || ((S.levelScope && olFind(S.levelScope.levelId)) || {}).name || "") + " — " + rows.length + " بند بانتظار قرارك", right })}${rows.length ? rows.map(card).join("") : `<div class="card" style="text-align:center;color:${SUBTLE};padding:36px;">لا توجد بنود واردة بانتظارك.</div>`}</div></div>`;
 }
 function routeDecide(id, dec, note) {
   const [uid_, rid, sid, iid] = String(id).split("|"); const sc = SECTION_FIELD_SCHEMAS[sid], owner = DASH_FLD_OWNER[sid] || sid;
@@ -3788,8 +3822,11 @@ function routeDecide(id, dec, note) {
   const sec = (entry.sections || {})[owner]; const arr = sec && sec.data && sec.data[sc.arrayKey]; if (!Array.isArray(arr)) return false;
   const nextArr = arr.map((it) => {
     if (!it || it.id !== iid) return it;
-    const hist = (it.routeHist || []).concat([{ lvl: lv, dec, note: note || "", at: Date.now() }]);
-    return dec === "done" ? { ...it, routeHist: hist, routeDone: true, routeCur: lv } : { ...it, routeHist: hist, routeCur: ROUTE_NEXT[lv] };
+    const cur = routeLevelOf(sid, it), tree = String(cur).indexOf("lvl:") === 0, hl = tree ? cur : lv;
+    const hist = (it.routeHist || []).concat([{ lvl: hl, dec, note: note || "", at: Date.now() }]);
+    if (dec === "done") return { ...it, routeHist: hist, routeDone: true, routeCur: hl };
+    if (tree) { const nx = routeNextAbove(cur.slice(4)); return nx ? { ...it, routeHist: hist, routeCur: "lvl:" + nx.id, routeCurLevel: nx.id } : { ...it, routeHist: hist, routeCur: "exec", routeCurLevel: "" }; }
+    return { ...it, routeHist: hist, routeCur: ROUTE_NEXT[lv] || "exec", routeCurLevel: "" };
   });
   saveReportEntry(uid_, { ...entry, sections: { ...entry.sections, [owner]: { ...sec, data: { ...sec.data, [sc.arrayKey]: nextArr } } } });
   return true;
@@ -3800,7 +3837,7 @@ function dashRoutedHtml(kind, units) {
   units.forEach((u) => dashRepsOf(u.id).forEach((r) => ROUTE_SECS.forEach((sid) => {
     const sc = SECTION_FIELD_SCHEMAS[sid]; const owner = DASH_FLD_OWNER[sid] || sid;
     const d = r && r.sections && r.sections[owner] && r.sections[owner].data; const arr = d && d[sc.arrayKey];
-    if (Array.isArray(arr)) arr.forEach((it) => { if (it && routeLevelOf(sid, it) === lv) rows.push({ u, r, sid, it }); });
+    if (Array.isArray(arr)) arr.forEach((it) => { if (it && routeMine(routeLevelOf(sid, it), lv)) rows.push({ u, r, sid, it }); });
   })));
   if (!rows.length) return "";
   const ttl = (x) => String(x.it.name || x.it.title || x.it.text || x.it.impactType || "—").slice(0, 90);
@@ -8073,7 +8110,7 @@ function aggChapterBody(key, data, s) {
   if (key === "programs") return data.programsHtml();
   if (key === "achievements") return data.achievements.length ? reportTable(["الوحدة", "العمل", "الأثر"], data.achievements.map((a) => [esc(a.unitName), esc(a.name || "—"), esc(a.highlightResult)])) : emptyHint("لا توجد إنجازات بارزة مُدخلة بعد.");
   if (key === "strengths") return data.strengths.length ? reportTable(["الوحدة", "نقطة القوة", "المجال"], data.strengths.map((x) => [esc(x.unitName), esc(x.name || "—"), esc(x.area || "—")])) : emptyHint("لا توجد نقاط قوة مُدخلة بعد.");
-  if (key === "challenges") return data.challenges.length ? challMatrixHtml(data.challenges.map((c) => ({ name: c.name, area: c.area, severity: c.severity }))) + reportTable(["الوحدة", "الصعوبة", "المجال", "المستوى", "الوصف", "الأثر في الأداء", "الجهة المقترحة للمعالجة", "حالة المعالجة"], data.challenges.map((c) => { const sm = challengeSeverityMeta(c.severity), hs = Array.isArray(c.routeHist) ? c.routeHist : []; return [esc(c.unitName), esc(c.name || "—"), esc(c.area || "—"), c.severity ? badgeHtml(c.severity, sm.color, sm.bg) : "—", esc(c.description || "—"), esc(c.performanceImpact || "—"), esc(c.proposedHandler || "—"), hs.length ? badgeHtml("لم تُحل", "#c0392b", "#fbe9e6") + hs.map((h) => `<div style="font-size:10.5px;margin-top:3px;">${esc(ROUTE_LV_LABEL[h.lvl] || "")}: ${esc(h.note || "—")}</div>`).join("") : badgeHtml("بانتظار الإدارة", "#a8691f", "#fbf3e6")]; })) : emptyHint("لا توجد تحديات مُدخلة بعد.");
+  if (key === "challenges") return data.challenges.length ? challMatrixHtml(data.challenges.map((c) => ({ name: c.name, area: c.area, severity: c.severity }))) + reportTable(["الوحدة", "الصعوبة", "المجال", "المستوى", "الوصف", "الأثر في الأداء", "الجهة المقترحة للمعالجة", "حالة المعالجة"], data.challenges.map((c) => { const sm = challengeSeverityMeta(c.severity), hs = Array.isArray(c.routeHist) ? c.routeHist : []; return [esc(c.unitName), esc(c.name || "—"), esc(c.area || "—"), c.severity ? badgeHtml(c.severity, sm.color, sm.bg) : "—", esc(c.description || "—"), esc(c.performanceImpact || "—"), esc(c.proposedHandler || "—"), hs.length ? badgeHtml("لم تُحل", "#c0392b", "#fbe9e6") + hs.map((h) => `<div style="font-size:10.5px;margin-top:3px;">${esc(routeLvLabel(h.lvl) || "")}: ${esc(h.note || "—")}</div>`).join("") : badgeHtml("بانتظار الإدارة", "#a8691f", "#fbf3e6")]; })) : emptyHint("لا توجد تحديات مُدخلة بعد.");
   if (key === "recs") return data.recs.length ? reportTable(["الوحدة", "التوصية", "الأولوية"], data.recs.map((r) => { const pm = improvementPriorityMeta(r.priority); return [esc(r.unitName), esc(r.text || "—"), r.priority ? badgeHtml(r.priority, pm.color, pm.bg) : "—"]; })) : emptyHint("لا توجد توصيات مُدخلة بعد.");
   if (key === "initiatives") return data.initiatives.length ? reportTable(["الوحدة", "اسم المبادرة", "قابلية التعميم"], data.initiatives.map((it) => [esc(it.unitName), esc(it.name || "—"), esc(it.scalability || "—")])) : emptyHint("لا توجد مبادرات قابلة للتعميم مُدخلة بعد.");
   if (key === "nextTasks") return data.nextTasks.length ? reportTable(["الوحدة", "العمل الرئيسي القادم", "الموعد المتوقع"], data.nextTasks.map((t) => [esc(t.unitName), esc(t.name || "—"), esc(t.expectedDate || "—")])) : emptyHint("لم تُضف أولويات للفترة القادمة بعد.");
@@ -14481,7 +14518,7 @@ function challengesSectionHtml(d) {
       ${fieldWrap("نتيجة الإجراء", txt("challenges", item.id, "actionResult", item.actionResult))}
       ${fieldWrap("هل ما زالت قائمة؟", sel("challenges", item.id, "stillOngoing", item.stillOngoing, YES_NO_OPTIONS))}
       ${fieldWrap("الدعم أو القرار المطلوب", txt("challenges", item.id, "supportNeeded", item.supportNeeded))}
-      ${routeUnitBannerHtml(item)}${fieldWrap("الجهة المقترحة للمعالجة", expandableSelectHtml("proposedHandler", item.proposedHandler, CHALLENGE_HANDLERS_BASE, d.customChallengeHandlers || [], "اختاري الجهة", "أخرى (إضافة جهة)", "challenges", item.id))}
+      ${routeUnitBannerHtml(item)}${fieldWrap("يُرفع إلى", sel("challenges", item.id, "routeTo", item.routeTo, [...new Set([...routeUpOptions(), ...(item.routeTo ? [item.routeTo] : [])])], "اختاري الجهة التي يصلها البند"))}${fieldWrap("الجهة المقترحة للمعالجة", expandableSelectHtml("proposedHandler", item.proposedHandler, CHALLENGE_HANDLERS_BASE, d.customChallengeHandlers || [], "اختاري الجهة", "أخرى (إضافة جهة)", "challenges", item.id))}
       ${fieldWrap("المدة اللازمة للمعالجة", inp("challenges", item.id, "resolutionTime", item.resolutionTime, "مثال: أسبوعان"))}
     </div>`).join("");
   return `${pillBtn("إضافة صعوبة", { variant: "ghost", icon: iconPlus(15, ROSE), action: "add-item", data: { arr: "challenges" } })}<div style="margin:14px 0;">${rows}</div>${notesFieldHtml(d)}`;
@@ -14564,6 +14601,7 @@ function recommendationsSectionHtml(d) {
       <div class="repeat-item-head"><span class="repeat-item-title">التوصية ${i + 1}</span>${removeBtn("recommendations", item.id)}</div>
       ${fieldWrap("مصدر التوصية", true, sel("recommendations", item.id, "source", item.source, RECOMMENDATION_SOURCES, "اختاري مصدر التوصية"))}
       ${fieldWrap("مستوى التوصية", true, sel("recommendations", item.id, "level", item.level, RECOMMENDATION_LEVELS, "اختاري مستوى التوصية"))}
+      ${fieldWrap("يُرفع إلى", sel("recommendations", item.id, "routeTo", item.routeTo, [...new Set([...routeUpOptions(), ...(item.routeTo ? [item.routeTo] : [])])], "اختاري الجهة التي يصلها البند"))}
       <div class="subhead">بيانات التوصية</div>
       ${fieldWrap("نص التوصية", true, txt("recommendations", item.id, "text", item.text, "نص التوصية بوضوح"))}
       ${fieldWrap("الدليل الذي بنيت عليه", txt("recommendations", item.id, "evidenceBasis", item.evidenceBasis))}
@@ -14648,10 +14686,35 @@ function evidenceSectionHtml(d) {
 // بنود قائمة التحقق نفسها قابلة للإدارة الذاتية (إضافة/حذف/تعديل نص/ترتيب) من
 // لوحة "إدارة حقول الأقسام". "حالة الإرسال الحالية" تبقى بكود ثابت لأنها مُشتقة
 // من report.status (حالة النظام) وليست بيانات يُدخلها المستخدم داخل d.
+/* ===== قوائم التحقق لكل جهة في المسار: تعلّمها الجهة نفسها وتُسجَّل باسمها وتاريخها، والبقية تراها للاطلاع ===== */
+function rvListsAll() { return ((((S.siteSettings || {}).theme) || {}).reviewLists) || []; }
+function rvTicksOf(report) { return (((report.sections || {}).review || {}).data || {}).ticks || {}; }
+function rvWhoName() { return S.currentPersonName || (S.currentUser && S.currentUser.name) || "—"; }
+function rvStageOptions() {
+  const out = [{ key: "writer", name: "معدّات التقرير (أي كاتبة في الوحدة)" }];
+  (approvalPathsList() || []).forEach((p) => (p.stages || []).filter((st) => !st.disabled).forEach((st) => out.push({ key: AP_PREFIX + p.id + ":" + st.id, name: (st.name || st.treeName || "مرحلة") + (p.name ? " — " + p.name : "") })));
+  return out;
+}
+function rvPendingCount(stageKey, report) { let n = 0; rvListsAll().filter((l) => l.stageKey === stageKey).forEach((l) => { const t = rvTicksOf(report)[l.id] || {}; (l.items || []).forEach((_, i) => { if (!t[i]) n++; }); }); return n; }
+function rvListHtml(l, report, editable, unitId) {
+  const t = rvTicksOf(report)[l.id] || {};
+  return `<div style="background:#fff;border:1px solid #eadfe2;border-radius:12px;padding:9px 12px;margin-bottom:8px;"><div style="font-size:12.5px;font-weight:800;margin-bottom:6px;">${esc(l.label || "قائمة تحقق")}</div>${(l.items || []).map((it, i) => { const k = t[i]; return `<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:12.5px;">${editable ? `<button type="button" data-action="rvl-tick" data-unit="${esc(unitId)}" data-report="${esc(report.id)}" data-list="${esc(l.id)}" data-i="${i}" style="width:22px;height:22px;border-radius:6px;border:1.5px solid ${k ? "#2f8f6b" : "#c9bfc2"};background:${k ? "#2f8f6b" : "#fff"};color:#fff;font-weight:800;cursor:pointer;flex-shrink:0;">${k ? "✓" : ""}</button>` : `<span style="width:22px;height:22px;border-radius:6px;border:1.5px solid ${k ? "#2f8f6b" : "#c9bfc2"};background:${k ? "#2f8f6b" : "#fff"};color:#fff;font-weight:800;text-align:center;flex-shrink:0;">${k ? "✓" : ""}</span>`}<span style="flex:1;">${esc(it)}${k ? `<small style="display:block;color:${SUBTLE};font-size:11px;">${esc(k.by || "")} — ${esc(new Date(k.at).toLocaleDateString("ar-SA"))}</small>` : ""}</span></div>`; }).join("")}</div>`;
+}
+function rvAdminEditorHtml() {
+  if (!S.isAdmin) return "";
+  const lists = rvListsAll(), opts = rvStageOptions();
+  return `<details style="margin:10px 0;"><summary style="font-size:12.5px;font-weight:800;color:${ROSE};cursor:pointer;">إعداد قوائم التحقق للجهات (مديرة النظام)</summary>
+    ${lists.map((l) => `<div style="display:flex;gap:8px;align-items:center;font-size:12px;margin-top:6px;"><b style="flex:1;">${esc(l.label)} <small style="color:${SUBTLE};">(${(l.items || []).length} بند)</small></b><button type="button" class="pill-btn pill-ghost" data-action="rvl-del" data-id="${esc(l.id)}">حذف</button></div>`).join("")}
+    <div style="margin-top:8px;"><select id="rvl-stage" class="input" style="margin-bottom:6px;"><option value="">اختاري الجهة (مرحلة في المسار)</option>${opts.map((o) => `<option value="${esc(o.key)}">${esc(o.name)}</option>`).join("")}</select>
+    <input id="rvl-label" class="input" placeholder="اسم القائمة، مثال: مراجعة رئيسة الوحدة" style="margin-bottom:6px;" />
+    <textarea id="rvl-items" class="input" style="min-height:80px;margin-bottom:6px;" placeholder="بنود القائمة، كل بند في سطر"></textarea>
+    <button type="button" class="pill-btn pill-ghost" data-action="rvl-add">＋ إضافة القائمة</button></div></details>`;
+}
 function reviewSectionHtml(d, report) {
   const meta = reportStatusMeta(report.status);
   return `
     ${renderSchemaFixedHtml(SECTION_FIELD_SCHEMAS.review, d)}
+    ${rvListsAll().length ? `<div class="subhead">قوائم التحقق للجهات (قوائم المعدّات تعلّمها الكاتبات هنا، وقوائم الجهات الأخرى تعلّمها كل جهة من بطاقة الاعتماد)</div>${rvListsAll().map((l) => rvListHtml(l, report, l.stageKey === "writer" && !S.isDepartmentUser && !S.isExecutive, S.currentUnitId || "")).join("")}` : ""}${rvAdminEditorHtml()}
     <div class="subhead">حالة الإرسال الحالية</div>
     ${fieldWrap("الحالة", badgeHtml(meta.label, meta.color, meta.bg) + `<div class="hint">تُغيَّر الحالة من الأزرار أسفل الصفحة (حفظ كمسودة / إرسال للمراجعة / إعادة للتعديل / اعتماد نهائي).</div>`)}
 
@@ -14664,6 +14727,26 @@ function stNum(v) { if (v == null || v === "") return null; const s = String(v).
 function stInds(t) { return [t.n1, t.n2, t.n3].map((n, i) => ({ i, name: String(n || "").trim() })).filter((x, i) => x.name || (i === 0 && (t.rows || []).length)); }
 function stIndOptionsHtml() { return `<datalist id="st-dl">${pcIndNames().map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`; }
 function stAvgInd(t, x) { const m = t.totalMode; if (m === "متوسط") return true; if (m === "مجموع") return false; return /نسبة|معدل|متوسط|٪|%/.test(String((x && x.name) || "")); }
+// جلب «السابق» من آخر تقرير سابق للوحدة نفسها: الجدول بنفس العنوان (أو المؤشر الأول) والصفوف بنفس الاسم
+function stPrevFill(t) {
+  const cur = getCurrentReportEntry(); if (!cur) return { ok: false, msg: "لا يوجد تقرير حالي." };
+  const uid_ = S.currentUnitId; let list = []; try { list = ensureUnitReportsLoaded(uid_) || []; } catch (e) {}
+  const ordOf = (r) => { try { const o = Number(reportTermInfo(r).ord); return isFinite(o) && o > 0 ? o : null; } catch (e) { return null; } };
+  const norm = (x) => String(x || "").trim(), co = ordOf(cur);
+  const prevs = list.filter((r) => { if (!r || r.id === cur.id) return false; const o = ordOf(r); return co != null && o != null && o !== co ? o < co : (r.createdAt || 0) < (cur.createdAt || 0); }).sort((a, b) => { const x = ordOf(a), y = ordOf(b); return x != null && y != null && x !== y ? y - x : (b.createdAt || 0) - (a.createdAt || 0); });
+  for (const r of prevs) {
+    const pts = (((r.sections || {}).stats || {}).data || {}).statTables || [];
+    const pt = pts.find((x) => (norm(t.title) && norm(x.title) === norm(t.title)) || (norm(t.n1) && norm(x.n1) === norm(t.n1)));
+    if (!pt) continue;
+    let n = 0;
+    (t.rows || []).forEach((row) => { const pr = (pt.rows || []).find((x) => norm(x.name) === norm(row.name) && norm(x.group) === norm(row.group)) || (pt.rows || []).find((x) => norm(x.name) === norm(row.name)); if (!pr) return; ST_FIELDS.forEach(([p, c]) => { if (pr[c] !== "" && pr[c] != null) { row[p] = pr[c]; n++; } }); });
+    let lbl = ""; try { lbl = reportTermInfo(r).label; } catch (e) {}
+    if (!norm(t.prevLabel) && lbl) t.prevLabel = lbl;
+    if (!norm(t.showPrev)) t.showPrev = "نعم";
+    return { ok: n > 0, msg: n > 0 ? "جُلبت " + n + " قيمة من التقرير السابق." : "وُجد جدول سابق لكن لا تتطابق أسماء الصفوف." };
+  }
+  return { ok: false, msg: "لا يوجد جدول بنفس العنوان أو المؤشر في تقرير سابق." };
+}
 function statsSectionHtml(d) {
   const tabs = d.statTables || [];
   const hint = `<div class="hint" style="background:${GRAY_BG};border-radius:10px;padding:9px 12px;margin-bottom:14px;line-height:1.8">لكل جدول: اختاري المؤشر (أو اكتبيه)، وسمّي وحدة العد (مقر، معلمة، حلقة…)، ثم أضيفي الأسماء مع «السابق» و«الحالي». ممكن تلصقين الجدول من Excel أو Google Sheets. الجدول يعرض الحالي، والرسم يجمع السابق والحالي.</div>`;
@@ -14684,6 +14767,7 @@ function statsSectionHtml(d) {
       <div class="row-flex">${fieldWrap("الإجمالي أسفل الجدول", sel("statTables", t.id, "totalMode", t.totalMode, ["تلقائي", "مجموع", "متوسط", "بلا إجمالي"], "تلقائي"))}</div>
       <div class="hint" style="margin:-6px 0 12px">«تلقائي»: المؤشر الذي اسمه فيه «نسبة» أو «معدل» يُحسب له متوسط، وغيره مجموع.</div>
       <div class="row-flex">${fieldWrap("إظهار عمود «السابق» في الجدول", sel("statTables", t.id, "showPrev", t.showPrev, ["نعم", "لا"], "لا"))}${fieldWrap("إظهار عمود «التغير»", sel("statTables", t.id, "showChg", t.showChg, ["نعم", "لا"], "لا"))}</div>
+      <div style="margin:0 0 8px"><button type="button" class="pill-btn pill-ghost" data-action="st-prev" data-id="${esc(t.id)}">⇦ جلب «السابق» من التقرير السابق</button>${S.ui.stPrevMsg && S.ui.stPrevMsg.id === t.id ? `<span class="hint" style="margin-right:8px">${esc(S.ui.stPrevMsg.msg)}</span>` : ""}</div>
       <div class="subhead">الأسماء والقيم</div>
       <div class="st-rows">${rows.length ? rh : ""}${rowsHtml}</div>
       <div class="pc-add"><input class="input" id="st-nn-${esc(t.id)}" placeholder="اسم جديد، مثال: مقر ١" /><button type="button" class="pill-btn pill-ghost" data-action="st-row-add" data-id="${esc(t.id)}">＋ إضافة</button></div>
@@ -16233,8 +16317,24 @@ function rptProgramCardsHtml(report) {
   }).join("");
   return cards ? `<div class="rpt-subheading">بطاقات البرامج (المؤشرات والأدوات المرتبطة)</div><div class="rpt-pcs">${cards}</div>` : "";
 }
+// كل جهة في المسار ترى في الأقسام ٦–١١ بنودها فقط (المحدد لها أو المعاد منها)، ومديرة النظام والوحدة ترى الكل
+function routeViewerData(sid, d) {
+  try {
+    if (!d || !ROUTE_SECS.includes(sid) || S.isAdmin) return d;
+    const ext = S.isDepartmentUser || S.isExecutive || (S.levelScope && S.levelScope.levelId);
+    if (!ext) return d;
+    const sc = SECTION_FIELD_SCHEMAS[sid], key = sc && sc.arrayKey, arr = key && d[key]; if (!Array.isArray(arr)) return d;
+    const legacy = S.isDepartmentUser ? "dept" : (dashRoleKind() === "role_asst" ? "asst" : "exec");
+    const keep = arr.filter((it) => {
+      if (!it || typeof it !== "object") return true;
+      const tok = [routeLevelOf(sid, it), it.routeCur, ...((it.routeHist || []).map((h) => h.lvl))], tl = routeTreeLevelOf(it); if (tl) tok.push("lvl:" + tl.id);
+      return tok.some((t) => t && routeMine(t, legacy));
+    });
+    return { ...d, [key]: keep };
+  } catch (e) { return d; }
+}
 function sectionBodyOnly(section, saved, report) {
-  const d = (saved && saved.data) || {};
+  const d = routeViewerData(section.id, (saved && saved.data) || {});
   let body = "";
 
   if (section.id === "basic") {
@@ -19142,6 +19242,23 @@ function handleReportEditorAction(action, ds) {
     case "st-toggle": { S.ui.stOpen = S.ui.stOpen === ds.id ? null : ds.id; render(); return true; }
     case "st-row-add": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; const el = document.getElementById("st-nn-" + ds.id), v = String((el && el.value) || "").trim(); if (!v) return true; t.rows = t.rows || []; t.rows.push({ id: uid("sr"), name: v, group: "" }); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "st-row-del": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; t.rows = (t.rows || []).filter((r) => r.id !== ds.rid); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
+    case "rvl-add": {
+      const g = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
+      const stageKey = g("rvl-stage"), label = g("rvl-label"), items = g("rvl-items").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+      if (!stageKey || !items.length) { alert("اختاري الجهة واكتبي بندًا واحدًا على الأقل"); return true; }
+      saveSiteTheme((th) => ({ reviewLists: [...(th.reviewLists || []), { id: uid("rvl"), stageKey, label: label || "قائمة تحقق", items }] }));
+      render(); return true;
+    }
+    case "rvl-del": { saveSiteTheme((th) => ({ reviewLists: (th.reviewLists || []).filter((l) => l.id !== ds.id) })); render(); return true; }
+    case "rvl-tick": {
+      const rep0 = ensureUnitReportsLoaded(ds.unit).find((r) => r.id === ds.report); if (!rep0) return true;
+      const sec = (rep0.sections || {}).review || { data: {} }, ticks = { ...((sec.data || {}).ticks || {}) }, cur = { ...(ticks[ds.list] || {}) };
+      if (cur[ds.i]) delete cur[ds.i]; else cur[ds.i] = { by: rvWhoName(), at: Date.now() };
+      ticks[ds.list] = cur;
+      saveReportEntry(ds.unit, { ...rep0, sections: { ...rep0.sections, review: { ...sec, data: { ...(sec.data || {}), ticks } } } });
+      render(); return true;
+    }
+    case "st-prev": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; const r = stPrevFill(t); S.ui.stPrevMsg = { id: ds.id, msg: r.msg }; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "st-paste": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; stPaste(t); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "agg-pv": { S.ui.aggAsMgmt = !S.ui.aggAsMgmt; render(); return true; }
     case "pb-all": { S.ui.pbAll = !S.ui.pbAll; render(); return true; }
