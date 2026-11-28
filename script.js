@@ -7954,7 +7954,7 @@ function aggReportYear(s) {
 }
 let AGG_PV = false; // معاينة مديرة النظام: تشمل غير المعتمد
 function aggReportData(s) {
-  AGG_PV = !!(S.isAdmin && !(S.ui && S.ui.aggAsMgmt)); const pv = AGG_PV;
+  AGG_PV = !!((S.isAdmin && !(S.ui && S.ui.aggAsMgmt)) || (((S.siteSettings || {}).theme || {}).finalShowAll)); const pv = AGG_PV;
   let units = scopeUnitsFilter(S.units.filter((u) => u.status === "active"));
   const scoped = !!(s.scopeLevelId && olFind(s.scopeLevelId));
   if (scoped) { const ids = olScopeUnitIds(s.scopeLevelId); units = units.filter((u) => ids.has(u.id)); }
@@ -15738,7 +15738,13 @@ function rmChaptersLibHtml() {
       <div style="margin-top:10px;">${pillBtn(dirty ? "حفظ التغييرات" : "محفوظ ✓", { action: "rm-save", disabled: !dirty })}</div></details>`;
   } catch (e) { return ""; }
 }
-function rptLevelLibHtml() { try { const d = rptSettings("final"); return rptLevelTableHtml(d, aggChapterDefs(d), true); } catch (e) { return ""; } }
+function rptLevelLibHtml() {
+  try {
+    const d = rptSettings("final"), on = !!(((S.siteSettings || {}).theme || {}).finalShowAll);
+    const sw = `<div style="background:#fbf3e6;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><span style="flex:1;min-width:220px;font-size:12.5px;line-height:1.8;"><b>التقرير النهائي للإدارة:</b> ${on ? "مفتوح الآن، وتظهر فيه التقارير غير المعتمدة (مؤقتًا)." : "مغلق، ولا يظهر فيه إلا المعتمد والمكتمل."}</span><button type="button" class="rm-pill ${on ? "on" : ""}" data-action="agg-open">${on ? "إغلاقه (المعتمد فقط)" : "فتح غير المعتمد مؤقتًا"}</button></div>`;
+    return sw + rptLevelTableHtml(d, aggChapterDefs(d), true);
+  } catch (e) { return ""; }
+}
 function dashShapesPanelHtml() {
   const dm = (dashConfig() || {})._dashShapes || {};
   const shp = Object.entries(SHAPES_LIB).filter(([, v]) => !v.live && v.cat !== "photo" && v.cat !== "_auto");
@@ -19260,6 +19266,7 @@ function handleReportEditorAction(action, ds) {
     }
     case "st-prev": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; const r = stPrevFill(t); S.ui.stPrevMsg = { id: ds.id, msg: r.msg }; if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
     case "st-paste": { const t = findById(getItemList("statTables"), ds.id); if (!t) return true; stPaste(t); if (typeof autoSaveSchedule === "function") autoSaveSchedule(); render(); return true; }
+    case "agg-open": { saveSiteTheme((th) => ({ finalShowAll: !th.finalShowAll })); render(); return true; }
     case "agg-pv": { S.ui.aggAsMgmt = !S.ui.aggAsMgmt; render(); return true; }
     case "pb-all": { S.ui.pbAll = !S.ui.pbAll; render(); return true; }
     case "pb-sel": { S.ui.pbSel = ds.i; S.ui.pbCol = ds.c === "b" ? "b" : "a"; render(); return true; }
