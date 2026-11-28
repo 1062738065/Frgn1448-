@@ -4108,7 +4108,7 @@ function dashFieldHint(sid, oldHtml) {
   return `<div class="hint no-print" style="margin-bottom:6px;">الشكل المختار («${esc(SHAPES_LIB[v.slice(6)].name)}») لا يناسب بيانات هذا القسم (نصوص بلا أرقام كافية)، فظهر العرض المعتاد.</div>` + oldHtml;
 }
 function dashKpiDevHtml(kind, units) { const h = dashFieldBlockHtml(kind, "kpiDeviation", units); if (!h) return ""; const vm = dashViewOf(kind, "fld_kpiDeviation"); return vm ? tvOnly(tvApply(h, kind + ":fld_kpiDeviation", vm)) : h; }
-function dashFieldBlocksHtml0(kind, units) { return dashB(kind, "indBoard", dashKpiShapeHtml(units) || dashIndBoardHtml(kind, units)) + dashB(kind, "sharedInd", dashSharedIndHtml(kind, units)) + dashB(kind, "routed", dashRoutedHtml(kind, units)) + dashFieldSecIds().map((id) => (id === "kpiDeviation" || dashMergedSecs(kind).indexOf(id) !== -1 || dashHidden(kind, "fld_" + id)) ? "" : dashB(kind, "fld_" + id, (id === "analysisComparisons" ? dashAnalysisHeadHtml(units) : "") + (dashFieldShapeHtml(kind, id, units) || dashFieldHint(id, dashFieldBlockHtml(kind, id, units))))).join("") + dashMergesHtml(kind, units); }
+function dashFieldBlocksHtml0(kind, units) { return dashB(kind, "indBoard", dashKpiShapeHtml(units) || dashIndBoardHtml(kind, units)) + dashB(kind, "sharedInd", dashSharedIndHtml(kind, units)) + dashB(kind, "routed", dashRoutedHtml(kind, units)) + dashFieldSecIds().map((id) => (id === "kpiDeviation" || id === "tools" || id === "programs" || id === "analysisComparisons" || dashMergedSecs(kind).indexOf(id) !== -1 || dashHidden(kind, "fld_" + id)) ? "" : dashB(kind, "fld_" + id, (id === "analysisComparisons" ? dashAnalysisHeadHtml(units) : "") + (dashFieldShapeHtml(kind, id, units) || dashFieldHint(id, dashFieldBlockHtml(kind, id, units))))).join("") + dashMergesHtml(kind, units); }
 
 
 /* ===== الرسم المقترح لكل قسم: يُحسب من نوع حقوله (أرقام، تواريخ، حالات، نص) ===== */
@@ -5634,7 +5634,7 @@ function renderDashboardBody(activeUnits, opts) {
     </div>`)}
     ${dkind === "admin" ? "" : exExtraHtml(dkind, activeUnits)}
     ${dashPeriodBlocksHtml(dkind, series)}
-    ${dashB(dkind, "programs", `<div style="margin-top:18px;">${programsCardHtml(activeUnits)}</div>`)}
+    ${dashB(dkind, "programs", `<div style="margin-top:18px;">${programsCardHtml(activeUnits, dkind)}</div>`)}
     ${dashFieldBlocksHtml(dkind, activeUnits)}
     `}
     ${opts.extraBottom ? `<div style="order:9999;">${opts.extraBottom}</div>` : ""}
@@ -5775,7 +5775,7 @@ function renderUnitDashboard() {
     ${unit ? exExtraHtml("unit", [unit]) : ""}
     ${unit ? dashPeriodBlocksHtml("unit", series) : ""}
     ${unit ? dashFieldBlocksHtml("unit", [unit]) : ""}
-    ${unit ? dashB("unit", "yearCompare", yearCompareCardHtml([unit])) + dashB("unit", "programs", programsCardHtml([unit])) : ""}
+    ${unit ? dashB("unit", "yearCompare", yearCompareCardHtml([unit])) + dashB("unit", "programs", programsCardHtml([unit], "unit")) : ""}
   </div></div>`;
 }
 
@@ -10241,7 +10241,7 @@ function pbToolChart(t) {
   const mx = Math.max(...rows.map((r) => r.v)), mn = Math.min(...rows.map((r) => r.v));
   return `<div class="pbq-tc">${rows.map((r) => `<div class="pbq-tr"><span class="pbq-tl">${esc(String(r.l).length > 46 ? String(r.l).slice(0, 46) + "…" : r.l)}</span><span class="pbq-tb"><i style="width:${Math.max(2, Math.min(100, r.v))}%;background:${rows.length > 1 && r.v === mn ? "var(--danger)" : r.v === mx && rows.length > 1 ? "var(--green)" : "var(--rose)"}"></i></span><b>${r.v}٪</b></div>`).join("")}</div>`;
 }
-function progBoardHtml(units) {
+function progBoardHtml(units, kind) {
   const year = dashProgramsYear(units);
   const progs = collectProgramsForUnits(units, year).sort((a, b) => (b.report.createdAt || 0) - (a.report.createdAt || 0));
   const pctOf = (p) => { const cs = (Array.isArray(p.counts) ? p.counts : []).map((c) => progPct(c.done, c.target)).filter((v) => v != null); if (cs.length) return Math.round(cs.reduce((a, v) => a + Math.min(100, v), 0) / cs.length); const c = numOrNull(p.completionPercent); return c == null ? null : Math.round(c); };
@@ -10253,6 +10253,7 @@ function progBoardHtml(units) {
   });
   const seenR = [], genTools = [];
   progs.forEach((x) => { if (seenR.indexOf(x.report) !== -1) return; seenR.push(x.report); const pl = (((x.report.sections || {}).programs || {}).data || {}).programs || []; ((((x.report.sections || {}).tools || {}).data || {}).tools || []).forEach((t) => { if (t && (t.name || t.toolType || t.analysis) && !pl.some((q) => toolIsOf(t, q))) genTools.push({ t, x }); }); });
+  const allTools = []; seenR.forEach((r) => { ((((r.sections || {}).tools || {}).data || {}).tools || []).forEach((t) => { if (t && (t.name || t.toolType || t.analysis)) allTools.push(t); }); });
   const nWorks = items.length, doneN = items.filter((it) => it.x.p.executionStatus === "مكتمل").length;
   const avg = (a) => { const v = a.filter((n) => n != null); return v.length ? Math.round(v.reduce((q, n) => q + n, 0) / v.length) : null; };
   const avgA = avg(items.map((it) => it.pct)), avgM = avg(items.map((it) => it.mp).concat(genTools.map((g) => toolPct(g.t))));
@@ -10262,7 +10263,7 @@ function progBoardHtml(units) {
   const pcol = (S.ui && S.ui.pbCol) === "b" ? "b" : "a";
   const cap = (v, cls, none, it, c) => { const on = it && it === sel && pcol === c ? " pbq-on" : "", at = it ? ` data-action="pb-sel" data-i="${it.i}" data-c="${c}"` : ""; return v == null ? (none ? `<div class="pbq-t${on}"${at}><div class="pbq-f pbq-n" style="height:15%">لا أداة</div></div>` : `<div class="pbq-t${on}"${at}></div>`) : `<div class="pbq-t${on}"${at}><div class="pbq-f ${cls}" style="height:${Math.max(Math.min(v, 100), 11)}%">${v}٪</div></div>`; };
   const cnt = (p) => { const cs = (Array.isArray(p.counts) ? p.counts : []).filter((c) => numOrNull(c.target) != null || numOrNull(c.done) != null); if (!cs.length) return ""; return "منجز " + fmtNum(cs.reduce((a, c) => a + (numOrNull(c.done) || 0), 0)) + " من " + fmtNum(cs.reduce((a, c) => a + (numOrNull(c.target) || 0), 0)); };
-  const cols = items.map((it) => `<div class="pbq-g${it === sel ? " pbq-sel" : ""}"><div class="pbq-pair">${cap(it.pct, "pbq-a", false, it, "a")}${cap(it.mp, "pbq-b", !it.tools.length, it, "b")}</div><div class="pbq-nm"><b>${esc(it.nm || "—")}</b>${cnt(it.x.p) ? `<span>${esc(cnt(it.x.p))}</span>` : ""}</div><i class="pbq-ar"></i></div>`).join("");
+  const cols = items.map((it) => `<div class="pbq-g${it === sel ? " pbq-sel" : ""}"><div class="pbq-pair">${cap(it.pct, "pbq-a", false, it, "a")}${cap(it.mp, "pbq-b", !it.tools.length, it, "b")}</div><div class="pbq-nm"><b>${esc(it.nm || "—")}</b>${(it.x.p.workType || it.x.p.executionStatus) ? `<span class="pbq-ty2">${esc([it.x.p.workType, it.x.p.executionStatus].filter(Boolean).join(" · "))}</span>` : ""}${cnt(it.x.p) ? `<span>${esc(cnt(it.x.p))}</span>` : ""}</div><i class="pbq-ar"></i></div>`).join("");
   const ck = (h) => `<div class="pbq-ck"><i>✓</i><div>${h}</div></div>`;
   let box = "";
   if (sel) {
@@ -10291,15 +10292,23 @@ function progBoardHtml(units) {
         const ch = pbToolChart(t); if (ch) rows.push(`<div style="grid-column:1/-1">${ch}</div>`);
       });
     }
-    box = `<div class="pbq-box"><div class="pbq-bh"><b data-action="view-report-pdf" data-unit-id="${esc(sel.x.unit.id)}" data-report-id="${esc(sel.x.report.id)}" style="cursor:pointer">${esc(sel.nm || "—")}</b><span class="pbq-ty">${pcol === "a" ? "حقول إنجاز العمل" : "حقول نتيجة القياس"}</span>${p.executionStatus ? badgeHtml(p.executionStatus, sc[0], sc[1]) : ""}${units.length > 1 ? `<span style="color:${SUBTLE};font-size:11px">${esc(sel.x.unit.name)}</span>` : ""}</div><div class="pbq-bg">${rows.join("")}</div><div class="pbq-more" data-action="pb-all">${S.ui && S.ui.pbAll ? "عرض الحقول الإلزامية فقط ▴" : "عرض باقي الحقول ▾"}</div></div>`;
+    box = `<div class="pbq-box"><div class="pbq-bh"><b data-action="view-report-pdf" data-unit-id="${esc(sel.x.unit.id)}" data-report-id="${esc(sel.x.report.id)}" style="cursor:pointer">${esc(sel.nm || "—")}</b><span class="pbq-ty">${pcol === "a" ? "حقول إنجاز العمل" : "حقول نتيجة القياس"}</span>${p.executionStatus ? badgeHtml(p.executionStatus, sc[0], sc[1]) : ""}${units.length > 1 ? `<span style="color:${SUBTLE};font-size:11px">${esc(sel.x.unit.name)}</span>` : ""}</div><div class="pbq-bg">${rows.join("")}</div>${(() => { let an = null; try { an = (((sel.x.report.sections || {}).analysis || {}).data) || null; } catch (e) {} if (!an || !(an.positiveResult || an.improvementResult || an.summary)) return ""; const l = (c, t, v) => v ? `<div class="pbq-an1"><b style="color:${c}">${t}:</b> ${esc(String(v).slice(0, 220))}</div>` : ""; return `<div class="pbq-an"><div class="pbq-ant">تحليل النتائج</div>${l(GREEN, "أبرز نتيجة إيجابية", an.positiveResult)}${l(DANGER, "تحتاج تحسين", an.improvementResult)}${l(SUBTLE, "الخلاصة", an.summary)}</div>`; })()}<div class="pbq-more" data-action="pb-all">${S.ui && S.ui.pbAll ? "عرض الحقول الإلزامية فقط ▴" : "عرض باقي الحقول ▾"}</div></div>`;
   }
-    const tl = (v, l) => `<div class="pbq-tile"><b>${v}</b><span>${l}</span></div>`;
-  const sumH = `<div class="pbq-sum">${tl(nWorks, "عمل وبرنامج")}${tl(doneN, "مكتمل")}${tl(avgA == null ? "—" : avgA + "٪", "متوسط الإنجاز")}${tl(avgM == null ? "—" : avgM + "٪", "متوسط القياس")}${tl(fmtNum(benef), "المستفيدات")}</div>`;
+  const tl = (v, l) => `<div class="pbq-tile"><b>${v}</b><span>${l}</span></div>`;
+  const attN = progs.reduce((q, x) => q + (numOrNull(x.p.attendeesCount) || 0), 0);
+  const smpN = allTools.reduce((q, t) => q + (numOrNull(t.sampleSize) || 0), 0), rspN = allTools.reduce((q, t) => q + (numOrNull(t.respondentsCount) || 0), 0);
+  const sumH = `<div class="pbq-sum">${tl(nWorks, "عمل وبرنامج")}${tl(doneN, "مكتمل")}${tl(avgA == null ? "—" : avgA + "٪", "نسبة الإنجاز")}${tl(avgM == null ? "—" : avgM + "٪", "نسبة القياس")}${tl(fmtNum(benef), "المستفيدات")}${attN ? tl(fmtNum(attN), "الحاضرات") : ""}${allTools.length ? tl(allTools.length, "أداة قياس") : ""}${smpN ? tl(fmtNum(smpN), "حجم العينة") : ""}${rspN ? tl(fmtNum(rspN), "المستجيبات") : ""}${smpN && rspN ? tl(Math.round((rspN / smpN) * 100) + "٪", "نسبة الاستجابة") : ""}</div>`;
+  const dsBars = (title, arr) => { const m = {}; arr.forEach((v) => { const k = String(v || "").trim() || "غير محدد"; m[k] = (m[k] || 0) + 1; }); const ks = Object.keys(m).sort((p, q) => m[q] - m[p]); if (!ks.length) return ""; const mx = Math.max(...ks.map((k) => m[k])); return `<div class="pbq-ds"><b>${esc(title)}</b>${ks.map((k) => `<div class="pbq-dr"><span>${esc(k)}</span><i><em style="width:${Math.max(4, Math.round((m[k] / mx) * 100))}%"></em></i><b>${m[k]}</b></div>`).join("")}</div>`; };
+  const dsH = items.length ? `<div class="pbq-dsw"><div class="pbq-dst">توزيعات وجودة</div><div class="pbq-dsg">${dsBars("نوع العمل", progs.map((x) => x.p.workType))}${dsBars("حالة التنفيذ", progs.map((x) => x.p.executionStatus))}${dsBars("حضوري / عن بُعد", progs.map((x) => x.p.deliveryMode).filter(Boolean))}${dsBars("جودة نتائج الأدوات", allTools.map((t) => t.resultQuality).filter(Boolean))}</div></div>` : "";
+  let anH = "", cmH = "";
+  try { anH = items.length ? "" : dashAnalysisHeadHtml(units); } catch (e) {}
+  try { const kk = kind || "admin"; cmH = dashFieldShapeHtml(kk, "analysisComparisons", units) || dashFieldBlockHtml(kk, "analysisComparisons", units) || ""; } catch (e) {}
+  const anW = (anH || cmH) ? `<div class="pbq-dsw pbq-flat">${anH}${cmH ? `<div class="pbq-dst" style="margin-top:10px">مقارنات بالتنفيذات السابقة</div>${cmH}` : ""}</div>` : "";
   const lg = `<div class="pbq-lg"><span><i class="pbq-a"></i>إنجاز العمل</span><span><i class="pbq-b"></i>نتيجة القياس</span><span class="pbq-hint">اضغطي على عمود «إنجاز العمل» لتظهر حقوله، أو «نتيجة القياس» لتظهر حقولها</span></div>`;
-  const body = items.length ? `${sumH}${lg}<div class="pbq-sc"><div class="pbq-row">${cols}</div></div>${box}` : emptyHint(year ? `لا توجد أعمال مُدخلة لعام ${hijriYearLabel(year)}.` : "لا توجد أعمال مُدخلة بعد.");
+  const body = items.length ? `${sumH}${lg}<div class="pbq-sc"><div class="pbq-row">${cols}</div></div>${box}${dsH}${anW}` : emptyHint(year ? `لا توجد أعمال مُدخلة لعام ${hijriYearLabel(year)}.` : "لا توجد أعمال مُدخلة بعد.");
   return `<div class="card" style="margin-bottom:18px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;"><div class="prs-title" style="font-size:14px;font-weight:800;">الأعمال والبرامج وقياسها وتحليلها <span style="font-size:12px;color:${SUBTLE};font-weight:700">(${items.length})</span></div>${dashYearSelectHtml(units)}</div>${body}</div>`;
 }
-function programsCardHtml(units) { return progBoardHtml(units); }
+function programsCardHtml(units, kind) { return progBoardHtml(units, kind); }
 function programsCardHtml0(units) {
   const year = dashProgramsYear(units);
   const progs = collectProgramsForUnits(units, year).sort((a, b) => (b.report.createdAt || 0) - (a.report.createdAt || 0));
@@ -10573,7 +10582,7 @@ function renderExecutiveDashboard(scopeUnits, scopeDepartments, opts) {
       </div>
       ${progressBarHtml(completionPct, ROSE)}
     </div>`)}
-    ${dashB(xk, "programs", programsCardHtml(units))}
+    ${dashB(xk, "programs", programsCardHtml(units, xk))}
     ${dashFieldBlocksHtml(xk, units)}
     ${dashB(xk, "yearCompare", yearCompareCardHtml(units))}
     ${dashExGrid(xk, `<div class="card"><div class="prs-title" style="font-size:13.5px;font-weight:800;margin-bottom:12px;">ملخص أداء الأقسام</div>
